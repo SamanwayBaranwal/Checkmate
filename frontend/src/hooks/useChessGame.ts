@@ -1,0 +1,230 @@
+'use client';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { getSocket } from '@/lib/socket';
+
+export interface ClockState {
+  white: number;
+  black: number;
+}
+
+export interface ChatMessage {
+  userId: string;
+  sender: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface GameState {
+  gameId: string;
+  fen: string;
+  turn: 'white' | 'black';
+  color: 'white' | 'black';
+  clocks: ClockState;
+  opponent: { username: string; elo: number };
+  betAmount: number;
+  status: 'playing' | 'over' | 'spectating';
+  result?: string;
+  winner?: string | null;
+  eloChange?: number;
+  newBalance?: number;
+  drawOffered?: boolean;
+  spectatorCount: number;
+  moves: string[];
+  chatMessages: ChatMessage[];
+}
+
+export function useChessGame(gameId: string, token?: string) {
+  const [state, setState] = useState<GameState | null>(null);
+  const [error, setError] = useState('');
+  const [rematchState, setRematchState] = useState<'idle' | 'offered' | 'incoming'>('idle');
+  const [rematchGameId, setRematchGameId] = useState<string | null>(null);
+  const tickRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Live clock tick
+  useEffect(() => {
+    if (!state || state.status !== 'playing') return;
+
+    tickRef.current = setInterval(() => {
+      setState((prev) => {
+        if (!prev || prev.status !== 'playing') return prev;
+        const turn = prev.turn;
+        const newClocks = { ...prev.clocks, [turn]: Math.max(0, prev.clocks[turn] - 100) };
+        return { ...prev, clocks: newClocks };
+      });
+    }, 100);
+
+    return () => { if (tickRef.current) clearInterval(tickRef.current); };
+  }, [state?.status, state?.turn]);
+
+  useEffect(() => {
+    const socket = getSocket(token);
+
+    if (token) {
+      socket.emit('rejoin_game', { gameId });
+    } else {
+      socket.emit('spectate', { gameId });
+    }
+
+    socket.on('game_state', (data: any) => {
+      if (data.gameId !== gameId) return;
+      setState({
+        gameId,
+        fen: data.fen,
+        turn: data.turn,
+        color: data.color,
+        clocks: data.clocks,
+        opponent: data.opponent,
+        betAmount: data.betAmount,
+        status: 'playing',
+        spectatorCount: 0,
+        drawOffered: false,
+        moves: data.moves || [],
+        chatMessages: [],
+      });
+    });
+
+    socket.on('match_found', (data: any) => {
+      if (data.gameId !== gameId) return;
+      setState({
+        gameId,
+        fen: data.fen,
+        turn: 'white',
+        color: data.color,
+        clocks: data.clocks,
+        opponent: data.opponent,
+        betAmount: data.betAmount,
+        status: 'playing',
+        spectatorCount: 0,
+        drawOffered: false,
+        moves: [],
+        chatMessages: [],
+      });
+    });
+
+    socket.on('spectate_joined', (data: any) => {
+      if (data.gameId !== gameId) return;
+      setState((prev) => ({
+        ...(prev ?? {}),
+        gameId,
+        fen: data.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        turn: data.turn || 'white',
+        color: 'white',
+        clocks: data.clocks || { white: 300000, black: 300000 },
+        opponent: { username: 'Spectating', elo: 0 },
+        betAmount: 0,
+        status: 'spectating',
+        spectatorCount: 0,
+        drawOffered: false,
+        moves: [],
+        chatMessages: [],
+      } as GameState));
+    });
+
+    socket.on('move_made', (data: any) => {
+      setState((prev) => {
+        if (!prev || prev.gameId !== gameId) return prev;
+        return {
+          ...prev,
+          fen: data.fen,
+          turn: data.turn,
+          clocks: data.clocks,
+          moves: data.san ? [...prev.moves, data.san] : prev.moves,
+        };
+      });
+    });
+
+    socket.on('game_over', (data: any) => {
+      if (tickRef.current) clearInterval(tickRef.current);
+      setState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: 'over',
+          result: data.result,
+          winner: data.winner,
+          eloChange: data.eloChange,
+          newBalance: data.newBalance,
+        };
+      });
+    });
+
+    socket.on('draw_offered', () => {
+      setState((prev) => prev ? { ...prev, drawOffered: true } : prev);
+    });
+
+    socket.on('spectator_count', ({ count }: { count: number }) => {
+      setState((prev) => prev ? { ...prev, spectatorCount: count } : prev);
+    });
+
+    socket.on('move_error', ({ reason }: { reason: string }) => {
+      setError(reason);
+      setTimeout(() => setError(''), 3000);
+    });
+
+    socket.on('rematch_offered', () => {
+      setRematchState('incoming');
+    });
+
+    socket.on('rematch_ready', (data: any) => {
+      setRematchGameId(data.gameId);
+    });
+
+    socket.on('chat_message', (msg: ChatMessage) => {
+      setState((prev) => prev ? { ...prev, chatMessages: [...prev.chatMessages, msg] } : prev);
+    });
+
+    return () => {
+      socket.off('game_state');
+      socket.off('match_found');
+      socket.off('spectate_joined');
+      socket.off('move_made');
+      socket.off('game_over');
+      socket.off('draw_offered');
+      socket.off('spectator_count');
+      socket.off('move_error');
+      socket.off('rematch_offered');
+      socket.off('rematch_ready');
+      socket.off('chat_message');
+    };
+  }, [gameId, token]);
+
+  const makeMove = useCallback((from: string, to: string, promotion?: string) => {
+    const socket = getSocket(token);
+    socket.emit('move', { gameId, from, to, promotion });
+  }, [gameId, token]);
+
+  const resign = useCallback(() => {
+    const socket = getSocket(token);
+    socket.emit('resign', { gameId });
+  }, [gameId, token]);
+
+  const offerDraw = useCallback(() => {
+    const socket = getSocket(token);
+    socket.emit('offer_draw', { gameId });
+  }, [gameId, token]);
+
+  const acceptDraw = useCallback(() => {
+    const socket = getSocket(token);
+    socket.emit('accept_draw', { gameId });
+  }, [gameId, token]);
+
+  const offerRematch = useCallback(() => {
+    const socket = getSocket(token);
+    socket.emit('offer_rematch', { gameId });
+    setRematchState('offered');
+  }, [gameId, token]);
+
+  const acceptRematch = useCallback(() => {
+    const socket = getSocket(token);
+    socket.emit('accept_rematch', { gameId });
+  }, [gameId, token]);
+
+  const sendChat = useCallback((text: string) => {
+    if (!text.trim()) return;
+    const socket = getSocket(token);
+    socket.emit('chat_message', { gameId, text });
+  }, [gameId, token]);
+
+  return { state, error, makeMove, resign, offerDraw, acceptDraw, offerRematch, acceptRematch, rematchState, rematchGameId, sendChat };
+}

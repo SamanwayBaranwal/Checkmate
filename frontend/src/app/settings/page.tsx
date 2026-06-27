@@ -1,0 +1,182 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+
+const BOARD_THEMES = [
+  { name: 'Classic', light: '#f0d9b5', dark: '#b58863' },
+  { name: 'Ocean', light: '#dee3e6', dark: '#8ca2ad' },
+  { name: 'Forest', light: '#ffffdd', dark: '#86a666' },
+  { name: 'Night', light: '#e8e9b7', dark: '#4a7fa5' },
+  { name: 'Rose', light: '#f9d9d9', dark: '#c07878' },
+];
+
+function Toggle({ value, onChange, label, desc }: { value: boolean; onChange: (v: boolean) => void; label: string; desc: string }) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+      <div>
+        <p className="font-semibold text-sm">{label}</p>
+        <p className="text-xs text-white/40 mt-0.5">{desc}</p>
+      </div>
+      <button
+        onClick={() => onChange(!value)}
+        className={`relative w-12 h-6 rounded-full transition-colors ${value ? 'bg-[#4caf50]' : 'bg-white/20'}`}
+      >
+        <span
+          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-0.5'}`}
+        />
+      </button>
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const { authenticated, ready } = usePrivy();
+  const router = useRouter();
+  const [boardTheme, setBoardTheme] = useState(0);
+  const [autoQueen, setAutoQueen] = useState(true);
+  const [showEarningsPublicly, setShowEarningsPublicly] = useState(true);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const [currentUsername, setCurrentUsername] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [usernameError, setUsernameError] = useState('');
+
+  useEffect(() => {
+    if (ready && !authenticated) { router.push('/'); return; }
+    if (!authenticated) return;
+
+    // Load from localStorage first (instant)
+    const storedTheme = localStorage.getItem('checkmate_board_theme');
+    if (storedTheme !== null) setBoardTheme(parseInt(storedTheme, 10));
+
+    // Then load from backend (authoritative)
+    api.users.me().then((u) => {
+      const s = u.settings || {};
+      if (typeof s.boardTheme === 'number') setBoardTheme(s.boardTheme);
+      if (typeof s.autoQueen === 'boolean') setAutoQueen(s.autoQueen);
+      if (typeof s.showEarningsPublicly === 'boolean') setShowEarningsPublicly(s.showEarningsPublicly);
+      if (u.username) { setCurrentUsername(u.username); setUsernameInput(u.username); }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [authenticated, ready, router]);
+
+  const handleUsernameChange = async () => {
+    const trimmed = usernameInput.trim();
+    if (!trimmed || trimmed === currentUsername) return;
+    setUsernameStatus('saving');
+    setUsernameError('');
+    try {
+      const result = await api.users.setUsername(trimmed);
+      setCurrentUsername(result.username);
+      setUsernameInput(result.username);
+      setUsernameStatus('saved');
+      setTimeout(() => setUsernameStatus('idle'), 2500);
+    } catch (err: any) {
+      let msg = 'Username already taken or invalid';
+      try { const parsed = JSON.parse(err?.message || ''); if (parsed.error) msg = parsed.error; } catch {}
+      setUsernameError(msg);
+      setUsernameStatus('error');
+    }
+  };
+
+  const handleSave = async () => {
+    localStorage.setItem('checkmate_board_theme', String(boardTheme));
+    localStorage.setItem('checkmate_auto_queen', String(autoQueen));
+    try {
+      await api.users.saveSettings({ boardTheme, autoQueen, showEarningsPublicly });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {}
+  };
+
+  if (loading) return <div className="text-center py-20 text-white/40">Loading...</div>;
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <h1 className="text-3xl font-bold">Settings</h1>
+
+      {/* Username */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-4">Username</h2>
+        <p className="text-sm text-white/50 mb-3">
+          3–20 characters, letters/numbers/underscores only. Your username is shown on the leaderboard and profile.
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={usernameInput}
+            onChange={(e) => { setUsernameInput(e.target.value); setUsernameStatus('idle'); setUsernameError(''); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleUsernameChange(); }}
+            placeholder="Enter username..."
+            maxLength={20}
+            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#4caf50]"
+          />
+          <button
+            onClick={handleUsernameChange}
+            disabled={usernameStatus === 'saving' || !usernameInput.trim() || usernameInput.trim() === currentUsername}
+            className="btn-primary text-sm px-4 disabled:opacity-40"
+          >
+            {usernameStatus === 'saving' ? '...' : usernameStatus === 'saved' ? '✓ Saved' : 'Save'}
+          </button>
+        </div>
+        {usernameStatus === 'error' && <p className="text-red-400 text-xs mt-2">{usernameError}</p>}
+        {usernameStatus === 'saved' && <p className="text-[#4caf50] text-xs mt-2">Username updated!</p>}
+      </div>
+
+      {/* Board theme */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-4">Board Theme</h2>
+        <div className="grid grid-cols-5 gap-3">
+          {BOARD_THEMES.map((t, i) => (
+            <button
+              key={t.name}
+              onClick={() => setBoardTheme(i)}
+              title={t.name}
+              className={`flex flex-col items-center gap-2 p-2 rounded-lg border-2 transition ${
+                i === boardTheme ? 'border-[#4caf50]' : 'border-transparent hover:border-white/20'
+              }`}
+            >
+              <div
+                className="w-12 h-12 rounded-md overflow-hidden"
+                style={{ background: `linear-gradient(135deg, ${t.light} 50%, ${t.dark} 50%)` }}
+              />
+              <span className="text-xs text-white/60">{t.name}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 p-3 rounded-lg text-xs text-white/40 bg-black/20">
+          Preview: selected theme will be used in all your games
+        </div>
+      </div>
+
+      {/* Game preferences */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-2">Game Preferences</h2>
+        <Toggle
+          value={autoQueen}
+          onChange={setAutoQueen}
+          label="Auto-promote to Queen"
+          desc="Automatically promotes pawns to queen without showing a dialog"
+        />
+        <Toggle
+          value={showEarningsPublicly}
+          onChange={setShowEarningsPublicly}
+          label="Show earnings on public profile"
+          desc="Other players can see your total winnings on your profile page"
+        />
+      </div>
+
+      {/* Save button */}
+      <button
+        onClick={handleSave}
+        className="btn-primary w-full"
+      >
+        {saved ? '✓ Saved!' : 'Save Settings'}
+      </button>
+    </div>
+  );
+}
