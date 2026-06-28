@@ -129,7 +129,9 @@ export default function LeaderboardPage() {
                         {tab === 'referrals' ? (player.referred_count ?? 0) : player.games_played}
                       </td>
                       <td className="px-4 py-3 text-right text-[#4caf50] hidden sm:table-cell">
-                        {tab === 'referrals' ? `${player.referred_count ?? 0} users` : winRate(player.games_won, player.games_played)}
+                        {tab === 'referrals' ? (
+                          <span className="text-white/40 text-xs">{player.elo} ELO</span>
+                        ) : winRate(player.games_won, player.games_played)}
                       </td>
                     </tr>
                   );

@@ -62,6 +62,11 @@ router.post('/verify', async (req: Request, res: Response) => {
 
     const user = await db('users').where({ privy_user_id: privyUserId }).first();
 
+    if (user?.banned_at) {
+      res.status(403).json({ error: `Account suspended: ${user.ban_reason ?? 'fair play violation'}` });
+      return;
+    }
+
     const token = jwt.sign(
       { userId: user.id, wallet: user.wallet },
       process.env.JWT_SECRET!,

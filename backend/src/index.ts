@@ -17,6 +17,7 @@ import notificationsRouter from './routes/notifications';
 import missionsRouter from './routes/missions';
 import reportsRouter from './routes/reports';
 import puzzlesRouter from './routes/puzzles';
+import adminRouter from './routes/admin';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
@@ -55,6 +56,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/missions', missionsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/puzzles', puzzlesRouter);
+app.use('/api/admin', adminRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -243,6 +245,9 @@ db.raw(`
 `).catch(() => {});
 db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
 db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus'))`).catch(() => {});
+db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ`).catch(() => {});
+db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
+db.raw(`ALTER TABLE reports ADD COLUMN IF NOT EXISTS admin_notes TEXT`).catch(() => {});
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {
