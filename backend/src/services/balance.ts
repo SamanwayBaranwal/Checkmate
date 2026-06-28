@@ -1,5 +1,7 @@
 import { db } from '../db/client';
 import { calculateEloChange } from './elo';
+import { updateMissionProgress } from './missions';
+import { createNotification } from './notifications';
 
 const PLATFORM_FEE_BPS = parseInt(process.env.PLATFORM_FEE_BPS || '250', 10);
 
@@ -91,6 +93,32 @@ export async function settleGame(
     });
   }
 
+  // Weekly mission progress (fire-and-forget — never block game settlement)
+  try {
+    const areFriends = await db('friends')
+      .where(function () {
+        this.where({ user_id: winnerId, friend_id: loserId, status: 'accepted' }).orWhere({
+          user_id: loserId,
+          friend_id: winnerId,
+          status: 'accepted',
+        });
+      })
+      .first();
+
+    await Promise.all([
+      updateMissionProgress(winnerId, 'play'),
+      updateMissionProgress(winnerId, 'win'),
+      updateMissionProgress(winnerId, 'earn', payout),
+      updateMissionProgress(loserId, 'play'),
+      ...(areFriends
+        ? [
+            updateMissionProgress(winnerId, 'friend'),
+            updateMissionProgress(loserId, 'friend'),
+          ]
+        : []),
+    ]);
+  } catch {}
+
   // Win streak bonus: 5+ consecutive wins → 10% of payout, max $5
   const recentGames = await db('games')
     .where(function () {
@@ -114,6 +142,12 @@ export async function settleGame(
       await trx('users').where({ id: winnerId }).increment('usdc_balance', streakBonus);
       await trx('balance_ledger').insert({ user_id: winnerId, amount: streakBonus, type: 'bonus', game_id: gameId });
     });
+    await createNotification(
+      winnerId,
+      'streak_bonus',
+      `${streak}-game win streak! Bonus +$${streakBonus.toFixed(2)} USDC credited.`,
+      { streak, bonus: streakBonus }
+    );
   }
 
   return { eloChange, payout, streakBonus, streak };

@@ -13,6 +13,8 @@ import usersRouter from './routes/users';
 import devRouter from './routes/dev';
 import tournamentsRouter from './routes/tournaments';
 import friendsRouter from './routes/friends';
+import notificationsRouter from './routes/notifications';
+import missionsRouter from './routes/missions';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
@@ -21,6 +23,7 @@ import { setupChallenge, setUserSocket, removeUserSocket } from './socket/challe
 import { setupTournament } from './socket/tournament';
 import { startDepositWatcher } from './services/deposit';
 import { addOnlineSocket, removeOnlineSocket } from './services/onlineUsers';
+import { setIo } from './services/notifications';
 import { db } from './db/client';
 
 const app = express();
@@ -45,6 +48,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/dev', devRouter);
 app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/friends', friendsRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/missions', missionsRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -75,6 +80,7 @@ io.on('connection', async (socket) => {
       setUserSocket(userId, socket.id);
       (socket as any).userId = userId;
       addOnlineSocket(userId, socket.id);
+      socket.join(`user:${userId}`);
     }
   }
 
@@ -93,6 +99,7 @@ io.on('connection', async (socket) => {
   });
 });
 
+setIo(io);
 startTimeoutChecker(io);
 startDepositWatcher();
 
@@ -158,6 +165,33 @@ db.raw(`
     status TEXT NOT NULL DEFAULT 'pending'
   )
 `).catch(() => {});
+
+db.raw(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type       TEXT NOT NULL,
+    message    TEXT NOT NULL,
+    read       BOOLEAN NOT NULL DEFAULT false,
+    metadata   JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(() => {});
+db.raw(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC)`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS user_weekly_missions (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start  DATE NOT NULL,
+    mission_key TEXT NOT NULL,
+    progress    NUMERIC(18,6) NOT NULL DEFAULT 0,
+    completed   BOOLEAN NOT NULL DEFAULT false,
+    rewarded    BOOLEAN NOT NULL DEFAULT false,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, week_start, mission_key)
+  )
+`).catch(() => {});
+db.raw(`CREATE INDEX IF NOT EXISTS idx_user_weekly_missions_user ON user_weekly_missions(user_id, week_start)`).catch(() => {});
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {

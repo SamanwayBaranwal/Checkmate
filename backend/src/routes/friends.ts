@@ -2,6 +2,11 @@ import { Router, Response } from 'express';
 import { db } from '../db/client';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { isOnline } from '../services/onlineUsers';
+import { createNotification } from '../services/notifications';
+
+function displayName(u: { username?: string | null; wallet: string }) {
+  return u.username || `${u.wallet.slice(0, 6)}…${u.wallet.slice(-4)}`;
+}
 
 const router = Router();
 
@@ -52,6 +57,17 @@ router.post('/request', requireAuth, async (req: AuthenticatedRequest, res: Resp
   if (existing) { res.status(409).json({ error: 'Friend request already exists' }); return; }
 
   await db('friends').insert({ user_id: myId, friend_id: targetId, status: 'pending' });
+
+  const me = await db('users').where({ id: myId }).select('username', 'wallet').first();
+  if (me) {
+    await createNotification(
+      targetId,
+      'friend_request',
+      `${displayName(me)} sent you a friend request`,
+      { fromId: myId }
+    );
+  }
+
   res.json({ ok: true });
 });
 
@@ -65,6 +81,17 @@ router.post('/accept', requireAuth, async (req: AuthenticatedRequest, res: Respo
     .update({ status: 'accepted' });
 
   if (!updated) { res.status(404).json({ error: 'No pending request found' }); return; }
+
+  const me = await db('users').where({ id: myId }).select('username', 'wallet').first();
+  if (me) {
+    await createNotification(
+      requesterId,
+      'friend_accepted',
+      `${displayName(me)} accepted your friend request`,
+      { fromId: myId }
+    );
+  }
+
   res.json({ ok: true });
 });
 

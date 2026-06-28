@@ -84,6 +84,19 @@ export const api = {
     join: (id: string) =>
       request<{ ok: boolean }>(`/api/tournaments/${id}/join`, { method: 'POST' }),
   },
+  notifications: {
+    list: () => request<any[]>('/api/notifications'),
+    readAll: () => request<{ ok: boolean }>('/api/notifications/read-all', { method: 'POST' }),
+    read: (id: string) => request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'POST' }),
+  },
+  missions: {
+    list: () =>
+      request<{
+        missions: any[];
+        weekStart: string;
+        msUntilReset: number;
+      }>('/api/missions'),
+  },
   dev: {
     addBalance: () =>
       request<{ message: string; balance: number }>('/api/dev/add-balance', { method: 'POST' }),
