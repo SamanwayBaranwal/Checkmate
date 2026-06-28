@@ -13,6 +13,11 @@ export async function createNotification(
   metadata?: Record<string, any>
 ): Promise<void> {
   try {
+    // Respect user notification preferences (opt-out model — default is on)
+    const user = await db('users').where({ id: userId }).select('settings').first();
+    const prefs: Record<string, boolean> = user?.settings?.notifPrefs ?? {};
+    if (prefs[type] === false) return;
+
     const rows = await db('notifications')
       .insert({
         user_id: userId,

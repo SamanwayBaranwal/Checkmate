@@ -9,11 +9,20 @@ import ChessClock from '@/components/ChessClock';
 import GameOverModal from '@/components/GameOverModal';
 import MoveHistory from '@/components/MoveHistory';
 import { sounds } from '@/lib/sounds';
+import { api } from '@/lib/api';
 
 const Chessboard = dynamic(() => import('react-chessboard').then((m) => m.Chessboard), {
   ssr: false,
   loading: () => <div className="aspect-square bg-[#b58863] rounded-lg animate-pulse" />,
 });
+
+const REPORT_REASONS = [
+  { value: 'cheating', label: 'Cheating / engine use' },
+  { value: 'harassment', label: 'Harassment in chat' },
+  { value: 'sandbagging', label: 'Sandbagging (losing on purpose)' },
+  { value: 'stalling', label: 'Stalling / not moving' },
+  { value: 'other', label: 'Other' },
+];
 
 const BOARD_THEMES = [
   { name: 'Classic',   light: '#f0d9b5', dark: '#b58863' },
@@ -41,6 +50,11 @@ export default function GamePage() {
   }, [rematchGameId, router]);
 
   const [promotionDialog, setPromotionDialog] = useState<{ from: string; to: string } | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState('cheating');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSending, setReportSending] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
   const [themeIndex, setThemeIndex] = useState(() => {
     if (typeof window === 'undefined') return 0;
     const stored = localStorage.getItem('checkmate_board_theme');
@@ -113,6 +127,20 @@ export default function GamePage() {
     },
     [state, makeMove, autoQueen]
   );
+
+  const submitReport = useCallback(async () => {
+    if (!state) return;
+    setReportSending(true);
+    try {
+      const game = await api.games.get(id);
+      const reportedId = state.color === 'white' ? game.player_black : game.player_white;
+      await api.reports.submit({ reportedId, gameId: id, reason: reportReason, details: reportDetails });
+      setReportDone(true);
+      setTimeout(() => { setShowReport(false); setReportDone(false); }, 2000);
+    } catch {
+      setReportSending(false);
+    }
+  }, [state, id, reportReason, reportDetails]);
 
   const handleChatSend = useCallback(() => {
     if (!chatInput.trim()) return;
@@ -255,6 +283,16 @@ export default function GamePage() {
             </div>
           )}
 
+          {/* Report opponent */}
+          {state.status !== 'spectating' && (
+            <button
+              onClick={() => setShowReport(true)}
+              className="text-xs text-white/25 hover:text-red-400 transition-colors text-center w-full py-1"
+            >
+              ⚑ Report opponent
+            </button>
+          )}
+
           {/* Board theme picker */}
           <div className="card">
             <button
@@ -298,6 +336,54 @@ export default function GamePage() {
           rematchState={rematchState}
           onAcceptRematch={acceptRematch}
         />
+      )}
+
+      {/* Report modal */}
+      {showReport && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowReport(false)}>
+          <div className="card w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-bold mb-4">Report Opponent</h3>
+            {reportDone ? (
+              <p className="text-[#4caf50] text-center py-4">Report submitted. Thank you.</p>
+            ) : (
+              <>
+                <div className="space-y-2 mb-4">
+                  {REPORT_REASONS.map((r) => (
+                    <label key={r.value} className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="reason"
+                        value={r.value}
+                        checked={reportReason === r.value}
+                        onChange={() => setReportReason(r.value)}
+                        className="accent-[#4caf50]"
+                      />
+                      <span className="text-sm">{r.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Additional details (optional)"
+                  maxLength={500}
+                  rows={3}
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#4caf50] mb-4"
+                />
+                <div className="flex gap-3">
+                  <button onClick={() => setShowReport(false)} className="btn-secondary flex-1">Cancel</button>
+                  <button
+                    onClick={submitReport}
+                    disabled={reportSending}
+                    className="btn-danger flex-1"
+                  >
+                    {reportSending ? 'Sending...' : 'Submit Report'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Promotion */}

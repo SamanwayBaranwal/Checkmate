@@ -169,7 +169,7 @@ router.patch('/me/username', requireAuth, async (req: AuthenticatedRequest, res:
 });
 
 router.patch('/me/settings', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const allowed = ['autoQueen', 'showEarningsPublicly', 'boardTheme'];
+  const allowed = ['autoQueen', 'showEarningsPublicly', 'boardTheme', 'notifPrefs', 'avatar'];
   const updates: Record<string, any> = {};
   for (const key of allowed) {
     if (key in req.body) updates[key] = req.body[key];

@@ -10,6 +10,30 @@ function shortAddr(addr: string) {
   return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
 }
 
+const AVATARS = [
+  { key: 'king_w',   icon: '♔', label: 'King' },
+  { key: 'queen_w',  icon: '♕', label: 'Queen' },
+  { key: 'rook_w',   icon: '♖', label: 'Rook' },
+  { key: 'bishop_w', icon: '♗', label: 'Bishop' },
+  { key: 'knight_w', icon: '♘', label: 'Knight' },
+  { key: 'pawn_w',   icon: '♙', label: 'Pawn' },
+  { key: 'king_b',   icon: '♚', label: 'King (Dark)' },
+  { key: 'queen_b',  icon: '♛', label: 'Queen (Dark)' },
+  { key: 'rook_b',   icon: '♜', label: 'Rook (Dark)' },
+  { key: 'bishop_b', icon: '♝', label: 'Bishop (Dark)' },
+  { key: 'knight_b', icon: '♞', label: 'Knight (Dark)' },
+  { key: 'pawn_b',   icon: '♟', label: 'Pawn (Dark)' },
+];
+
+const NOTIF_TYPES = [
+  { key: 'mission_complete', label: 'Mission completed' },
+  { key: 'friend_request',   label: 'Friend requests' },
+  { key: 'challenge_received', label: 'Challenges received' },
+  { key: 'friend_joined',    label: 'Friend joined Checkmate' },
+  { key: 'streak_bonus',     label: 'Streak bonuses' },
+  { key: 'tournament_start', label: 'Tournament starting' },
+];
+
 function computeBadges(profile: any): { icon: string; label: string; desc: string }[] {
   const badges = [];
   const winRate = profile.gamesPlayed ? (profile.gamesWon / profile.gamesPlayed) * 100 : 0;
@@ -31,11 +55,19 @@ export default function ProfilePage() {
   const [username, setUsername] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [savingAvatar, setSavingAvatar] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
+  const [savingNotif, setSavingNotif] = useState(false);
 
   useEffect(() => {
     if (ready && !authenticated) { router.push('/'); return; }
     if (!authenticated) return;
-    api.users.me().then(setProfile).catch(() => {});
+    api.users.me().then((p) => {
+      setProfile(p);
+      setSelectedAvatar(p.settings?.avatar || '');
+      setNotifPrefs(p.settings?.notifPrefs ?? {});
+    }).catch(() => {});
   }, [authenticated, ready, router]);
 
   const saveUsername = async () => {
@@ -48,6 +80,25 @@ export default function ProfilePage() {
     finally { setSaving(false); }
   };
 
+  const saveAvatar = async (key: string) => {
+    setSelectedAvatar(key);
+    setSavingAvatar(true);
+    try {
+      await api.users.saveSettings({ avatar: key });
+      setProfile((p: any) => ({ ...p, settings: { ...(p.settings || {}), avatar: key } }));
+    } finally { setSavingAvatar(false); }
+  };
+
+  const toggleNotif = async (key: string, enabled: boolean) => {
+    const updated = { ...notifPrefs, [key]: enabled };
+    setNotifPrefs(updated);
+    setSavingNotif(true);
+    try {
+      await api.users.saveSettings({ notifPrefs: updated });
+      setProfile((p: any) => ({ ...p, settings: { ...(p.settings || {}), notifPrefs: updated } }));
+    } finally { setSavingNotif(false); }
+  };
+
   if (!profile) return <div className="text-center py-20 text-white/40">Loading...</div>;
 
   const winRate = profile.gamesPlayed ? Math.round((profile.gamesWon / profile.gamesPlayed) * 100) : 0;
@@ -57,7 +108,15 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Profile</h1>
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-[#4caf50]/20 border border-[#4caf50]/30 flex items-center justify-center text-3xl select-none">
+            {AVATARS.find((a) => a.key === selectedAvatar)?.icon || '♟'}
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">{profile.username || shortAddr(profile.wallet)}</h1>
+            <p className="text-white/40 text-sm">{profile.elo} ELO</p>
+          </div>
+        </div>
         <Link
           href={`/profile/${profile.id}`}
           className="btn-secondary text-sm"
@@ -164,6 +223,52 @@ export default function ProfilePage() {
           </button>
         </div>
         {msg && <p className={`text-sm mt-2 ${msg.includes('saved') ? 'text-[#4caf50]' : 'text-red-400'}`}>{msg}</p>}
+      </div>
+
+      {/* Avatar selection */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-1">Avatar</h2>
+        <p className="text-xs text-white/40 mb-3">Pick a chess piece to represent you{savingAvatar ? ' — saving...' : ''}</p>
+        <div className="grid grid-cols-6 gap-2">
+          {AVATARS.map((a) => (
+            <button
+              key={a.key}
+              onClick={() => saveAvatar(a.key)}
+              title={a.label}
+              className={`w-full aspect-square rounded-lg flex items-center justify-center text-2xl transition-all border-2 ${
+                selectedAvatar === a.key
+                  ? 'border-[#4caf50] bg-[#4caf50]/20'
+                  : 'border-white/10 hover:border-white/30 bg-white/5'
+              }`}
+            >
+              {a.icon}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Notification preferences */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-1">Notifications{savingNotif && <span className="text-xs font-normal text-white/40 ml-2">saving...</span>}</h2>
+        <p className="text-xs text-white/40 mb-4">Choose which notifications you receive</p>
+        <div className="space-y-3">
+          {NOTIF_TYPES.map((n) => {
+            const enabled = notifPrefs[n.key] !== false;
+            return (
+              <div key={n.key} className="flex items-center justify-between">
+                <span className="text-sm">{n.label}</span>
+                <button
+                  onClick={() => toggleNotif(n.key, !enabled)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-[#4caf50]' : 'bg-white/20'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`}
+                  />
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Game history */}

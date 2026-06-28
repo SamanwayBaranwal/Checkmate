@@ -103,6 +103,10 @@ export const api = {
         msUntilReset: number;
       }>('/api/missions'),
   },
+  reports: {
+    submit: (data: { reportedId: string; gameId?: string; reason: string; details?: string }) =>
+      request<{ ok: boolean }>('/api/reports', { method: 'POST', body: JSON.stringify(data) }),
+  },
   dev: {
     addBalance: () =>
       request<{ message: string; balance: number }>('/api/dev/add-balance', { method: 'POST' }),

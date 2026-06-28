@@ -15,6 +15,7 @@ import tournamentsRouter from './routes/tournaments';
 import friendsRouter from './routes/friends';
 import notificationsRouter from './routes/notifications';
 import missionsRouter from './routes/missions';
+import reportsRouter from './routes/reports';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
@@ -50,6 +51,7 @@ app.use('/api/tournaments', tournamentsRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/missions', missionsRouter);
+app.use('/api/reports', reportsRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -193,6 +195,20 @@ db.raw(`
 `).catch(() => {});
 db.raw(`CREATE INDEX IF NOT EXISTS idx_user_weekly_missions_user ON user_weekly_missions(user_id, week_start)`).catch(() => {});
 db.raw(`ALTER TABLE games ADD COLUMN IF NOT EXISTS time_control TEXT NOT NULL DEFAULT '5+0'`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS reports (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reported_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    game_id      UUID REFERENCES games(id),
+    reason       TEXT NOT NULL,
+    details      TEXT,
+    status       TEXT NOT NULL DEFAULT 'open',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(() => {});
+db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports(reported_id, created_at DESC)`).catch(() => {});
+db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC)`).catch(() => {});
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {
