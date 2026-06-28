@@ -71,6 +71,8 @@ export const api = {
       request<any[]>('/api/users/me/recent-opponents'),
     suggested: () =>
       request<any[]>('/api/users/me/suggested'),
+    deleteAccount: (confirm: string) =>
+      request<{ ok: boolean }>('/api/users/me', { method: 'DELETE', body: JSON.stringify({ confirm }) }),
   },
   friends: {
     list: () => request<{ friends: any[]; incoming: any[]; outgoing: any[] }>('/api/friends'),

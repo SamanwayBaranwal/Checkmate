@@ -33,7 +33,7 @@ function Toggle({ value, onChange, label, desc }: { value: boolean; onChange: (v
 }
 
 export default function SettingsPage() {
-  const { authenticated, ready } = usePrivy();
+  const { authenticated, ready, logout } = usePrivy();
   const router = useRouter();
   const [boardTheme, setBoardTheme] = useState(0);
   const [autoQueen, setAutoQueen] = useState(true);
@@ -45,6 +45,10 @@ export default function SettingsPage() {
   const [usernameInput, setUsernameInput] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [usernameError, setUsernameError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'error'>('idle');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     if (ready && !authenticated) { router.push('/'); return; }
@@ -92,6 +96,22 @@ export default function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {}
+  };
+
+  const handleDelete = async () => {
+    setDeleteStatus('deleting');
+    setDeleteError('');
+    try {
+      await api.users.deleteAccount(deleteConfirm);
+      localStorage.removeItem('checkmate_token');
+      logout();
+      router.push('/');
+    } catch (err: any) {
+      let msg = 'Failed to delete account';
+      try { const p = JSON.parse(err?.message || ''); if (p.error) msg = p.error; } catch {}
+      setDeleteError(msg);
+      setDeleteStatus('error');
+    }
   };
 
   if (loading) return <div className="text-center py-20 text-white/40">Loading...</div>;
@@ -177,6 +197,52 @@ export default function SettingsPage() {
       >
         {saved ? '✓ Saved!' : 'Save Settings'}
       </button>
+
+      {/* Danger zone */}
+      <div className="card border border-red-500/20">
+        <h2 className="text-lg font-bold text-red-400 mb-1">Danger Zone</h2>
+        <p className="text-xs text-white/40 mb-4">
+          Permanently delete your account. Your game history is anonymized but preserved. Withdraw your balance first.
+        </p>
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="btn-danger text-sm"
+        >
+          Delete Account
+        </button>
+      </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteStatus('idle'); setDeleteError(''); }}>
+          <div className="card w-full max-w-sm mx-4 border border-red-500/30" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-red-400 mb-2">Delete Account</h3>
+            <p className="text-sm text-white/60 mb-4">
+              This cannot be undone. Your stats and game history will remain but your identity will be removed.
+              Make sure you have withdrawn any remaining balance.
+            </p>
+            <p className="text-xs text-white/40 mb-2">Type <span className="font-mono text-white/70">DELETE MY ACCOUNT</span> to confirm:</p>
+            <input
+              value={deleteConfirm}
+              onChange={(e) => { setDeleteConfirm(e.target.value); setDeleteStatus('idle'); setDeleteError(''); }}
+              placeholder="DELETE MY ACCOUNT"
+              className="w-full bg-black/30 border border-red-500/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-400 mb-4 font-mono"
+            />
+            {deleteError && <p className="text-red-400 text-xs mb-3">{deleteError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteStatus('idle'); setDeleteError(''); }} className="btn-secondary flex-1">
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteConfirm !== 'DELETE MY ACCOUNT' || deleteStatus === 'deleting'}
+                className="btn-danger flex-1 disabled:opacity-40"
+              >
+                {deleteStatus === 'deleting' ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

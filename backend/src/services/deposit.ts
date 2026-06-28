@@ -1,6 +1,7 @@
 import { createPublicClient, http, parseAbi, type Log } from 'viem';
 import { base } from 'viem/chains';
 import { db } from '../db/client';
+import { createNotification } from './notifications';
 
 const USDC_ADDRESS = (process.env.USDC_CONTRACT_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913') as `0x${string}`;
 const PLATFORM_WALLET = (process.env.PLATFORM_WALLET_ADDRESS || '0x0') as `0x${string}`;
@@ -84,6 +85,12 @@ export function startDepositWatcher() {
               });
             });
             console.log(`First deposit bonus: +${bonusAmount} USDC to user ${user.id}`);
+            createNotification(
+              user.id,
+              'mission_complete',
+              `First deposit bonus! +$${bonusAmount.toFixed(2)} USDC credited to your balance.`,
+              { type: 'first_deposit_bonus', amount: bonusAmount }
+            );
           }
         } catch (err) {
           console.error('Deposit processing error:', err);

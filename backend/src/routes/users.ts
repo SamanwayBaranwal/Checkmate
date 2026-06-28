@@ -251,6 +251,35 @@ router.get('/me/referral', requireAuth, async (req: AuthenticatedRequest, res: R
   });
 });
 
+router.delete('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { confirm } = req.body as { confirm?: string };
+  if (confirm !== 'DELETE MY ACCOUNT') {
+    res.status(400).json({ error: 'Please type DELETE MY ACCOUNT to confirm' });
+    return;
+  }
+  const user = await db('users').where({ id: req.userId }).select('usdc_balance').first();
+  if (!user) { res.status(404).json({ error: 'Not found' }); return; }
+  if (parseFloat(user.usdc_balance) > 0) {
+    res.status(400).json({ error: 'Withdraw your balance before deleting your account' });
+    return;
+  }
+  const activeGame = await db('games')
+    .where(function () { this.where('player_white', req.userId!).orWhere('player_black', req.userId!); })
+    .where('status', 'active')
+    .first();
+  if (activeGame) {
+    res.status(400).json({ error: 'Resign or finish your active game first' });
+    return;
+  }
+  await db('users').where({ id: req.userId }).update({
+    privy_user_id: `deleted_${req.userId}`,
+    wallet: `deleted_${req.userId}`,
+    username: null,
+    usdc_balance: 0,
+  });
+  res.json({ ok: true });
+});
+
 router.get('/me/recent-opponents', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const uid = req.userId!;
   const result = await db.raw(`

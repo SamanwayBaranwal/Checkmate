@@ -4,6 +4,7 @@ import { reserveBet } from '../services/balance';
 import { redis } from '../db/redis';
 import { registerGamePlayer } from './gameRoom';
 import { userSocketMap } from './challenge';
+import { createNotification } from '../services/notifications';
 
 export function setupTournament(io: Server, socket: Socket) {
   // Join tournament lobby room for real-time updates
@@ -65,6 +66,17 @@ export function setupTournament(io: Server, socket: Socket) {
       await pairRound(io, tournamentId, 1, seeded.map((p) => p.user_id), tournament.entry_fee);
 
       io.to(`tournament:${tournamentId}`).emit('tournament_started', { tournamentId, round: 1 });
+
+      // Notify all players who aren't online
+      const tName = tournament.name;
+      for (const p of players) {
+        createNotification(
+          p.user_id,
+          'tournament_start',
+          `${tName} has started! Your Round 1 match is ready.`,
+          { tournamentId }
+        );
+      }
     } catch (err) {
       console.error('start_tournament error:', err);
       socket.emit('tournament_error', { reason: 'Failed to start tournament' });
