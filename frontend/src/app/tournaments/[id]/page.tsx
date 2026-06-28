@@ -170,7 +170,12 @@ export default function TournamentPage() {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-1 flex-wrap">
+            {tournament.is_seasonal && (
+              <span className="text-xs font-bold uppercase tracking-widest text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/30 px-2 py-0.5 rounded-full">
+                🏆 {tournament.season_name}
+              </span>
+            )}
             <h1 className="text-3xl font-bold">{tournament.name}</h1>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
               isOpen     ? 'bg-[#4caf50]/20 text-[#4caf50] border-[#4caf50]/30' :

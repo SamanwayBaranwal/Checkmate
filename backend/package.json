@@ -9,6 +9,8 @@
     "db:migrate": "psql $DATABASE_URL -f src/db/schema.sql"
   },
   "dependencies": {
+    "@privy-io/server-auth": "^1.17.0",
+    "@types/node-cron": "^3.0.11",
     "chess.js": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -17,8 +19,8 @@
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.1.0",
+    "node-cron": "^4.5.0",
     "pg": "^8.12.0",
-    "@privy-io/server-auth": "^1.17.0",
     "socket.io": "^4.7.5",
     "uuid": "^10.0.0",
     "viem": "^2.17.0"

@@ -22,6 +22,41 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function SeasonalBanner({ t }: { t: any }) {
+  return (
+    <Link href={`/tournaments/${t.id}`}>
+      <div className="relative overflow-hidden rounded-2xl border border-[#ffd700]/40 bg-gradient-to-br from-[#0f3460] via-[#1a1a2e] to-[#0f3460] p-5 cursor-pointer hover:border-[#ffd700]/70 transition-all group">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_#ffd700,_transparent)]" />
+        <div className="flex items-start justify-between relative">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/30 px-2 py-0.5 rounded-full">
+                🏆 Seasonal — {t.season_name}
+              </span>
+              <StatusBadge status={t.status} />
+            </div>
+            <h3 className="text-xl font-bold mt-2">{t.name}</h3>
+            <p className="text-sm text-white/50 mt-1">
+              {t.player_count}/{t.max_players} players · {t.total_rounds} rounds
+            </p>
+          </div>
+          <div className="text-right shrink-0 ml-4">
+            <div className="text-3xl font-bold text-[#ffd700]">${parseFloat(t.prize_pool).toFixed(0)}</div>
+            <div className="text-xs text-white/50">Prize pool</div>
+            {parseFloat(t.season_bonus) > 0 && (
+              <div className="text-xs text-[#ffd700]/70 mt-0.5">+${parseFloat(t.season_bonus).toFixed(0)} platform bonus</div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-4 mt-4 text-sm relative">
+          <span className="text-white/60">Entry: <span className="text-white font-semibold">${t.entry_fee}</span></span>
+          <span className="text-[#4caf50] font-semibold group-hover:underline">Join now →</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function TournamentsPage() {
   const { authenticated } = usePrivy();
   const router = useRouter();
@@ -88,40 +123,57 @@ export default function TournamentsPage() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {tournaments.map((t) => (
-            <Link key={t.id} href={`/tournaments/${t.id}`}>
-              <div className="card hover:border-white/20 border border-white/10 cursor-pointer transition-all hover:bg-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={t.status} />
-                    <div>
-                      <p className="font-bold">{t.name}</p>
-                      <p className="text-xs text-white/50 mt-0.5">by {t.creator_name || 'Unknown'}</p>
+        <div className="space-y-6">
+          {/* Seasonal tournaments — featured */}
+          {tournaments.filter((t) => t.is_seasonal).length > 0 && (
+            <div className="space-y-3">
+              {tournaments.filter((t) => t.is_seasonal).map((t) => (
+                <SeasonalBanner key={t.id} t={t} />
+              ))}
+            </div>
+          )}
+
+          {/* Regular tournaments */}
+          {tournaments.filter((t) => !t.is_seasonal).length > 0 && (
+            <div className="space-y-3">
+              {tournaments.filter((t) => t.is_seasonal).length > 0 && (
+                <h2 className="text-sm font-semibold text-white/40 uppercase tracking-wider">Community Tournaments</h2>
+              )}
+              {tournaments.filter((t) => !t.is_seasonal).map((t) => (
+                <Link key={t.id} href={`/tournaments/${t.id}`}>
+                  <div className="card hover:border-white/20 border border-white/10 cursor-pointer transition-all hover:bg-white/5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <StatusBadge status={t.status} />
+                        <div>
+                          <p className="font-bold">{t.name}</p>
+                          <p className="text-xs text-white/50 mt-0.5">by {t.creator_name || 'Unknown'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 sm:gap-6 text-sm">
+                        <div className="text-center">
+                          <div className="font-bold text-[#ffd700]">${t.entry_fee}</div>
+                          <div className="text-xs text-white/40">Entry</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold text-[#4caf50]">${parseFloat(t.prize_pool).toFixed(2)}</div>
+                          <div className="text-xs text-white/40">Prize pool</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-bold">{t.player_count}/{t.max_players}</div>
+                          <div className="text-xs text-white/40">Players</div>
+                        </div>
+                        <div className="text-center hidden sm:block">
+                          <div className="font-bold">{t.total_rounds}</div>
+                          <div className="text-xs text-white/40">Rounds</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-sm">
-                    <div className="text-center">
-                      <div className="font-bold text-[#ffd700]">${t.entry_fee}</div>
-                      <div className="text-xs text-white/40">Entry</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-bold text-[#4caf50]">${parseFloat(t.prize_pool).toFixed(2)}</div>
-                      <div className="text-xs text-white/40">Prize pool</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-bold">{t.player_count}/{t.max_players}</div>
-                      <div className="text-xs text-white/40">Players</div>
-                    </div>
-                    <div className="text-center hidden sm:block">
-                      <div className="font-bold">{t.total_rounds}</div>
-                      <div className="text-xs text-white/40">Rounds</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

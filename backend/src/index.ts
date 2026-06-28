@@ -23,6 +23,7 @@ import { setupSpectator } from './socket/spectator';
 import { setupChallenge, setUserSocket, removeUserSocket } from './socket/challenge';
 import { setupTournament } from './socket/tournament';
 import { startDepositWatcher } from './services/deposit';
+import { startCronJobs } from './services/cron';
 import { addOnlineSocket, removeOnlineSocket } from './services/onlineUsers';
 import { setIo } from './services/notifications';
 import { db } from './db/client';
@@ -104,6 +105,7 @@ io.on('connection', async (socket) => {
 setIo(io);
 startTimeoutChecker(io);
 startDepositWatcher();
+startCronJobs();
 
 // Auto-migrate: add new columns and tables if missing
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}'`).catch(() => {});
@@ -209,6 +211,9 @@ db.raw(`
 `).catch(() => {});
 db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports(reported_id, created_at DESC)`).catch(() => {});
 db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC)`).catch(() => {});
+db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_seasonal BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
+db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_name TEXT`).catch(() => {});
+db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_bonus NUMERIC(18,6) NOT NULL DEFAULT 0`).catch(() => {});
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {

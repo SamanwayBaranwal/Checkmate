@@ -6,6 +6,16 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { PIECE_THEMES, type PieceTheme } from '@/lib/pieceThemes';
 
+const NOTIF_PREFS = [
+  { key: 'challenge_received', label: 'Incoming challenges', desc: 'When a player sends you a challenge' },
+  { key: 'friend_request',     label: 'Friend requests',     desc: 'When someone adds you as a friend' },
+  { key: 'friend_accepted',    label: 'Friend accepted',     desc: 'When someone accepts your friend request' },
+  { key: 'tournament_start',   label: 'Tournament started',  desc: 'When a tournament you joined begins' },
+  { key: 'streak_bonus',       label: 'Win streak bonuses',  desc: 'When you earn a streak bonus reward' },
+  { key: 'mission_complete',   label: 'Mission completed',   desc: 'When you complete a weekly mission' },
+  { key: 'weekly_summary',     label: 'Weekly summary',      desc: "Monday recap of your week's results" },
+];
+
 const BOARD_THEMES = [
   { name: 'Classic', light: '#f0d9b5', dark: '#b58863' },
   { name: 'Ocean', light: '#dee3e6', dark: '#8ca2ad' },
@@ -40,6 +50,7 @@ export default function SettingsPage() {
   const [pieceTheme, setPieceTheme] = useState<PieceTheme>('classic');
   const [autoQueen, setAutoQueen] = useState(true);
   const [showEarningsPublicly, setShowEarningsPublicly] = useState(true);
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -67,6 +78,7 @@ export default function SettingsPage() {
       if (s.pieceTheme) setPieceTheme(s.pieceTheme as PieceTheme);
       if (typeof s.autoQueen === 'boolean') setAutoQueen(s.autoQueen);
       if (typeof s.showEarningsPublicly === 'boolean') setShowEarningsPublicly(s.showEarningsPublicly);
+      if (s.notifPrefs && typeof s.notifPrefs === 'object') setNotifPrefs(s.notifPrefs);
       if (u.username) { setCurrentUsername(u.username); setUsernameInput(u.username); }
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -96,7 +108,7 @@ export default function SettingsPage() {
     localStorage.setItem('checkmate_piece_theme', pieceTheme);
     localStorage.setItem('checkmate_auto_queen', String(autoQueen));
     try {
-      await api.users.saveSettings({ boardTheme, pieceTheme, autoQueen, showEarningsPublicly });
+      await api.users.saveSettings({ boardTheme, pieceTheme, autoQueen, showEarningsPublicly, notifPrefs });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {}
@@ -218,6 +230,20 @@ export default function SettingsPage() {
           label="Show earnings on public profile"
           desc="Other players can see your total winnings on your profile page"
         />
+      </div>
+
+      {/* Notification preferences */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-2">Notifications</h2>
+        {NOTIF_PREFS.map((pref) => (
+          <Toggle
+            key={pref.key}
+            label={pref.label}
+            desc={pref.desc}
+            value={notifPrefs[pref.key] !== false}
+            onChange={(v) => setNotifPrefs((prev) => ({ ...prev, [pref.key]: v }))}
+          />
+        ))}
       </div>
 
       {/* Save button */}
