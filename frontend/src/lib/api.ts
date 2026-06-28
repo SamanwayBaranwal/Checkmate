@@ -109,6 +109,15 @@ export const api = {
     submit: (data: { reportedId: string; gameId?: string; reason: string; details?: string }) =>
       request<{ ok: boolean }>('/api/reports', { method: 'POST', body: JSON.stringify(data) }),
   },
+  puzzles: {
+    daily: () => request<any>('/api/puzzles/daily'),
+    attempt: (moveIndex: number, move: string) =>
+      request<any>('/api/puzzles/daily/attempt', {
+        method: 'POST',
+        body: JSON.stringify({ moveIndex, move }),
+      }),
+    solution: () => request<{ solution: string[] }>('/api/puzzles/daily/solution'),
+  },
   dev: {
     addBalance: () =>
       request<{ message: string; balance: number }>('/api/dev/add-balance', { method: 'POST' }),

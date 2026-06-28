@@ -16,6 +16,7 @@ import friendsRouter from './routes/friends';
 import notificationsRouter from './routes/notifications';
 import missionsRouter from './routes/missions';
 import reportsRouter from './routes/reports';
+import puzzlesRouter from './routes/puzzles';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
@@ -53,6 +54,7 @@ app.use('/api/friends', friendsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/missions', missionsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/puzzles', puzzlesRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -214,6 +216,33 @@ db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created
 db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_seasonal BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
 db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_name TEXT`).catch(() => {});
 db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_bonus NUMERIC(18,6) NOT NULL DEFAULT 0`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS user_daily_puzzles (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    puzzle_date DATE NOT NULL,
+    puzzle_id   INTEGER NOT NULL,
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    solved      BOOLEAN NOT NULL DEFAULT false,
+    failed      BOOLEAN NOT NULL DEFAULT false,
+    xp_earned   INTEGER NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, puzzle_date)
+  )
+`).catch(() => {});
+db.raw(`CREATE INDEX IF NOT EXISTS idx_user_daily_puzzles_user ON user_daily_puzzles(user_id, puzzle_date DESC)`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS user_puzzle_stats (
+    user_id          UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    current_streak   INTEGER NOT NULL DEFAULT 0,
+    longest_streak   INTEGER NOT NULL DEFAULT 0,
+    total_solved     INTEGER NOT NULL DEFAULT 0,
+    last_solved_date DATE,
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(() => {});
+db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
+db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus'))`).catch(() => {});
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {
