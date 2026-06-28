@@ -12,6 +12,8 @@ interface Props {
   eloChange: number;
   betAmount: number;
   payout?: number;
+  streakBonus?: number;
+  streak?: number;
   gameId?: string;
   onRematch?: () => void;
   rematchState?: RematchState;
@@ -20,7 +22,7 @@ interface Props {
 
 export default function GameOverModal({
   result, winner, playerColor, eloChange, betAmount, payout,
-  gameId, onRematch, rematchState = 'idle', onAcceptRematch,
+  streakBonus, streak, gameId, onRematch, rematchState = 'idle', onAcceptRematch,
 }: Props) {
   const isWinner = winner === playerColor;
   const isDraw = winner === null || winner === 'draw';
@@ -67,6 +69,12 @@ export default function GameOverModal({
           <div className={`text-sm ${isDraw ? 'text-white/50' : isWinner ? 'text-[#4caf50]' : 'text-red-400'}`}>
             {isDraw ? 'ELO unchanged' : isWinner ? `+${eloChange} ELO` : `-${eloChange} ELO`}
           </div>
+          {isWinner && streakBonus && streakBonus > 0 && (
+            <div className="inline-flex items-center gap-2 bg-orange-500/20 border border-orange-500/40 rounded-full px-3 py-1 text-sm text-orange-400 font-semibold">
+              <span>🔥</span>
+              <span>{streak}-win streak bonus +${streakBonus.toFixed(2)}!</span>
+            </div>
+          )}
         </div>
 
         {/* Rematch */}

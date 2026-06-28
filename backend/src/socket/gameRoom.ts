@@ -321,7 +321,7 @@ async function handleGameEnd(
   const winnerId = winnerColor === 'white' ? players.white.userId : players.black.userId;
   const loserId = winnerColor === 'white' ? players.black.userId : players.white.userId;
 
-  const { eloChange, payout } = await settleGame(
+  const { eloChange, payout, streakBonus, streak } = await settleGame(
     gameId,
     winnerId,
     loserId,
@@ -345,6 +345,8 @@ async function handleGameEnd(
     winner: winnerColor,
     eloChange,
     payout,
+    streakBonus,
+    streak,
     balances: {
       [winnerId]: parseFloat(winnerUser.usdc_balance),
       [loserId]: parseFloat(loserUser.usdc_balance),

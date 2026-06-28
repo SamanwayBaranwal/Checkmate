@@ -291,6 +291,8 @@ export default function GamePage() {
           eloChange={state.eloChange ?? 0}
           betAmount={state.betAmount}
           payout={state.betAmount * 2 * 0.975}
+          streakBonus={state.streakBonus}
+          streak={state.streak}
           gameId={id}
           onRematch={offerRematch}
           rematchState={rematchState}

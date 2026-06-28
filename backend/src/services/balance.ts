@@ -34,7 +34,7 @@ export async function settleGame(
   blackId: string,
   whiteEloBefore: number,
   blackEloBefore: number
-): Promise<{ eloChange: number; payout: number }> {
+): Promise<{ eloChange: number; payout: number; streakBonus: number; streak: number }> {
   const totalPot = betAmount * 2;
   const fee = Math.floor((totalPot * PLATFORM_FEE_BPS) / 10000 * 1e6) / 1e6;
   const payout = totalPot - fee;
@@ -68,7 +68,32 @@ export async function settleGame(
     });
   });
 
-  return { eloChange, payout };
+  // Win streak bonus: 5+ consecutive wins → 10% of payout, max $5
+  const recentGames = await db('games')
+    .where(function () {
+      this.where('player_white', winnerId).orWhere('player_black', winnerId);
+    })
+    .where('status', 'completed')
+    .orderBy('completed_at', 'desc')
+    .limit(15)
+    .select('winner');
+
+  let streak = 0;
+  for (const g of recentGames) {
+    if (g.winner === winnerId) streak++;
+    else break;
+  }
+
+  let streakBonus = 0;
+  if (streak >= 5) {
+    streakBonus = parseFloat(Math.min(payout * 0.10, 5.00).toFixed(6));
+    await db.transaction(async (trx) => {
+      await trx('users').where({ id: winnerId }).increment('usdc_balance', streakBonus);
+      await trx('balance_ledger').insert({ user_id: winnerId, amount: streakBonus, type: 'bonus', game_id: gameId });
+    });
+  }
+
+  return { eloChange, payout, streakBonus, streak };
 }
 
 export async function getUserBalance(userId: string): Promise<number> {

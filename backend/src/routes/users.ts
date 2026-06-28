@@ -173,7 +173,7 @@ router.post('/me/daily-bonus', requireAuth, async (req: AuthenticatedRequest, re
       await trx('balance_ledger').insert({
         user_id: req.userId,
         amount: BONUS_AMOUNT,
-        type: 'deposit',
+        type: 'bonus',
         tx_hash: `daily_bonus_${now.getTime()}`,
       });
     });
@@ -234,6 +234,27 @@ router.get('/:id', async (req: Request, res: Response) => {
     .orderBy('g.completed_at', 'desc')
     .limit(10);
 
+  // Best streak
+  const allGames = await db('games')
+    .where(function () {
+      this.where('player_white', user.id).orWhere('player_black', user.id);
+    })
+    .where('status', 'completed')
+    .orderBy('completed_at', 'desc')
+    .limit(100)
+    .select('winner');
+
+  let bestStreak = 0;
+  let streak = 0;
+  for (const g of [...allGames].reverse()) {
+    if (g.winner === user.id) { streak++; bestStreak = Math.max(bestStreak, streak); }
+    else streak = 0;
+  }
+
+  const avgEarnings = user.games_won > 0 && totalEarnings !== null
+    ? parseFloat((totalEarnings / user.games_won).toFixed(4))
+    : 0;
+
   res.json({
     id: user.id,
     wallet: user.wallet,
@@ -242,6 +263,8 @@ router.get('/:id', async (req: Request, res: Response) => {
     gamesPlayed: user.games_played,
     gamesWon: user.games_won,
     totalEarnings,
+    bestStreak,
+    avgEarnings,
     joinedAt: user.created_at,
     recentGames: recentGames.map((g) => ({ ...g, bet_amount: parseFloat(g.bet_amount) })),
   });

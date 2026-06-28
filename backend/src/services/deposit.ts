@@ -66,6 +66,25 @@ export function startDepositWatcher() {
             await trx('balance_ledger').insert({ user_id: user.id, amount: usdcAmount, type: 'deposit', tx_hash: transactionHash });
           });
           console.log(`Credited ${usdcAmount} USDC to user ${user.id}`);
+
+          // First deposit bonus: 50% match up to $10
+          const depositCount = await db('balance_ledger')
+            .where({ user_id: user.id, type: 'deposit' })
+            .count('* as cnt')
+            .first();
+          if (parseInt((depositCount as any)?.cnt || '0') === 1) {
+            const bonusAmount = parseFloat(Math.min(usdcAmount * 0.50, 10.00).toFixed(6));
+            await db.transaction(async (trx) => {
+              await trx('users').where({ id: user.id }).increment('usdc_balance', bonusAmount);
+              await trx('balance_ledger').insert({
+                user_id: user.id,
+                amount: bonusAmount,
+                type: 'bonus',
+                tx_hash: `first_deposit_bonus_${transactionHash}`,
+              });
+            });
+            console.log(`First deposit bonus: +${bonusAmount} USDC to user ${user.id}`);
+          }
         } catch (err) {
           console.error('Deposit processing error:', err);
         }

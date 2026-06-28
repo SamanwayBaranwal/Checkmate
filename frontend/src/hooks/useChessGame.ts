@@ -28,6 +28,8 @@ export interface GameState {
   winner?: string | null;
   eloChange?: number;
   newBalance?: number;
+  streakBonus?: number;
+  streak?: number;
   drawOffered?: boolean;
   spectatorCount: number;
   moves: string[];
@@ -145,6 +147,8 @@ export function useChessGame(gameId: string, token?: string) {
           winner: data.winner,
           eloChange: data.eloChange,
           newBalance: data.newBalance,
+          streakBonus: data.streakBonus,
+          streak: data.streak,
         };
       });
     });

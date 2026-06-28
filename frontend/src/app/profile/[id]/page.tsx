@@ -124,6 +124,24 @@ export default function PublicProfilePage() {
         ))}
       </div>
 
+      {/* Secondary stats */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Best Streak', value: profile.bestStreak ?? 0, color: (profile.bestStreak ?? 0) >= 5 ? 'text-orange-400' : 'text-white' },
+          { label: 'Games Won', value: profile.gamesWon, color: 'text-white' },
+          {
+            label: 'Avg per Win',
+            value: profile.avgEarnings ? `$${profile.avgEarnings.toFixed(2)}` : '—',
+            color: profile.avgEarnings > 0 ? 'text-[#4caf50]' : 'text-white/40',
+          },
+        ].map((s) => (
+          <div key={s.label} className="card text-center py-3">
+            <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-white/50 mt-1">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Badges */}
       {badges.length > 0 && (
         <div className="card">
