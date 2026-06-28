@@ -8,6 +8,15 @@ import { v4 as uuidv4 } from 'uuid';
 const BET_TIERS = [1, 5, 10, 25] as const;
 type BetTier = (typeof BET_TIERS)[number];
 
+const TIME_CONTROLS = ['3+0', '5+0', '10+0'] as const;
+type TimeControl = (typeof TIME_CONTROLS)[number];
+
+const CLOCK_MS: Record<TimeControl, number> = {
+  '3+0': 3 * 60 * 1000,
+  '5+0': 5 * 60 * 1000,
+  '10+0': 10 * 60 * 1000,
+};
+
 // socketId → userId mapping managed by the socket layer
 const socketToUser = new Map<string, { userId: string; wallet: string; elo: number }>();
 
@@ -20,12 +29,13 @@ export function unregisterUser(socketId: string) {
 }
 
 export function setupMatchmaking(io: Server, socket: Socket) {
-  socket.on('join_queue', async ({ tier }: { tier: BetTier }) => {
+  socket.on('join_queue', async ({ tier, timeControl }: { tier: BetTier; timeControl?: TimeControl }) => {
     if (!BET_TIERS.includes(tier)) {
       socket.emit('error', { message: 'Invalid bet tier' });
       return;
     }
 
+    const tc: TimeControl = TIME_CONTROLS.includes(timeControl as any) ? timeControl! : '5+0';
     const userData = socketToUser.get(socket.id);
     if (!userData) {
       socket.emit('error', { message: 'Not authenticated' });
@@ -33,7 +43,7 @@ export function setupMatchmaking(io: Server, socket: Socket) {
     }
 
     const { userId } = userData;
-    const queueKey = `queue:${tier}`;
+    const queueKey = `queue:${tier}:${tc}`;
 
     // Check existing queue for a match (FIFO by timestamp)
     const waiting = await redis.zrangebyscore(queueKey, '-inf', '+inf', 'LIMIT', 0, 10);
@@ -53,7 +63,6 @@ export function setupMatchmaking(io: Server, socket: Socket) {
       ]);
 
       if (!whiteReserved || !blackReserved) {
-        // Refund whoever succeeded and put both back in queue
         if (whiteReserved) await db('users').where({ id: userId }).increment('usdc_balance', tier);
         if (blackReserved) await db('users').where({ id: opponentData.userId }).increment('usdc_balance', tier);
         socket.emit('error', { message: 'Insufficient balance' });
@@ -68,6 +77,7 @@ export function setupMatchmaking(io: Server, socket: Socket) {
 
       const gameId = uuidv4();
       const initialFen = getInitialFen();
+      const clockMs = CLOCK_MS[tc];
 
       // Create game in DB
       await db('games').insert({
@@ -75,6 +85,7 @@ export function setupMatchmaking(io: Server, socket: Socket) {
         player_white: whiteUser.userId,
         player_black: blackUser.userId,
         bet_amount: tier,
+        time_control: tc,
         status: 'active',
         white_elo_before: whiteUser.elo,
         black_elo_before: blackUser.elo,
@@ -85,7 +96,7 @@ export function setupMatchmaking(io: Server, socket: Socket) {
       await redis.set(`game:${gameId}:turn`, 'white');
       await redis.set(
         `game:${gameId}:clocks`,
-        JSON.stringify({ white: 5 * 60 * 1000, black: 5 * 60 * 1000, lastMoveAt: Date.now() })
+        JSON.stringify({ white: clockMs, black: clockMs, lastMoveAt: Date.now() })
       );
 
       // Join both sockets to the game room
@@ -99,8 +110,9 @@ export function setupMatchmaking(io: Server, socket: Socket) {
         color: 'white',
         opponent: { username: blackUser.wallet, elo: blackUser.elo },
         betAmount: tier,
+        timeControl: tc,
         fen: initialFen,
-        clocks: { white: 300000, black: 300000 },
+        clocks: { white: clockMs, black: clockMs },
       };
       const blackPayload = {
         ...whitePayload,
@@ -113,13 +125,15 @@ export function setupMatchmaking(io: Server, socket: Socket) {
     } else {
       // No match — join queue
       await redis.zadd(queueKey, Date.now(), socket.id);
-      socket.emit('queue_joined', { tier, position: 1 });
+      socket.emit('queue_joined', { tier, timeControl: tc, position: 1 });
     }
   });
 
   socket.on('leave_queue', async () => {
     for (const tier of BET_TIERS) {
-      await redis.zrem(`queue:${tier}`, socket.id);
+      for (const tc of TIME_CONTROLS) {
+        await redis.zrem(`queue:${tier}:${tc}`, socket.id);
+      }
     }
     socket.emit('queue_left');
   });

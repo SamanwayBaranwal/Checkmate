@@ -117,6 +117,26 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
     else streak = 0;
   }
 
+  // Stats broken down by time control
+  const tcRows = await db('games')
+    .where(function () {
+      this.where('player_white', req.userId!).orWhere('player_black', req.userId!);
+    })
+    .where('status', 'completed')
+    .select(
+      db.raw(`COALESCE(time_control, '5+0') AS time_control`),
+      db.raw('COUNT(*) AS played'),
+      db.raw(`COUNT(CASE WHEN winner = ? THEN 1 END) AS won`, [req.userId!])
+    )
+    .groupBy(db.raw(`COALESCE(time_control, '5+0')`))
+    .orderBy('played', 'desc');
+
+  const timeControlStats = tcRows.map((r: any) => ({
+    timeControl: r.time_control,
+    played: parseInt(r.played),
+    won: parseInt(r.won),
+  }));
+
   res.json({
     id: user.id,
     wallet: user.wallet,
@@ -130,6 +150,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
     bestStreak,
     settings: user.settings || {},
     recentGames: recentGames.map((g) => ({ ...g, bet_amount: parseFloat(g.bet_amount) })),
+    timeControlStats,
   });
 });
 
@@ -228,6 +249,57 @@ router.get('/me/referral', requireAuth, async (req: AuthenticatedRequest, res: R
     referredCount: parseInt((countResult as any)?.cnt || '0'),
     referralEarnings: parseFloat((earningsResult as any)?.total || '0'),
   });
+});
+
+router.get('/me/recent-opponents', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const uid = req.userId!;
+  const result = await db.raw(`
+    WITH ranked AS (
+      SELECT
+        CASE WHEN player_white = ? THEN player_black ELSE player_white END AS opponent_id,
+        completed_at,
+        bet_amount,
+        (winner = ?) AS you_won,
+        ROW_NUMBER() OVER (
+          PARTITION BY CASE WHEN player_white = ? THEN player_black ELSE player_white END
+          ORDER BY completed_at DESC
+        ) AS rn
+      FROM games
+      WHERE (player_white = ? OR player_black = ?) AND status = 'completed'
+    )
+    SELECT r.opponent_id AS id, u.username, u.wallet, u.elo, u.games_played, u.games_won,
+           r.completed_at AS last_game_at, r.bet_amount AS last_bet, r.you_won
+    FROM ranked r
+    JOIN users u ON u.id = r.opponent_id
+    WHERE r.rn = 1
+    ORDER BY r.completed_at DESC
+    LIMIT 5
+  `, [uid, uid, uid, uid, uid]);
+
+  res.json(result.rows.map((r: any) => ({
+    ...r,
+    last_bet: parseFloat(r.last_bet),
+  })));
+});
+
+router.get('/me/suggested', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const uid = req.userId!;
+  const user = await db('users').where({ id: uid }).select('elo').first();
+  if (!user) { res.json([]); return; }
+
+  const result = await db.raw(`
+    SELECT DISTINCT u.id, u.username, u.wallet, u.elo, u.games_played, u.games_won
+    FROM users u
+    JOIN games g ON (g.player_white = u.id OR g.player_black = u.id)
+    WHERE u.id != ?
+      AND u.elo BETWEEN ? AND ?
+      AND g.status = 'completed'
+      AND g.completed_at >= NOW() - INTERVAL '7 days'
+    ORDER BY RANDOM()
+    LIMIT 5
+  `, [uid, user.elo - 150, user.elo + 150]);
+
+  res.json(result.rows);
 });
 
 router.get('/search', requireAuth, async (req: AuthenticatedRequest, res: Response) => {

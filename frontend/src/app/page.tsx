@@ -5,6 +5,67 @@ import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
 import LiveGameCard from '@/components/LiveGameCard';
 import MatchmakingModal from '@/components/MatchmakingModal';
+import { getSocket } from '@/lib/socket';
+import Link from 'next/link';
+
+const CHALLENGE_BETS = [1, 5, 10, 25];
+
+function shortAddr(addr: string) {
+  return addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '???';
+}
+
+function PlayerCard({ player, token, onChallengeSent }: { player: any; token: string; onChallengeSent: (name: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [sending, setSending] = useState<number | null>(null);
+
+  const sendChallenge = (betAmount: number) => {
+    setSending(betAmount);
+    const socket = getSocket(token);
+    socket.emit('challenge_user', { targetId: player.id, betAmount });
+    setTimeout(() => {
+      setSending(null);
+      setOpen(false);
+      onChallengeSent(player.username || shortAddr(player.wallet));
+    }, 500);
+  };
+
+  const wr = player.games_played ? Math.round((player.games_won / player.games_played) * 100) : 0;
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 rounded-lg transition-colors">
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-full bg-[#4caf50]/20 border border-[#4caf50]/30 flex items-center justify-center text-sm font-bold text-[#4caf50]">
+          {(player.username || player.wallet || '?')[0].toUpperCase()}
+        </div>
+        <div>
+          <div className="font-semibold text-sm">{player.username || shortAddr(player.wallet)}</div>
+          <div className="text-xs text-white/40">{player.elo} ELO · {wr}% WR</div>
+        </div>
+      </div>
+      <div className="relative">
+        {!open ? (
+          <button onClick={() => setOpen(true)} className="btn-secondary text-xs py-1 px-3">
+            Challenge
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            {CHALLENGE_BETS.map((bet) => (
+              <button
+                key={bet}
+                onClick={() => sendChallenge(bet)}
+                disabled={sending !== null}
+                className="btn-primary text-xs py-1 px-2 min-w-[36px]"
+              >
+                {sending === bet ? '…' : `$${bet}`}
+              </button>
+            ))}
+            <button onClick={() => setOpen(false)} className="text-white/30 hover:text-white px-1 text-sm">✕</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function LobbyPage() {
   const { ready, authenticated, login, user, getAccessToken } = usePrivy();
@@ -15,6 +76,9 @@ export default function LobbyPage() {
   const [authInitialized, setAuthInitialized] = useState(false);
   const [addingBalance, setAddingBalance] = useState(false);
   const [bonusNotice, setBonusNotice] = useState<{ streak: number; amount: number } | null>(null);
+  const [recentOpponents, setRecentOpponents] = useState<any[]>([]);
+  const [suggested, setSuggested] = useState<any[]>([]);
+  const [challengeSentNotice, setChallengeSentNotice] = useState('');
 
   // Initialize backend session after Privy login
   useEffect(() => {
@@ -41,6 +105,10 @@ export default function LobbyPage() {
         setToken(sessionToken);
         setBalance(userData.usdcBalance || 0);
         setAuthInitialized(true);
+
+        // Load discovery data
+        api.users.recentOpponents().then(setRecentOpponents).catch(() => {});
+        api.users.suggested().then(setSuggested).catch(() => {});
 
         // Claim daily bonus after auth
         try {
@@ -170,6 +238,59 @@ export default function LobbyPage() {
           </div>
         )}
       </div>
+
+      {/* Discovery: Recent + Suggested */}
+      {authenticated && token && (recentOpponents.length > 0 || suggested.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+          {recentOpponents.length > 0 && (
+            <div className="card p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10">
+                <h2 className="font-bold text-sm">Play Again</h2>
+              </div>
+              <div className="py-1">
+                {recentOpponents.map((p) => (
+                  <PlayerCard
+                    key={p.id}
+                    player={p}
+                    token={token}
+                    onChallengeSent={(name) => {
+                      setChallengeSentNotice(`Challenge sent to ${name}!`);
+                      setTimeout(() => setChallengeSentNotice(''), 3000);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {suggested.length > 0 && (
+            <div className="card p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10">
+                <h2 className="font-bold text-sm">Suggested Opponents</h2>
+              </div>
+              <div className="py-1">
+                {suggested.map((p) => (
+                  <PlayerCard
+                    key={p.id}
+                    player={p}
+                    token={token}
+                    onChallengeSent={(name) => {
+                      setChallengeSentNotice(`Challenge sent to ${name}!`);
+                      setTimeout(() => setChallengeSentNotice(''), 3000);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {challengeSentNotice && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1a1a2e] border border-[#4caf50]/40 rounded-xl px-5 py-3 text-sm text-[#4caf50] shadow-2xl">
+          ⚔️ {challengeSentNotice}
+        </div>
+      )}
 
       {showMatchmaking && token && (
         <MatchmakingModal

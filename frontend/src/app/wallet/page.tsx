@@ -6,6 +6,69 @@ import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+interface ChartPoint { day: string; income: number; expenses: number; }
+
+function EarningsChart({ rawData }: { rawData: ChartPoint[] }) {
+  // Build a filled 30-day array
+  const days: { date: string; net: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const found = rawData.find((r) => r.day === dateStr);
+    days.push({ date: dateStr, net: found ? found.income - found.expenses : 0 });
+  }
+
+  const maxAbs = Math.max(0.001, ...days.map((d) => Math.abs(d.net)));
+  const W = 300;
+  const H = 80;
+  const barW = 8;
+  const gap = 2;
+  const totalNet = days.reduce((s, d) => s + d.net, 0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-white/40">Last 30 days</span>
+        <span className={`text-sm font-bold ${totalNet >= 0 ? 'text-[#4caf50]' : 'text-red-400'}`}>
+          {totalNet >= 0 ? '+' : ''}{totalNet.toFixed(2)} net
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        style={{ height: 80 }}
+        preserveAspectRatio="none"
+      >
+        {/* Baseline */}
+        <line x1="0" y1={H - 1} x2={W} y2={H - 1} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+        {days.map((d, i) => {
+          const barH = Math.max(2, (Math.abs(d.net) / maxAbs) * (H - 8));
+          const x = i * (barW + gap);
+          const fill = d.net >= 0 ? '#4caf50' : '#ef4444';
+          return (
+            <rect
+              key={d.date}
+              x={x}
+              y={H - barH - 1}
+              width={barW}
+              height={barH}
+              fill={fill}
+              opacity={d.net === 0 ? 0.15 : 0.75}
+              rx="1"
+            />
+          );
+        })}
+      </svg>
+      <div className="flex justify-between text-[10px] text-white/20 mt-1">
+        <span>{days[0]?.date.slice(5)}</span>
+        <span>{days[14]?.date.slice(5)}</span>
+        <span>{days[29]?.date.slice(5)}</span>
+      </div>
+    </div>
+  );
+}
+
 const TX_TYPE_LABELS: Record<string, string> = {
   deposit: 'Deposit',
   win: 'Game Win',
@@ -35,6 +98,7 @@ export default function WalletPage() {
   const [copied, setCopied] = useState(false);
   const [referral, setReferral] = useState<{ referralCode: string | null; referralLink: string | null; referredCount: number; referralEarnings: number } | null>(null);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
 
   useEffect(() => {
     if (ready && !authenticated) { router.push('/'); return; }
@@ -45,11 +109,13 @@ export default function WalletPage() {
       api.wallet.depositAddress(),
       api.wallet.transactions(),
       api.users.referral(),
-    ]).then(([b, d, txs, ref]) => {
+      api.wallet.earningsChart(),
+    ]).then(([b, d, txs, ref, chart]) => {
       setBalance(b.balance);
       setDepositInfo(d);
       setTransactions(txs);
       setReferral(ref);
+      setChartData(chart);
     }).catch(() => {});
   }, [authenticated, ready, router]);
 
@@ -98,6 +164,12 @@ export default function WalletPage() {
         <p className="text-sm text-white/50 mb-1">Available Balance</p>
         <p className="text-4xl font-bold text-[#4caf50]">${balance.toFixed(2)}</p>
         <p className="text-sm text-white/40 mt-1">USDC on Base</p>
+      </div>
+
+      {/* Earnings chart */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-3">Earnings (30 days)</h2>
+        <EarningsChart rawData={chartData} />
       </div>
 
       {/* Referral */}

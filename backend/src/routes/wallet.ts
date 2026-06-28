@@ -85,4 +85,27 @@ router.post('/withdraw', requireAuth, async (req: AuthenticatedRequest, res: Res
   }
 });
 
+router.get('/earnings-chart', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const result = await db.raw(`
+    SELECT
+      DATE(created_at AT TIME ZONE 'UTC') AS day,
+      SUM(CASE WHEN type IN ('win', 'bonus', 'referral') THEN amount ELSE 0 END) AS income,
+      SUM(CASE WHEN type IN ('loss', 'fee') THEN ABS(amount) ELSE 0 END)          AS expenses
+    FROM balance_ledger
+    WHERE user_id = ?
+      AND created_at >= NOW() - INTERVAL '30 days'
+      AND type NOT IN ('deposit', 'withdrawal')
+    GROUP BY day
+    ORDER BY day ASC
+  `, [req.userId!]);
+
+  res.json(
+    result.rows.map((r: any) => ({
+      day: r.day.toISOString().split('T')[0],
+      income: parseFloat(r.income),
+      expenses: parseFloat(r.expenses),
+    }))
+  );
+});
+
 export default router;

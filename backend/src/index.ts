@@ -192,6 +192,7 @@ db.raw(`
   )
 `).catch(() => {});
 db.raw(`CREATE INDEX IF NOT EXISTS idx_user_weekly_missions_user ON user_weekly_missions(user_id, week_start)`).catch(() => {});
+db.raw(`ALTER TABLE games ADD COLUMN IF NOT EXISTS time_control TEXT NOT NULL DEFAULT '5+0'`).catch(() => {});
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {

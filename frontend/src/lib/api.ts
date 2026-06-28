@@ -36,6 +36,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ amount, toAddress }),
       }),
+    earningsChart: () =>
+      request<{ day: string; income: number; expenses: number }[]>('/api/wallet/earnings-chart'),
   },
   games: {
     active: () => request<any[]>('/api/games/active'),
@@ -65,6 +67,10 @@ export const api = {
       ),
     leaderboard: (tab?: 'elo' | 'earnings' | 'weekly' | 'referrals') =>
       request<any[]>(`/api/users/leaderboard${tab ? `?tab=${tab}` : ''}`),
+    recentOpponents: () =>
+      request<any[]>('/api/users/me/recent-opponents'),
+    suggested: () =>
+      request<any[]>('/api/users/me/suggested'),
   },
   friends: {
     list: () => request<{ friends: any[]; incoming: any[]; outgoing: any[] }>('/api/friends'),

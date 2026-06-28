@@ -96,6 +96,37 @@ export default function ProfilePage() {
         ))}
       </div>
 
+      {/* Time control breakdown */}
+      {profile.timeControlStats && profile.timeControlStats.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-bold mb-3">By Time Control</h2>
+          <div className="space-y-2">
+            {profile.timeControlStats.map((tc: any) => {
+              const wr = tc.played ? Math.round((tc.won / tc.played) * 100) : 0;
+              const pct = wr;
+              const label = tc.timeControl === '3+0' ? '⚡ 3+0 Bullet'
+                : tc.timeControl === '5+0' ? '♟ 5+0 Blitz'
+                : tc.timeControl === '10+0' ? '🕐 10+0 Rapid'
+                : tc.timeControl;
+              return (
+                <div key={tc.timeControl}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-white/80">{label}</span>
+                    <span className="text-white/50 text-xs">{tc.won}W / {tc.played - tc.won}L — <span className="text-[#4caf50] font-semibold">{wr}%</span></span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="h-full bg-[#4caf50] rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Achievement badges */}
       {badges.length > 0 && (
         <div className="card">
