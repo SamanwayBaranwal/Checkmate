@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
+import { Chess } from 'chess.js';
 import { useChessGame } from '@/hooks/useChessGame';
 import ChessClock from '@/components/ChessClock';
 import GameOverModal from '@/components/GameOverModal';
@@ -52,6 +53,7 @@ export default function GamePage() {
 
   const [promotionDialog, setPromotionDialog] = useState<{ from: string; to: string } | null>(null);
   const [preMove, setPreMove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('cheating');
   const [reportDetails, setReportDetails] = useState('');
@@ -154,6 +156,75 @@ export default function GamePage() {
     [state, makeMove, autoQueen]
   );
 
+  // Clear selection when turn changes
+  useEffect(() => { setSelectedSquare(null); }, [state?.turn]);
+
+  const legalMoveSquares = useMemo<Record<string, React.CSSProperties>>(() => {
+    if (!selectedSquare || !state || state.turn !== state.color || state.status !== 'playing') return {};
+    try {
+      const chess = new Chess(state.fen);
+      const moves = chess.moves({ square: selectedSquare as Parameters<typeof chess.moves>[0]['square'], verbose: true });
+      const squares: Record<string, React.CSSProperties> = {
+        [selectedSquare]: { backgroundColor: 'rgba(76, 175, 80, 0.4)' },
+      };
+      for (const m of moves) {
+        squares[m.to] = chess.get(m.to as Parameters<typeof chess.get>[0])
+          ? { background: 'radial-gradient(circle, rgba(255,0,0,0.35) 80%, transparent 80%)' }
+          : { background: 'radial-gradient(circle, rgba(0,0,0,0.18) 28%, transparent 28%)' };
+      }
+      return squares;
+    } catch {
+      return {};
+    }
+  }, [selectedSquare, state?.fen, state?.turn, state?.color, state?.status]);
+
+  const onSquareClick = useCallback(
+    (square: string) => {
+      if (!state || state.status !== 'playing') return;
+      try {
+        const chess = new Chess(state.fen);
+        const piece = chess.get(square as Parameters<typeof chess.get>[0]);
+        const myColor = state.color === 'white' ? 'w' : 'b';
+
+        // Clicking our own piece → select / re-select
+        if (piece && piece.color === myColor) {
+          setSelectedSquare((prev) => (prev === square ? null : square));
+          return;
+        }
+
+        // No piece selected — nothing to do
+        if (!selectedSquare) return;
+
+        const movingPiece = chess.get(selectedSquare as Parameters<typeof chess.get>[0]);
+        const isPawnPromotion =
+          movingPiece?.type === 'p' &&
+          ((state.color === 'white' && square[1] === '8') || (state.color === 'black' && square[1] === '1'));
+
+        if (state.turn !== state.color) {
+          // Opponent's turn — queue as pre-move
+          setPreMove({ from: selectedSquare, to: square, promotion: isPawnPromotion ? 'q' : undefined });
+          setSelectedSquare(null);
+          return;
+        }
+
+        // Our turn — play immediately
+        if (isPawnPromotion) {
+          if (autoQueen) {
+            makeMove(selectedSquare, square, 'q');
+          } else {
+            setPromotionDialog({ from: selectedSquare, to: square });
+          }
+        } else {
+          makeMove(selectedSquare, square);
+        }
+        setSelectedSquare(null);
+      } catch {
+        setSelectedSquare(null);
+      }
+    },
+    [state, selectedSquare, makeMove, autoQueen]
+  );
+
   const submitReport = useCallback(async () => {
     if (!state) return;
     setReportSending(true);
@@ -215,12 +286,13 @@ export default function GamePage() {
               id={id}
               position={state.fen}
               onPieceDrop={onPieceDrop}
+              onSquareClick={onSquareClick}
               boardOrientation={boardOrientation}
               arePiecesDraggable={state.status === 'playing'}
               customBoardStyle={{ borderRadius: '0' }}
               customDarkSquareStyle={{ backgroundColor: theme.dark }}
               customLightSquareStyle={{ backgroundColor: theme.light }}
-              customSquareStyles={preMoveSquares}
+              customSquareStyles={{ ...legalMoveSquares, ...preMoveSquares }}
               customPieces={customPieces}
             />
           </div>

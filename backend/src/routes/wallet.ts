@@ -15,8 +15,19 @@ const usdcAbi = parseAbi([
 ]);
 
 router.get('/balance', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const user = await db('users').where({ id: req.userId }).select('usdc_balance').first();
-  res.json({ balance: parseFloat(user?.usdc_balance ?? '0') });
+  const [user, bonusRow] = await Promise.all([
+    db('users').where({ id: req.userId }).select('usdc_balance').first(),
+    db('balance_ledger')
+      .where({ user_id: req.userId })
+      .whereIn('type', ['bonus', 'referral', 'daily_bonus', 'first_deposit_bonus'])
+      .where('amount', '>', 0)
+      .sum('amount as total')
+      .first(),
+  ]);
+  res.json({
+    balance: parseFloat(user?.usdc_balance ?? '0'),
+    bonusBalance: parseFloat(bonusRow?.total ?? '0'),
+  });
 });
 
 router.get('/deposit-address', requireAuth, async (_req: AuthenticatedRequest, res: Response) => {

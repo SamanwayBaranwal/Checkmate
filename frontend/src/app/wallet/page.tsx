@@ -89,6 +89,7 @@ export default function WalletPage() {
   const { authenticated, ready } = usePrivy();
   const router = useRouter();
   const [balance, setBalance] = useState(0);
+  const [bonusBalance, setBonusBalance] = useState(0);
   const [depositInfo, setDepositInfo] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -112,6 +113,7 @@ export default function WalletPage() {
       api.wallet.earningsChart(),
     ]).then(([b, d, txs, ref, chart]) => {
       setBalance(b.balance);
+      setBonusBalance((b as any).bonusBalance ?? 0);
       setDepositInfo(d);
       setTransactions(txs);
       setReferral(ref);
@@ -164,6 +166,12 @@ export default function WalletPage() {
         <p className="text-sm text-white/50 mb-1">Available Balance</p>
         <p className="text-4xl font-bold text-[#4caf50]">${balance.toFixed(2)}</p>
         <p className="text-sm text-white/40 mt-1">USDC on Base</p>
+        {bonusBalance > 0 && (
+          <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
+            <span className="text-xs text-white/40">Lifetime bonus earned</span>
+            <span className="text-xs font-semibold text-[#ffd700]">+${bonusBalance.toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
       {/* Earnings chart */}
