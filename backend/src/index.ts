@@ -11,11 +11,13 @@ import walletRouter from './routes/wallet';
 import gamesRouter from './routes/games';
 import usersRouter from './routes/users';
 import devRouter from './routes/dev';
+import tournamentsRouter from './routes/tournaments';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
 import { setupSpectator } from './socket/spectator';
 import { setupChallenge, setUserSocket, removeUserSocket } from './socket/challenge';
+import { setupTournament } from './socket/tournament';
 import { startDepositWatcher } from './services/deposit';
 import { db } from './db/client';
 
@@ -39,6 +41,7 @@ app.use('/api/wallet', walletRouter);
 app.use('/api/games', gamesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/dev', devRouter);
+app.use('/api/tournaments', tournamentsRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -75,6 +78,7 @@ io.on('connection', async (socket) => {
   setupGameRoom(io, socket);
   setupSpectator(io, socket);
   setupChallenge(io, socket);
+  setupTournament(io, socket);
 
   socket.on('disconnect', () => {
     unregisterUser(socket.id);
@@ -85,10 +89,50 @@ io.on('connection', async (socket) => {
 startTimeoutChecker(io);
 startDepositWatcher();
 
-// Auto-migrate: add new columns if missing
+// Auto-migrate: add new columns and tables if missing
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}'`).catch(() => {});
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_bonus TIMESTAMPTZ`).catch(() => {});
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INTEGER NOT NULL DEFAULT 0`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS tournaments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    entry_fee NUMERIC(18,6) NOT NULL,
+    max_players INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    current_round INTEGER NOT NULL DEFAULT 0,
+    total_rounds INTEGER NOT NULL,
+    prize_pool NUMERIC(18,6) NOT NULL DEFAULT 0,
+    winner_id UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id),
+    starts_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS tournament_players (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id UUID NOT NULL REFERENCES tournaments(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    seed INTEGER,
+    status TEXT NOT NULL DEFAULT 'active',
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(tournament_id, user_id)
+  )
+`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS tournament_games (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id UUID NOT NULL REFERENCES tournaments(id),
+    game_id UUID REFERENCES games(id),
+    round INTEGER NOT NULL,
+    player1 UUID NOT NULL REFERENCES users(id),
+    player2 UUID NOT NULL REFERENCES users(id),
+    winner UUID REFERENCES users(id),
+    status TEXT NOT NULL DEFAULT 'pending'
+  )
+`).catch(() => {});
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {

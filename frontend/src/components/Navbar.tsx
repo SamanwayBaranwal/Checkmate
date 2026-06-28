@@ -87,6 +87,9 @@ export default function Navbar() {
           <Link href="/leaderboard" className="text-sm text-white/70 hover:text-white transition-colors">
             Leaderboard
           </Link>
+          <Link href="/tournaments" className="text-sm text-white/70 hover:text-white transition-colors">
+            Tournaments
+          </Link>
           {authenticated && (
             <Link href="/wallet" className="text-sm text-white/70 hover:text-white transition-colors">
               Wallet

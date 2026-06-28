@@ -62,6 +62,14 @@ export const api = {
         '/api/users/me/daily-bonus', { method: 'POST' }
       ),
   },
+  tournaments: {
+    list: () => request<any[]>('/api/tournaments'),
+    get: (id: string) => request<any>(`/api/tournaments/${id}`),
+    create: (data: { name: string; entryFee: number; maxPlayers: number }) =>
+      request<any>('/api/tournaments', { method: 'POST', body: JSON.stringify(data) }),
+    join: (id: string) =>
+      request<{ ok: boolean }>(`/api/tournaments/${id}/join`, { method: 'POST' }),
+  },
   dev: {
     addBalance: () =>
       request<{ message: string; balance: number }>('/api/dev/add-balance', { method: 'POST' }),

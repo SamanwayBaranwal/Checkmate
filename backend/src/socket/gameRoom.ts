@@ -4,6 +4,7 @@ import { db } from '../db/client';
 import { applyMove } from '../services/chess';
 import { settleGame, refundBet, reserveBet } from '../services/balance';
 import { Chess } from 'chess.js';
+import { onTournamentGameOver } from './tournament';
 
 interface ClockState {
   white: number;
@@ -353,6 +354,12 @@ async function handleGameEnd(
       [loserId]: loserUser.elo,
     },
   });
+
+  // If this game belongs to a tournament, advance the bracket
+  const tGame = await db('tournament_games').where({ game_id: gameId }).first();
+  if (tGame) {
+    await onTournamentGameOver(io, tGame.tournament_id, gameId, winnerId);
+  }
 }
 
 // Periodic timeout checker (runs every 5s)
