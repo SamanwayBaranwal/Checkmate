@@ -351,7 +351,7 @@ router.get('/search', requireAuth, async (req: AuthenticatedRequest, res: Respon
 router.get('/:id', async (req: Request, res: Response) => {
   const user = await db('users')
     .where({ id: req.params.id })
-    .select('id', 'wallet', 'username', 'elo', 'games_played', 'games_won', 'created_at', 'settings')
+    .select('id', 'wallet', 'username', 'elo', 'games_played', 'games_won', 'created_at', 'settings', 'banned_at')
     .first();
   if (!user) { res.status(404).json({ error: 'Not found' }); return; }
 
@@ -400,6 +400,15 @@ router.get('/:id', async (req: Request, res: Response) => {
     ? parseFloat((totalEarnings / user.games_won).toFixed(4))
     : 0;
 
+  // Fair play certificate: not banned, no resolved reports, min 5 games
+  const resolvedReports = await db('reports')
+    .where({ reported_id: user.id, status: 'resolved' })
+    .count('* as cnt')
+    .first();
+  const fairPlay = !user.banned_at &&
+    parseInt((resolvedReports as any)?.cnt ?? '0') === 0 &&
+    user.games_played >= 5;
+
   res.json({
     id: user.id,
     wallet: user.wallet,
@@ -410,6 +419,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     totalEarnings,
     bestStreak,
     avgEarnings,
+    fairPlay,
     joinedAt: user.created_at,
     recentGames: recentGames.map((g) => ({ ...g, bet_amount: parseFloat(g.bet_amount) })),
   });

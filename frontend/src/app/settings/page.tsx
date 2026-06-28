@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useLinkAccount } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { PIECE_THEMES, type PieceTheme } from '@/lib/pieceThemes';
@@ -44,7 +44,8 @@ function Toggle({ value, onChange, label, desc }: { value: boolean; onChange: (v
 }
 
 export default function SettingsPage() {
-  const { authenticated, ready, logout } = usePrivy();
+  const { authenticated, ready, logout, user } = usePrivy();
+  const { linkEmail, linkPhone, linkGoogle } = useLinkAccount();
   const router = useRouter();
   const [boardTheme, setBoardTheme] = useState(0);
   const [pieceTheme, setPieceTheme] = useState<PieceTheme>('classic');
@@ -244,6 +245,54 @@ export default function SettingsPage() {
             onChange={(v) => setNotifPrefs((prev) => ({ ...prev, [pref.key]: v }))}
           />
         ))}
+      </div>
+
+      {/* Security — linked login methods */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-1">Security</h2>
+        <p className="text-xs text-white/40 mb-4">
+          Link additional login methods so you can always access your account.
+        </p>
+        <div className="space-y-2">
+          {[
+            {
+              type: 'email',
+              label: 'Email',
+              icon: '✉️',
+              linked: user?.linkedAccounts?.some((a: any) => a.type === 'email'),
+              onLink: () => linkEmail(),
+            },
+            {
+              type: 'phone',
+              label: 'Phone (SMS)',
+              icon: '📱',
+              linked: user?.linkedAccounts?.some((a: any) => a.type === 'phone'),
+              onLink: () => linkPhone(),
+            },
+            {
+              type: 'google_oauth',
+              label: 'Google',
+              icon: '🔵',
+              linked: user?.linkedAccounts?.some((a: any) => a.type === 'google_oauth'),
+              onLink: () => linkGoogle(),
+            },
+          ].map((method) => (
+            <div key={method.type} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">{method.icon}</span>
+                <div>
+                  <p className="text-sm font-semibold">{method.label}</p>
+                  <p className="text-xs text-white/40">{method.linked ? 'Linked' : 'Not linked'}</p>
+                </div>
+              </div>
+              {method.linked ? (
+                <span className="text-xs text-[#4caf50] bg-[#4caf50]/10 border border-[#4caf50]/30 px-2 py-0.5 rounded-full">✓ Linked</span>
+              ) : (
+                <button onClick={method.onLink} className="text-xs btn-secondary py-1 px-3">Link</button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Save button */}

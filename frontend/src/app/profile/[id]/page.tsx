@@ -14,13 +14,14 @@ function shortAddr(addr: string) {
 function computeBadges(p: any) {
   const badges = [];
   const winRate = p.gamesPlayed ? (p.gamesWon / p.gamesPlayed) * 100 : 0;
-  if (p.gamesWon >= 1) badges.push({ icon: '🏆', label: 'First Win' });
-  if (p.gamesPlayed >= 10) badges.push({ icon: '⚡', label: 'Veteran' });
-  if (p.gamesPlayed >= 50) badges.push({ icon: '💎', label: 'Grinder' });
-  if (winRate >= 60 && p.gamesPlayed >= 10) badges.push({ icon: '🎯', label: 'Sharp' });
-  if (p.elo >= 1400) badges.push({ icon: '🌙', label: 'Rising Star' });
-  if (p.elo >= 1600) badges.push({ icon: '👑', label: 'Elite' });
-  if (p.totalEarnings !== null && p.totalEarnings >= 10) badges.push({ icon: '💰', label: 'Earner' });
+  if (p.fairPlay) badges.push({ icon: '🛡️', label: 'Fair Play', desc: 'No fair play violations on record', highlight: true });
+  if (p.gamesWon >= 1) badges.push({ icon: '🏆', label: 'First Win', desc: '', highlight: false });
+  if (p.gamesPlayed >= 10) badges.push({ icon: '⚡', label: 'Veteran', desc: '', highlight: false });
+  if (p.gamesPlayed >= 50) badges.push({ icon: '💎', label: 'Grinder', desc: '', highlight: false });
+  if (winRate >= 60 && p.gamesPlayed >= 10) badges.push({ icon: '🎯', label: 'Sharp', desc: '', highlight: false });
+  if (p.elo >= 1400) badges.push({ icon: '🌙', label: 'Rising Star', desc: '', highlight: false });
+  if (p.elo >= 1600) badges.push({ icon: '👑', label: 'Elite', desc: '', highlight: false });
+  if (p.totalEarnings !== null && p.totalEarnings >= 10) badges.push({ icon: '💰', label: 'Earner', desc: '', highlight: false });
   return badges;
 }
 
@@ -148,7 +149,12 @@ export default function PublicProfilePage() {
           <h2 className="text-lg font-bold mb-3">Achievements</h2>
           <div className="flex flex-wrap gap-3">
             {badges.map((b) => (
-              <div key={b.label} className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+              <div key={b.label} title={b.desc || undefined}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 border ${
+                  b.highlight
+                    ? 'bg-[#4caf50]/10 border-[#4caf50]/40 text-[#4caf50]'
+                    : 'bg-white/5 border-white/10'
+                }`}>
                 <span className="text-xl">{b.icon}</span>
                 <span className="text-sm font-semibold">{b.label}</span>
               </div>

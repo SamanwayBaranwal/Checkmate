@@ -139,6 +139,7 @@ export default function Navbar() {
     { href: '/leaderboard', label: 'Leaderboard', auth: false },
     { href: '/tournaments', label: 'Tournaments', auth: false },
     { href: '/puzzle', label: '♟ Puzzle', auth: false },
+    { href: '/learn', label: 'Learn', auth: false },
     { href: '/missions', label: 'Missions', auth: true },
     { href: '/wallet', label: 'Wallet', auth: true },
     { href: '/friends', label: 'Friends', auth: true },
