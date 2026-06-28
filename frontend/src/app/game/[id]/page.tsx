@@ -50,6 +50,7 @@ export default function GamePage() {
   }, [rematchGameId, router]);
 
   const [promotionDialog, setPromotionDialog] = useState<{ from: string; to: string } | null>(null);
+  const [preMove, setPreMove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('cheating');
   const [reportDetails, setReportDetails] = useState('');
@@ -102,6 +103,16 @@ export default function GamePage() {
     else sounds.lose();
   }, [state?.status]);
 
+  // Fire queued pre-move when turn arrives
+  useEffect(() => {
+    if (!state || !preMove || state.status !== 'playing') return;
+    if (state.turn === state.color) {
+      makeMove(preMove.from, preMove.to, preMove.promotion);
+      setPreMove(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.turn]);
+
   // Low clock warning
   useEffect(() => {
     if (!state || state.status !== 'playing') return;
@@ -113,10 +124,19 @@ export default function GamePage() {
 
   const onPieceDrop = useCallback(
     (from: string, to: string, piece: string) => {
-      if (!state || state.status !== 'playing' || state.turn !== state.color) return false;
+      if (!state || state.status !== 'playing') return false;
+
       const isPawnPromotion =
         piece.toLowerCase().includes('p') &&
         ((state.color === 'white' && to[1] === '8') || (state.color === 'black' && to[1] === '1'));
+
+      // Opponent's turn — queue as pre-move
+      if (state.turn !== state.color) {
+        setPreMove({ from, to, promotion: isPawnPromotion ? 'q' : undefined });
+        return true;
+      }
+
+      // My turn — play immediately
       if (isPawnPromotion) {
         if (autoQueen) { makeMove(from, to, 'q'); return true; }
         setPromotionDialog({ from, to });
@@ -163,6 +183,12 @@ export default function GamePage() {
   const boardOrientation = state.color === 'black' ? 'black' : 'white';
   const opponentClock = state.color === 'white' ? state.clocks.black : state.clocks.white;
   const myClock = state.color === 'white' ? state.clocks.white : state.clocks.black;
+  const preMoveSquares: Record<string, React.CSSProperties> = preMove
+    ? {
+        [preMove.from]: { backgroundColor: 'rgba(255, 140, 0, 0.5)' },
+        [preMove.to]:   { backgroundColor: 'rgba(255, 140, 0, 0.5)' },
+      }
+    : {};
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
@@ -184,10 +210,11 @@ export default function GamePage() {
               position={state.fen}
               onPieceDrop={onPieceDrop}
               boardOrientation={boardOrientation}
-              arePiecesDraggable={isMyTurn}
+              arePiecesDraggable={state.status === 'playing'}
               customBoardStyle={{ borderRadius: '0' }}
               customDarkSquareStyle={{ backgroundColor: theme.dark }}
               customLightSquareStyle={{ backgroundColor: theme.light }}
+              customSquareStyles={preMoveSquares}
             />
           </div>
 
@@ -272,6 +299,14 @@ export default function GamePage() {
                 <button onClick={acceptDraw} className="btn-primary flex-1 text-sm py-1.5">Accept</button>
                 <button className="btn-secondary flex-1 text-sm py-1.5">Decline</button>
               </div>
+            </div>
+          )}
+
+          {/* Pre-move indicator */}
+          {preMove && (
+            <div className="card border border-orange-500/40 flex items-center justify-between py-2 px-3">
+              <span className="text-xs text-orange-400">Pre-move queued: {preMove.from}→{preMove.to}</span>
+              <button onClick={() => setPreMove(null)} className="text-white/40 hover:text-white text-xs ml-2">✕</button>
             </div>
           )}
 

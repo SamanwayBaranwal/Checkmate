@@ -4,6 +4,7 @@ import { db } from '../db/client';
 import { reserveBet } from '../services/balance';
 import { getInitialFen } from '../services/chess';
 import { registerGamePlayer } from './gameRoom';
+import { createNotification } from '../services/notifications';
 import { v4 as uuidv4 } from 'uuid';
 
 export const userSocketMap = new Map<string, string>();
@@ -60,6 +61,14 @@ export function setupChallenge(io: Server, socket: Socket) {
       from: { userId: challengerId, username: senderName, elo: challenger.elo },
       betAmount,
     });
+
+    // Persist notification so it shows in the bell icon
+    createNotification(
+      targetId,
+      'challenge_received',
+      `${senderName} challenged you to a $${betAmount} game`,
+      { challengeId, fromId: challengerId, betAmount }
+    );
 
     socket.emit('challenge_sent', { challengeId, targetId });
   });

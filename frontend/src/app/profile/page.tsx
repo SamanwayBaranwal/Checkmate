@@ -29,7 +29,7 @@ const NOTIF_TYPES = [
   { key: 'mission_complete', label: 'Mission completed' },
   { key: 'friend_request',   label: 'Friend requests' },
   { key: 'challenge_received', label: 'Challenges received' },
-  { key: 'friend_joined',    label: 'Friend joined Checkmate' },
+  { key: 'friend_accepted',  label: 'Friend request accepted' },
   { key: 'streak_bonus',     label: 'Streak bonuses' },
   { key: 'tournament_start', label: 'Tournament starting' },
 ];
