@@ -44,17 +44,17 @@ function PlayerCard({ player, token, onChallengeSent }: { player: any; token: st
       </div>
       <div className="relative">
         {!open ? (
-          <button onClick={() => setOpen(true)} className="btn-secondary text-xs py-1 px-3">
+          <button onClick={() => setOpen(true)} className="btn-secondary text-xs py-1 px-3 shrink-0">
             Challenge
           </button>
         ) : (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap justify-end max-w-[160px] sm:max-w-none">
             {CHALLENGE_BETS.map((bet) => (
               <button
                 key={bet}
                 onClick={() => sendChallenge(bet)}
                 disabled={sending !== null}
-                className="btn-primary text-xs py-1 px-2 min-w-[36px]"
+                className="btn-primary text-xs py-1 px-2 min-w-[34px]"
               >
                 {sending === bet ? '…' : `$${bet}`}
               </button>
@@ -165,12 +165,12 @@ export default function LobbyPage() {
       )}
 
       {/* Hero */}
-      <div className="text-center mb-12">
-        <h1 className="text-5xl font-bold mb-4">
+      <div className="text-center mb-10">
+        <h1 className="text-3xl sm:text-5xl font-bold mb-4">
           Play Chess.<br />
           <span className="text-[#ffd700]">Win Real Money.</span>
         </h1>
-        <p className="text-white/60 text-lg mb-8">
+        <p className="text-white/60 text-base sm:text-lg mb-8">
           Bet USDC, beat your opponent, climb the leaderboard.
         </p>
 

@@ -36,6 +36,7 @@ export default function Navbar() {
   const [balance, setBalance] = useState<number | null>(null);
   const [incomingChallenge, setIncomingChallenge] = useState<IncomingChallenge | null>(null);
   const [declinedNotice, setDeclinedNotice] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Notifications
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -134,49 +135,36 @@ export default function Navbar() {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
+  const navLinks = [
+    { href: '/leaderboard', label: 'Leaderboard', auth: false },
+    { href: '/tournaments', label: 'Tournaments', auth: false },
+    { href: '/missions', label: 'Missions', auth: true },
+    { href: '/wallet', label: 'Wallet', auth: true },
+    { href: '/friends', label: 'Friends', auth: true },
+    { href: '/profile', label: 'Profile', auth: true },
+    { href: '/settings', label: 'Settings', auth: true },
+  ].filter((l) => !l.auth || authenticated);
+
   return (
     <>
-      <nav className="border-b border-white/10 bg-[#0f3460] px-6 py-3 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-xl font-bold text-[#ffd700]">
+      <nav className="border-b border-white/10 bg-[#0f3460] px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-xl font-bold text-[#ffd700] shrink-0" onClick={() => setMenuOpen(false)}>
             ♟ Checkmate
           </Link>
-          <Link href="/leaderboard" className="text-sm text-white/70 hover:text-white transition-colors">
-            Leaderboard
-          </Link>
-          <Link href="/tournaments" className="text-sm text-white/70 hover:text-white transition-colors">
-            Tournaments
-          </Link>
-          {authenticated && (
-            <Link href="/missions" className="text-sm text-white/70 hover:text-white transition-colors">
-              Missions
-            </Link>
-          )}
-          {authenticated && (
-            <Link href="/wallet" className="text-sm text-white/70 hover:text-white transition-colors">
-              Wallet
-            </Link>
-          )}
-          {authenticated && (
-            <Link href="/friends" className="text-sm text-white/70 hover:text-white transition-colors">
-              Friends
-            </Link>
-          )}
-          {authenticated && (
-            <Link href="/profile" className="text-sm text-white/70 hover:text-white transition-colors">
-              Profile
-            </Link>
-          )}
-          {authenticated && (
-            <Link href="/settings" className="text-sm text-white/70 hover:text-white transition-colors">
-              Settings
-            </Link>
-          )}
+          {/* Desktop links */}
+          <div className="hidden md:flex items-center gap-5">
+            {navLinks.map((l) => (
+              <Link key={l.href} href={l.href} className="text-sm text-white/70 hover:text-white transition-colors">
+                {l.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {authenticated && balance !== null && (
-            <span className="text-sm text-[#4caf50] font-semibold">
+            <span className="text-sm text-[#4caf50] font-semibold hidden sm:inline">
               ${balance.toFixed(2)} USDC
             </span>
           )}
@@ -245,12 +233,57 @@ export default function Navbar() {
             </button>
           )}
           {authenticated && (
-            <button onClick={logout} className="btn-secondary text-sm">
+            <button onClick={logout} className="btn-secondary text-sm hidden md:inline-flex">
+              Disconnect
+            </button>
+          )}
+          {/* Hamburger — mobile only */}
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="md:hidden p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Menu"
+          >
+            {menuOpen ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="md:hidden bg-[#0f3460] border-b border-white/10 px-4 py-3 space-y-1 z-40">
+          {authenticated && balance !== null && (
+            <div className="text-sm text-[#4caf50] font-semibold py-2 border-b border-white/10 mb-2">
+              ${balance.toFixed(2)} USDC
+            </div>
+          )}
+          {navLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={() => setMenuOpen(false)}
+              className="block py-2 text-sm text-white/70 hover:text-white transition-colors"
+            >
+              {l.label}
+            </Link>
+          ))}
+          {authenticated && (
+            <button
+              onClick={() => { setMenuOpen(false); logout(); }}
+              className="block w-full text-left py-2 text-sm text-white/50 hover:text-white transition-colors border-t border-white/10 mt-2 pt-3"
+            >
               Disconnect
             </button>
           )}
         </div>
-      </nav>
+      )}
 
       {/* Incoming challenge notification */}
       {incomingChallenge && (

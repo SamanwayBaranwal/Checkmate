@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { PIECE_THEMES, type PieceTheme } from '@/lib/pieceThemes';
 
 const BOARD_THEMES = [
   { name: 'Classic', light: '#f0d9b5', dark: '#b58863' },
@@ -36,6 +37,7 @@ export default function SettingsPage() {
   const { authenticated, ready, logout } = usePrivy();
   const router = useRouter();
   const [boardTheme, setBoardTheme] = useState(0);
+  const [pieceTheme, setPieceTheme] = useState<PieceTheme>('classic');
   const [autoQueen, setAutoQueen] = useState(true);
   const [showEarningsPublicly, setShowEarningsPublicly] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -62,6 +64,7 @@ export default function SettingsPage() {
     api.users.me().then((u) => {
       const s = u.settings || {};
       if (typeof s.boardTheme === 'number') setBoardTheme(s.boardTheme);
+      if (s.pieceTheme) setPieceTheme(s.pieceTheme as PieceTheme);
       if (typeof s.autoQueen === 'boolean') setAutoQueen(s.autoQueen);
       if (typeof s.showEarningsPublicly === 'boolean') setShowEarningsPublicly(s.showEarningsPublicly);
       if (u.username) { setCurrentUsername(u.username); setUsernameInput(u.username); }
@@ -90,9 +93,10 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     localStorage.setItem('checkmate_board_theme', String(boardTheme));
+    localStorage.setItem('checkmate_piece_theme', pieceTheme);
     localStorage.setItem('checkmate_auto_queen', String(autoQueen));
     try {
-      await api.users.saveSettings({ boardTheme, autoQueen, showEarningsPublicly });
+      await api.users.saveSettings({ boardTheme, pieceTheme, autoQueen, showEarningsPublicly });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {}
@@ -170,6 +174,32 @@ export default function SettingsPage() {
         </div>
         <div className="mt-3 p-3 rounded-lg text-xs text-white/40 bg-black/20">
           Preview: selected theme will be used in all your games
+        </div>
+      </div>
+
+      {/* Piece theme */}
+      <div className="card">
+        <h2 className="text-lg font-bold mb-4">Piece Style</h2>
+        <div className="grid grid-cols-4 gap-3">
+          {PIECE_THEMES.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setPieceTheme(t.key)}
+              className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition ${
+                t.key === pieceTheme ? 'border-[#4caf50]' : 'border-transparent hover:border-white/20'
+              }`}
+            >
+              <div className={`text-3xl select-none ${t.key === 'neon' ? 'text-[#4caf50]' : ''}`}
+                style={t.key === 'neon' ? { filter: 'drop-shadow(0 0 5px #4caf50)' } : undefined}>
+                {t.key === 'minimal' ? (
+                  <span style={{ fontWeight: 900, fontFamily: 'system-ui', fontSize: '1.5rem' }}>Q</span>
+                ) : (
+                  t.key === 'classic' ? '♟' : t.preview
+                )}
+              </div>
+              <span className="text-xs text-white/60">{t.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 

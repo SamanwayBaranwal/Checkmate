@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useChessGame } from '@/hooks/useChessGame';
 import ChessClock from '@/components/ChessClock';
@@ -10,6 +10,7 @@ import GameOverModal from '@/components/GameOverModal';
 import MoveHistory from '@/components/MoveHistory';
 import { sounds } from '@/lib/sounds';
 import { api } from '@/lib/api';
+import { getCustomPieces, type PieceTheme } from '@/lib/pieceThemes';
 
 const Chessboard = dynamic(() => import('react-chessboard').then((m) => m.Chessboard), {
   ssr: false,
@@ -65,6 +66,11 @@ export default function GamePage() {
     if (typeof window === 'undefined') return true;
     return localStorage.getItem('checkmate_auto_queen') !== 'false';
   });
+  const [pieceTheme] = useState<PieceTheme>(() => {
+    if (typeof window === 'undefined') return 'classic';
+    return (localStorage.getItem('checkmate_piece_theme') as PieceTheme) || 'classic';
+  });
+  const customPieces = useMemo(() => getCustomPieces(pieceTheme), [pieceTheme]);
   const [showThemes, setShowThemes] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -215,6 +221,7 @@ export default function GamePage() {
               customDarkSquareStyle={{ backgroundColor: theme.dark }}
               customLightSquareStyle={{ backgroundColor: theme.light }}
               customSquareStyles={preMoveSquares}
+              customPieces={customPieces}
             />
           </div>
 
@@ -228,7 +235,7 @@ export default function GamePage() {
         </div>
 
         {/* Sidebar */}
-        <div className="lg:w-64 flex flex-col gap-3" style={{ minHeight: '520px' }}>
+        <div className="lg:w-64 flex flex-col gap-3">
 
           {/* Game info */}
           <div className="card">
