@@ -68,6 +68,29 @@ export async function settleGame(
     });
   });
 
+  // Referral bonus: credit each player's referrer 10% of their share of the platform fee
+  const referralBonus = parseFloat((betAmount * 0.0025).toFixed(6));
+  const [winnerRow, loserRow] = await Promise.all([
+    db('users').where({ id: winnerId }).select('referred_by').first(),
+    db('users').where({ id: loserId }).select('referred_by').first(),
+  ]);
+  const referralCredits = [
+    winnerRow?.referred_by ? winnerRow.referred_by : null,
+    loserRow?.referred_by ? loserRow.referred_by : null,
+  ].filter(Boolean) as string[];
+
+  for (const referrerId of referralCredits) {
+    await db.transaction(async (trx) => {
+      await trx('users').where({ id: referrerId }).increment('usdc_balance', referralBonus);
+      await trx('balance_ledger').insert({
+        user_id: referrerId,
+        amount: referralBonus,
+        type: 'referral',
+        game_id: gameId,
+      });
+    });
+  }
+
   // Win streak bonus: 5+ consecutive wins → 10% of payout, max $5
   const recentGames = await db('games')
     .where(function () {

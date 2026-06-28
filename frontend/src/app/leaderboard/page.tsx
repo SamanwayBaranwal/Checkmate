@@ -5,7 +5,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 
-type Tab = 'elo' | 'earnings' | 'weekly';
+type Tab = 'elo' | 'earnings' | 'weekly' | 'referrals';
 
 function shortAddr(addr: string) {
   return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '???';
@@ -22,6 +22,7 @@ const TAB_CONFIG: Record<Tab, { label: string; valueKey: string; valueLabel: str
   elo: { label: 'By Rating', valueKey: 'elo', valueLabel: 'ELO', format: (v) => String(v) },
   earnings: { label: 'By Earnings', valueKey: 'total_earnings', valueLabel: 'Earned', format: (v) => `$${v.toFixed(2)}` },
   weekly: { label: 'This Week', valueKey: 'weekly_earnings', valueLabel: 'This Week', format: (v) => `$${v.toFixed(2)}` },
+  referrals: { label: 'Referrals', valueKey: 'referral_earnings', valueLabel: 'Ref. Earned', format: (v) => `$${v.toFixed(2)}` },
 };
 
 export default function LeaderboardPage() {
@@ -90,8 +91,8 @@ export default function LeaderboardPage() {
                   <th className="px-4 py-3 text-left">Rank</th>
                   <th className="px-4 py-3 text-left">Player</th>
                   <th className="px-4 py-3 text-right">{cfg.valueLabel}</th>
-                  <th className="px-4 py-3 text-right hidden sm:table-cell">Games</th>
-                  <th className="px-4 py-3 text-right hidden sm:table-cell">Win %</th>
+                  <th className="px-4 py-3 text-right hidden sm:table-cell">{tab === 'referrals' ? 'Referred' : 'Games'}</th>
+                  <th className="px-4 py-3 text-right hidden sm:table-cell">{tab === 'referrals' ? '' : 'Win %'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -125,10 +126,10 @@ export default function LeaderboardPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right text-white/60 hidden sm:table-cell">
-                        {player.games_played}
+                        {tab === 'referrals' ? (player.referred_count ?? 0) : player.games_played}
                       </td>
                       <td className="px-4 py-3 text-right text-[#4caf50] hidden sm:table-cell">
-                        {winRate(player.games_won, player.games_played)}
+                        {tab === 'referrals' ? `${player.referred_count ?? 0} users` : winRate(player.games_won, player.games_played)}
                       </td>
                     </tr>
                   );

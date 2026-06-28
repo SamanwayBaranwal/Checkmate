@@ -38,6 +38,27 @@ router.get('/leaderboard', async (req: Request, res: Response) => {
       return;
     }
 
+    if (tab === 'referrals') {
+      const result = await db.raw(`
+        SELECT u.id, u.wallet, u.username, u.elo, u.games_played, u.games_won,
+          COUNT(r.id) AS referred_count,
+          COALESCE(SUM(bl.amount), 0) AS referral_earnings
+        FROM users u
+        LEFT JOIN users r ON r.referred_by = u.id
+        LEFT JOIN balance_ledger bl ON bl.user_id = u.id AND bl.type = 'referral'
+        GROUP BY u.id
+        HAVING COUNT(r.id) > 0
+        ORDER BY referral_earnings DESC, referred_count DESC
+        LIMIT 100
+      `);
+      res.json(result.rows.map((u: any) => ({
+        ...u,
+        referred_count: parseInt(u.referred_count),
+        referral_earnings: parseFloat(u.referral_earnings),
+      })));
+      return;
+    }
+
     // Default: ELO
     const users = await db('users')
       .select('id', 'wallet', 'username', 'elo', 'games_played', 'games_won')
@@ -184,6 +205,29 @@ router.post('/me/daily-bonus', requireAuth, async (req: AuthenticatedRequest, re
     console.error('Daily bonus error:', err);
     res.status(500).json({ error: 'Failed to claim bonus' });
   }
+});
+
+router.get('/me/referral', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const user = await db('users').where({ id: req.userId }).select('id', 'referral_code').first();
+  if (!user) { res.status(404).json({ error: 'Not found' }); return; }
+
+  const referralCode = user.referral_code || null;
+  const referralLink = referralCode
+    ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}/?ref=${referralCode}`
+    : null;
+
+  const countResult = await db('users').where({ referred_by: user.id }).count('* as cnt').first();
+  const earningsResult = await db('balance_ledger')
+    .where({ user_id: user.id, type: 'referral' })
+    .sum('amount as total')
+    .first();
+
+  res.json({
+    referralCode,
+    referralLink,
+    referredCount: parseInt((countResult as any)?.cnt || '0'),
+    referralEarnings: parseFloat((earningsResult as any)?.total || '0'),
+  });
 });
 
 router.get('/search', requireAuth, async (req: AuthenticatedRequest, res: Response) => {

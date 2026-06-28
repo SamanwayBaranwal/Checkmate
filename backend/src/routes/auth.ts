@@ -4,11 +4,28 @@ import { db } from '../db/client';
 
 const router = Router();
 
-// Privy sends us a verified user object from the frontend SDK.
-// We accept the wallet address + privy user id directly.
-// In production you'd verify the Privy access token server-side using @privy-io/server-auth.
+function generateReferralCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no confusable chars (O/0, I/1)
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+async function makeReferralCode(): Promise<string> {
+  let code = generateReferralCode();
+  // Retry on collision (extremely rare)
+  while (await db('users').where({ referral_code: code }).first()) {
+    code = generateReferralCode();
+  }
+  return code;
+}
+
 router.post('/verify', async (req: Request, res: Response) => {
-  const { privyUserId, wallet } = req.body as { privyUserId?: string; wallet?: string };
+  const { privyUserId, wallet, referralCode } = req.body as {
+    privyUserId?: string;
+    wallet?: string;
+    referralCode?: string;
+  };
 
   if (!privyUserId || !wallet) {
     res.status(400).json({ error: 'privyUserId and wallet required' });
@@ -18,9 +35,28 @@ router.post('/verify', async (req: Request, res: Response) => {
   const walletLower = wallet.toLowerCase();
 
   try {
-    // Upsert user — on conflict just update wallet in case it changed
+    const isNewUser = !(await db('users').where({ privy_user_id: privyUserId }).first());
+
+    // Generate referral code for new user
+    const newReferralCode = isNewUser ? await makeReferralCode() : undefined;
+
+    // Look up referrer
+    let referredBy: string | undefined;
+    if (isNewUser && referralCode) {
+      const referrer = await db('users')
+        .where({ referral_code: referralCode.toUpperCase() })
+        .select('id')
+        .first();
+      if (referrer && referrer.id !== privyUserId) referredBy = referrer.id;
+    }
+
     await db('users')
-      .insert({ privy_user_id: privyUserId, wallet: walletLower })
+      .insert({
+        privy_user_id: privyUserId,
+        wallet: walletLower,
+        ...(newReferralCode ? { referral_code: newReferralCode } : {}),
+        ...(referredBy ? { referred_by: referredBy } : {}),
+      })
       .onConflict('privy_user_id')
       .merge({ wallet: walletLower });
 

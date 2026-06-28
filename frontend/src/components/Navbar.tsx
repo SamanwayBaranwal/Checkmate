@@ -96,6 +96,11 @@ export default function Navbar() {
             </Link>
           )}
           {authenticated && (
+            <Link href="/friends" className="text-sm text-white/70 hover:text-white transition-colors">
+              Friends
+            </Link>
+          )}
+          {authenticated && (
             <Link href="/profile" className="text-sm text-white/70 hover:text-white transition-colors">
               Profile
             </Link>

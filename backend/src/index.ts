@@ -12,6 +12,7 @@ import gamesRouter from './routes/games';
 import usersRouter from './routes/users';
 import devRouter from './routes/dev';
 import tournamentsRouter from './routes/tournaments';
+import friendsRouter from './routes/friends';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
@@ -19,6 +20,7 @@ import { setupSpectator } from './socket/spectator';
 import { setupChallenge, setUserSocket, removeUserSocket } from './socket/challenge';
 import { setupTournament } from './socket/tournament';
 import { startDepositWatcher } from './services/deposit';
+import { addOnlineSocket, removeOnlineSocket } from './services/onlineUsers';
 import { db } from './db/client';
 
 const app = express();
@@ -42,6 +44,7 @@ app.use('/api/games', gamesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/dev', devRouter);
 app.use('/api/tournaments', tournamentsRouter);
+app.use('/api/friends', friendsRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -71,6 +74,7 @@ io.on('connection', async (socket) => {
       registerUser(socket.id, { userId, wallet: user.wallet, elo: user.elo });
       setUserSocket(userId, socket.id);
       (socket as any).userId = userId;
+      addOnlineSocket(userId, socket.id);
     }
   }
 
@@ -82,7 +86,10 @@ io.on('connection', async (socket) => {
 
   socket.on('disconnect', () => {
     unregisterUser(socket.id);
-    if (userId) removeUserSocket(userId);
+    if (userId) {
+      removeUserSocket(userId);
+      removeOnlineSocket(userId, socket.id);
+    }
   });
 });
 
@@ -93,6 +100,24 @@ startDepositWatcher();
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}'`).catch(() => {});
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_bonus TIMESTAMPTZ`).catch(() => {});
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INTEGER NOT NULL DEFAULT 0`).catch(() => {});
+db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT`).catch(() => {});
+db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES users(id)`).catch(() => {});
+db.raw(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code) WHERE referral_code IS NOT NULL`).catch(() => {});
+// Widen balance_ledger type constraint to include bonus and referral types
+db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
+db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral'))`).catch(() => {});
+db.raw(`
+  CREATE TABLE IF NOT EXISTS friends (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    friend_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status     TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, friend_id)
+  )
+`).catch(() => {});
+db.raw(`CREATE INDEX IF NOT EXISTS idx_friends_user ON friends(user_id)`).catch(() => {});
+db.raw(`CREATE INDEX IF NOT EXISTS idx_friends_friend ON friends(friend_id)`).catch(() => {});
 db.raw(`
   CREATE TABLE IF NOT EXISTS tournaments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

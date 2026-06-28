@@ -14,6 +14,8 @@ const TX_TYPE_LABELS: Record<string, string> = {
   refund: 'Refund',
   fee: 'Fee',
   game_credit: 'Credit',
+  bonus: 'Bonus',
+  referral: 'Referral Earning',
 };
 
 function formatDate(iso: string) {
@@ -31,6 +33,8 @@ export default function WalletPage() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawResult, setWithdrawResult] = useState('');
   const [copied, setCopied] = useState(false);
+  const [referral, setReferral] = useState<{ referralCode: string | null; referralLink: string | null; referredCount: number; referralEarnings: number } | null>(null);
+  const [copiedRef, setCopiedRef] = useState(false);
 
   useEffect(() => {
     if (ready && !authenticated) { router.push('/'); return; }
@@ -40,10 +44,12 @@ export default function WalletPage() {
       api.wallet.balance(),
       api.wallet.depositAddress(),
       api.wallet.transactions(),
-    ]).then(([b, d, txs]) => {
+      api.users.referral(),
+    ]).then(([b, d, txs, ref]) => {
       setBalance(b.balance);
       setDepositInfo(d);
       setTransactions(txs);
+      setReferral(ref);
     }).catch(() => {});
   }, [authenticated, ready, router]);
 
@@ -51,6 +57,14 @@ export default function WalletPage() {
     navigator.clipboard.writeText(depositInfo?.address || '');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyReferralLink = () => {
+    if (referral?.referralLink) {
+      navigator.clipboard.writeText(referral.referralLink);
+      setCopiedRef(true);
+      setTimeout(() => setCopiedRef(false), 2000);
+    }
   };
 
   const handleWithdraw = async () => {
@@ -85,6 +99,42 @@ export default function WalletPage() {
         <p className="text-4xl font-bold text-[#4caf50]">${balance.toFixed(2)}</p>
         <p className="text-sm text-white/40 mt-1">USDC on Base</p>
       </div>
+
+      {/* Referral */}
+      {referral && (
+        <div className="card">
+          <h2 className="text-lg font-bold mb-1">Refer &amp; Earn</h2>
+          <p className="text-sm text-white/50 mb-4">
+            Earn 10% of platform fees whenever someone you refer plays a game — forever.
+          </p>
+          {referral.referralLink ? (
+            <>
+              <div className="bg-black/30 rounded-lg p-3 flex items-center justify-between gap-3 mb-3">
+                <code className="text-xs text-[#ffd700] break-all">{referral.referralLink}</code>
+                <button onClick={copyReferralLink} className="btn-secondary text-xs shrink-0">
+                  {copiedRef ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white/5 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-[#ffd700]">{referral.referredCount}</div>
+                  <div className="text-xs text-white/50 mt-0.5">Referred</div>
+                </div>
+                <div className="bg-white/5 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-[#4caf50]">${referral.referralEarnings.toFixed(2)}</div>
+                  <div className="text-xs text-white/50 mt-0.5">Earned</div>
+                </div>
+                <div className="bg-white/5 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-white">{referral.referralCode}</div>
+                  <div className="text-xs text-white/50 mt-0.5">Your code</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-white/40">Referral code generating...</p>
+          )}
+        </div>
+      )}
 
       {/* Deposit */}
       <div className="card">

@@ -27,7 +27,16 @@ export default function LobbyPage() {
 
         if (!wallet) return;
 
-        const { token: sessionToken, user: userData } = await api.auth.verify(user.id, wallet);
+        // Pick up referral code from URL or localStorage
+        const urlRef = typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('ref') ?? undefined
+          : undefined;
+        if (urlRef && typeof window !== 'undefined') localStorage.setItem('checkmate_ref', urlRef);
+        const storedRef = typeof window !== 'undefined' ? localStorage.getItem('checkmate_ref') ?? undefined : undefined;
+        const referralCode = urlRef || storedRef;
+
+        const { token: sessionToken, user: userData } = await api.auth.verify(user.id, wallet, referralCode);
+        if (referralCode && typeof window !== 'undefined') localStorage.removeItem('checkmate_ref');
         localStorage.setItem('checkmate_token', sessionToken);
         setToken(sessionToken);
         setBalance(userData.usdcBalance || 0);

@@ -21,10 +21,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
-    verify: (privyUserId: string, wallet: string) =>
+    verify: (privyUserId: string, wallet: string, referralCode?: string) =>
       request<{ token: string; user: any }>('/api/auth/verify', {
         method: 'POST',
-        body: JSON.stringify({ privyUserId, wallet }),
+        body: JSON.stringify({ privyUserId, wallet, ...(referralCode ? { referralCode } : {}) }),
       }),
   },
   wallet: {
@@ -43,8 +43,6 @@ export const api = {
   },
   users: {
     me: () => request<any>('/api/users/me'),
-    leaderboard: (tab?: 'elo' | 'earnings' | 'weekly') =>
-      request<any[]>(`/api/users/leaderboard${tab ? `?tab=${tab}` : ''}`),
     profile: (id: string) => request<any>(`/api/users/${id}`),
     setUsername: (username: string) =>
       request<{ username: string }>('/api/users/me/username', {
@@ -61,6 +59,22 @@ export const api = {
       request<{ credited: boolean; amount?: number; streak?: number; balance?: number; nextInMinutes?: number }>(
         '/api/users/me/daily-bonus', { method: 'POST' }
       ),
+    referral: () =>
+      request<{ referralCode: string | null; referralLink: string | null; referredCount: number; referralEarnings: number }>(
+        '/api/users/me/referral'
+      ),
+    leaderboard: (tab?: 'elo' | 'earnings' | 'weekly' | 'referrals') =>
+      request<any[]>(`/api/users/leaderboard${tab ? `?tab=${tab}` : ''}`),
+  },
+  friends: {
+    list: () => request<{ friends: any[]; incoming: any[]; outgoing: any[] }>('/api/friends'),
+    request: (targetId: string) =>
+      request<{ ok: boolean }>('/api/friends/request', { method: 'POST', body: JSON.stringify({ targetId }) }),
+    accept: (requesterId: string) =>
+      request<{ ok: boolean }>('/api/friends/accept', { method: 'POST', body: JSON.stringify({ requesterId }) }),
+    remove: (targetId: string) =>
+      request<{ ok: boolean }>(`/api/friends/${targetId}`, { method: 'DELETE' }),
+    leaderboard: () => request<any[]>('/api/friends/leaderboard'),
   },
   tournaments: {
     list: () => request<any[]>('/api/tournaments'),
