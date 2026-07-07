@@ -86,7 +86,7 @@ export default function LobbyPage() {
     const init = async () => {
       try {
         const privyAccessToken = await getAccessToken();
-        const wallet = user.wallet?.address || user.linkedAccounts?.find((a: any) => a.type === 'wallet')?.address;
+        const wallet = user.wallet?.address || (user.linkedAccounts?.find((a: any) => a.type === 'wallet') as any)?.address;
 
         if (!wallet) return;
 
