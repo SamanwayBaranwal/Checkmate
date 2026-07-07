@@ -79,6 +79,34 @@ export default function GamePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const prevMoveCount = useRef(0);
 
+  // Size the board to always fit the viewport — no scrolling, ever.
+  const [boardSize, setBoardSize] = useState(360);
+  useEffect(() => {
+    const compute = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const isDesktop = vw >= 1024;
+      if (isDesktop) {
+        // Board column = content width (max 1024) minus sidebar (272) minus gaps/padding
+        const colW = Math.min(vw, 1024) - 272 - 24 - 32;
+        // Height budget = viewport minus navbar, both player rows, vertical padding
+        const availH = vh - 56 - 120 - 40;
+        setBoardSize(Math.max(320, Math.min(colW, availH)));
+      } else {
+        const availW = vw - 20;                 // px-2.5 both sides
+        const availH = vh - 52 - 108 - 20;      // navbar + two player rows + margins
+        setBoardSize(Math.max(240, Math.min(availW, availH)));
+      }
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    window.addEventListener('orientationchange', compute);
+    return () => {
+      window.removeEventListener('resize', compute);
+      window.removeEventListener('orientationchange', compute);
+    };
+  }, []);
+
   const theme = BOARD_THEMES[themeIndex];
 
   // Auto-scroll chat to bottom on new messages
@@ -275,18 +303,18 @@ export default function GamePage() {
     : {};
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex flex-col lg:flex-row gap-6">
+    <div className="max-w-5xl mx-auto px-2.5 sm:px-4 py-2 sm:py-6">
+      <div className="flex flex-col lg:flex-row gap-3 lg:gap-6 items-center lg:items-start justify-center">
 
-        {/* Board area */}
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-9 h-9 rounded-lg bg-[#3a3835] border border-white/10 flex items-center justify-center text-sm font-bold shrink-0">
+        {/* Board area — sized to fit viewport */}
+        <div style={{ width: boardSize }} className="shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-8 h-8 rounded-lg bg-[#3a3835] border border-white/10 flex items-center justify-center text-sm font-bold shrink-0">
                 {(state.opponent.username || '?')[0].toUpperCase()}
               </span>
               <div className="min-w-0">
-                <p className="font-semibold truncate">{state.opponent.username}</p>
+                <p className="font-semibold truncate leading-tight">{state.opponent.username}</p>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-white/50">{state.opponent.elo}</p>
                   <CapturedPieces fen={state.fen} side={state.color === 'white' ? 'black' : 'white'} />
@@ -296,13 +324,14 @@ export default function GamePage() {
             <ChessClock ms={opponentClock} active={state.turn !== state.color && state.status === 'playing'} label="" />
           </div>
 
-          <div className="rounded-xl overflow-hidden shadow-2xl">
+          <div className="rounded-lg overflow-hidden shadow-2xl">
             <Chessboard
               id={id}
               position={state.fen}
               onPieceDrop={onPieceDrop}
               onSquareClick={onSquareClick}
               boardOrientation={boardOrientation}
+              boardWidth={boardSize}
               arePiecesDraggable={state.status === 'playing'}
               customBoardStyle={{ borderRadius: '0' }}
               customDarkSquareStyle={{ backgroundColor: theme.dark }}
@@ -312,13 +341,13 @@ export default function GamePage() {
             />
           </div>
 
-          <div className="flex items-center justify-between mt-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-9 h-9 rounded-lg bg-[#81b64c] text-[#21201d] flex items-center justify-center text-sm font-bold shrink-0">
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-8 h-8 rounded-lg bg-[#81b64c] text-[#21201d] flex items-center justify-center text-sm font-bold shrink-0">
                 {(user?.wallet?.address || 'Y')[2]?.toUpperCase() || 'Y'}
               </span>
               <div className="min-w-0">
-                <p className="font-semibold truncate">You</p>
+                <p className="font-semibold truncate leading-tight">You</p>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-white/50">{state.color === 'white' ? 'White' : 'Black'}</p>
                   <CapturedPieces fen={state.fen} side={state.color} />
@@ -327,10 +356,18 @@ export default function GamePage() {
             </div>
             <ChessClock ms={myClock} active={isMyTurn} label="" />
           </div>
+
+          {/* Quick actions — right under the board on mobile, always reachable */}
+          {state.status === 'playing' && (
+            <div className="flex gap-2 mt-2 lg:hidden">
+              <button onClick={offerDraw} className="btn-secondary flex-1 text-sm py-2">Draw</button>
+              <button onClick={resign} className="btn-danger flex-1 text-sm py-2">Resign</button>
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}
-        <div className="lg:w-64 flex flex-col gap-3">
+        <div className="w-full lg:w-64 flex flex-col gap-3">
 
           {/* Game info */}
           <div className="card">
@@ -412,9 +449,9 @@ export default function GamePage() {
             </div>
           )}
 
-          {/* Actions */}
+          {/* Actions (desktop — mobile has its own row under the board) */}
           {state.status === 'playing' && (
-            <div className="card space-y-2">
+            <div className="card space-y-2 hidden lg:block">
               <button onClick={offerDraw} className="btn-secondary w-full text-sm">Offer Draw</button>
               <button onClick={resign} className="btn-danger w-full text-sm">Resign</button>
             </div>

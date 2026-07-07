@@ -8,6 +8,7 @@ import { PrivyProvider } from '@privy-io/react-auth';
 import { privyConfig, PRIVY_APP_ID } from '@/lib/privy';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
+import MainShell from '@/components/MainShell';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['500', '600', '700', '800'], variable: '--font-display', display: 'swap' });
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PrivyProvider appId={PRIVY_APP_ID} config={privyConfig}>
           <Navbar />
-          <main className="min-h-screen animate-in pb-24 md:pb-0">{children}</main>
+          <MainShell>{children}</MainShell>
           <BottomNav />
         </PrivyProvider>
       </body>
