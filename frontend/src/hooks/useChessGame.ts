@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Chess } from 'chess.js';
 import { getSocket } from '@/lib/socket';
 
 export interface ClockState {
@@ -42,6 +43,8 @@ export function useChessGame(gameId: string, token?: string) {
   const [rematchState, setRematchState] = useState<'idle' | 'offered' | 'incoming'>('idle');
   const [rematchGameId, setRematchGameId] = useState<string | null>(null);
   const tickRef = useRef<NodeJS.Timeout | null>(null);
+  // Snapshot of confirmed state to revert to if an optimistic move is rejected
+  const confirmedRef = useRef<{ fen: string; turn: 'white' | 'black'; clocks: ClockState; moves: string[] } | null>(null);
 
   // Live clock tick
   useEffect(() => {
@@ -62,11 +65,18 @@ export function useChessGame(gameId: string, token?: string) {
   useEffect(() => {
     const socket = getSocket(token);
 
-    if (token) {
-      socket.emit('rejoin_game', { gameId });
-    } else {
-      socket.emit('spectate', { gameId });
-    }
+    const resync = () => {
+      if (token) {
+        socket.emit('rejoin_game', { gameId });
+      } else {
+        socket.emit('spectate', { gameId });
+      }
+    };
+
+    resync();
+    // Re-sync on every (re)connect — socket.id changes on reconnect, so the
+    // server needs us to re-register or our moves would be rejected.
+    socket.on('connect', resync);
 
     socket.on('game_state', (data: any) => {
       if (data.gameId !== gameId) return;
@@ -126,13 +136,12 @@ export function useChessGame(gameId: string, token?: string) {
     socket.on('move_made', (data: any) => {
       setState((prev) => {
         if (!prev || prev.gameId !== gameId) return prev;
-        return {
-          ...prev,
-          fen: data.fen,
-          turn: data.turn,
-          clocks: data.clocks,
-          moves: data.san ? [...prev.moves, data.san] : prev.moves,
-        };
+        // Server is authoritative. If we already applied this optimistically
+        // (same fen), this is a no-op reconcile; otherwise it's the opponent's move.
+        const moves = data.san && prev.fen !== data.fen ? [...prev.moves, data.san] : prev.moves;
+        const next = { ...prev, fen: data.fen, turn: data.turn, clocks: data.clocks, moves };
+        confirmedRef.current = { fen: data.fen, turn: data.turn, clocks: data.clocks, moves };
+        return next;
       });
     });
 
@@ -162,6 +171,11 @@ export function useChessGame(gameId: string, token?: string) {
     });
 
     socket.on('move_error', ({ reason }: { reason: string }) => {
+      // Revert optimistic move if the server rejected it
+      if (confirmedRef.current) {
+        const snap = confirmedRef.current;
+        setState((prev) => prev ? { ...prev, fen: snap.fen, turn: snap.turn, clocks: snap.clocks, moves: snap.moves } : prev);
+      }
       setError(reason);
       setTimeout(() => setError(''), 3000);
     });
@@ -179,6 +193,7 @@ export function useChessGame(gameId: string, token?: string) {
     });
 
     return () => {
+      socket.off('connect', resync);
       socket.off('game_state');
       socket.off('match_found');
       socket.off('spectate_joined');
@@ -195,6 +210,21 @@ export function useChessGame(gameId: string, token?: string) {
 
   const makeMove = useCallback((from: string, to: string, promotion?: string) => {
     const socket = getSocket(token);
+    // Optimistic update: apply the move locally & instantly, before the server round-trip.
+    setState((prev) => {
+      if (!prev || prev.status !== 'playing' || prev.turn !== prev.color) return prev;
+      try {
+        const chess = new Chess(prev.fen);
+        const mv = chess.move({ from, to, promotion: (promotion as any) || 'q' });
+        if (!mv) return prev;
+        // Snapshot current confirmed state so we can revert on rejection
+        confirmedRef.current = { fen: prev.fen, turn: prev.turn, clocks: prev.clocks, moves: prev.moves };
+        const nextTurn: 'white' | 'black' = prev.turn === 'white' ? 'black' : 'white';
+        return { ...prev, fen: chess.fen(), turn: nextTurn, moves: [...prev.moves, mv.san] };
+      } catch {
+        return prev;
+      }
+    });
     socket.emit('move', { gameId, from, to, promotion });
   }, [gameId, token]);
 

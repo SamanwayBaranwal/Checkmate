@@ -98,9 +98,7 @@ export function setupGameRoom(io: Server, socket: Socket) {
     to: string;
     promotion?: string;
   }) => {
-    const game = await db('games').where({ id: gameId, status: 'active' }).first();
-    if (!game) { socket.emit('move_error', { reason: 'Game not found' }); return; }
-
+    // Hot path: only read from Redis (fast) — no Postgres round trip per move
     const [fen, turnRaw, clocksRaw] = await Promise.all([
       redis.get(`game:${gameId}:fen`),
       redis.get(`game:${gameId}:turn`),
@@ -124,7 +122,8 @@ export function setupGameRoom(io: Server, socket: Socket) {
     const updatedClocks = tickClock(clocks, turn);
 
     if (updatedClocks[turn] <= 0) {
-      await handleGameEnd(io, gameId, game, turn === 'white' ? 'black' : 'white', 'timeout');
+      const game = await db('games').where({ id: gameId, status: 'active' }).first();
+      if (game) await handleGameEnd(io, gameId, game, turn === 'white' ? 'black' : 'white', 'timeout');
       return;
     }
 
@@ -136,18 +135,7 @@ export function setupGameRoom(io: Server, socket: Socket) {
 
     const nextTurn: 'white' | 'black' = turn === 'white' ? 'black' : 'white';
 
-    // Update PGN
-    const chess = new Chess(fen);
-    chess.move({ from, to, promotion: promotion as any });
-    const currentPgn = pgnMap.get(gameId) || '';
-    pgnMap.set(gameId, chess.pgn());
-
-    await Promise.all([
-      redis.set(`game:${gameId}:fen`, result.fen!),
-      redis.set(`game:${gameId}:turn`, result.isGameOver ? 'over' : nextTurn),
-      redis.set(`game:${gameId}:clocks`, JSON.stringify(updatedClocks)),
-    ]);
-
+    // Broadcast the move IMMEDIATELY — this is what the players are waiting for
     io.to(gameId).emit('move_made', {
       fen: result.fen,
       from,
@@ -157,9 +145,21 @@ export function setupGameRoom(io: Server, socket: Socket) {
       clocks: { white: updatedClocks.white, black: updatedClocks.black },
     });
 
+    // Persist state AFTER broadcasting (doesn't block the move reaching players)
+    const chess = new Chess(fen);
+    chess.move({ from, to, promotion: promotion as any });
+    pgnMap.set(gameId, chess.pgn());
+
+    Promise.all([
+      redis.set(`game:${gameId}:fen`, result.fen!),
+      redis.set(`game:${gameId}:turn`, result.isGameOver ? 'over' : nextTurn),
+      redis.set(`game:${gameId}:clocks`, JSON.stringify(updatedClocks)),
+    ]).catch((err) => console.error('Move persist failed:', err));
+
     if (result.isGameOver) {
       const winnerColor = result.winner === 'draw' ? null : result.winner!;
-      await handleGameEnd(io, gameId, game, winnerColor as 'white' | 'black' | null, result.result!);
+      const game = await db('games').where({ id: gameId, status: 'active' }).first();
+      if (game) await handleGameEnd(io, gameId, game, winnerColor as 'white' | 'black' | null, result.result!);
     }
   });
 
