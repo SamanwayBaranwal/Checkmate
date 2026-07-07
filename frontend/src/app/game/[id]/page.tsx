@@ -79,6 +79,22 @@ export default function GamePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const prevMoveCount = useRef(0);
 
+  const [flipped, setFlipped] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const soundRef = useRef(true);
+  useEffect(() => {
+    const s = localStorage.getItem('checkmate_sound');
+    if (s === 'off') { setSoundOn(false); soundRef.current = false; }
+  }, []);
+  const toggleSound = () => {
+    setSoundOn((prev) => {
+      const next = !prev;
+      soundRef.current = next;
+      localStorage.setItem('checkmate_sound', next ? 'on' : 'off');
+      return next;
+    });
+  };
+
   // Size the board to always fit the viewport — no scrolling, ever.
   const [boardSize, setBoardSize] = useState(360);
   useEffect(() => {
@@ -122,6 +138,7 @@ export default function GamePage() {
 
     const lastMove = state.moves[state.moves.length - 1];
     if (!lastMove) return;
+    if (!soundRef.current) return;
 
     if (lastMove.includes('#') || lastMove.includes('+')) {
       sounds.check();
@@ -135,6 +152,7 @@ export default function GamePage() {
   // Play win/lose sound on game over
   useEffect(() => {
     if (!state || state.status !== 'over') return;
+    if (!soundRef.current) return;
     if (state.result === 'draw') { sounds.draw(); return; }
     if (state.winner === state.color) sounds.win();
     else sounds.lose();
@@ -286,7 +304,10 @@ export default function GamePage() {
   }
 
   const isMyTurn = state.status === 'playing' && state.turn === state.color;
-  const boardOrientation = state.color === 'black' ? 'black' : 'white';
+  const baseOrientation = state.color === 'black' ? 'black' : 'white';
+  const boardOrientation: 'white' | 'black' = flipped
+    ? (baseOrientation === 'white' ? 'black' : 'white')
+    : baseOrientation;
   const opponentClock = state.color === 'white' ? state.clocks.black : state.clocks.white;
   const myClock = state.color === 'white' ? state.clocks.white : state.clocks.black;
   const preMoveSquares: Record<string, React.CSSProperties> = preMove
@@ -357,11 +378,65 @@ export default function GamePage() {
             <ChessClock ms={myClock} active={isMyTurn} label="" />
           </div>
 
-          {/* Quick actions — right under the board on mobile, always reachable */}
-          {state.status === 'playing' && (
-            <div className="flex gap-2 mt-2 lg:hidden">
-              <button onClick={offerDraw} className="btn-secondary flex-1 text-sm py-2">Draw</button>
-              <button onClick={resign} className="btn-danger flex-1 text-sm py-2">Resign</button>
+          {/* Control toolbar — standard chess controls, always under the board */}
+          <div className="flex items-center gap-1.5 mt-2 bg-[#2b2926] border border-white/[0.07] rounded-lg p-1.5">
+            <button
+              onClick={() => setFlipped((f) => !f)}
+              title="Flip board"
+              className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 2.1 21 6l-4 3.9" /><path d="M21 6H8a5 5 0 0 0-5 5v1" /><path d="M7 21.9 3 18l4-3.9" /><path d="M3 18h13a5 5 0 0 0 5-5v-1" /></svg>
+            </button>
+            <button
+              onClick={toggleSound}
+              title={soundOn ? 'Mute' : 'Unmute'}
+              className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
+            >
+              {soundOn ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14" /></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="m22 9-6 6M16 9l6 6" /></svg>
+              )}
+            </button>
+            <button
+              onClick={() => setShowThemes((s) => !s)}
+              title="Board theme"
+              className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 3a4 4 0 0 0 0 8 3 3 0 0 1 0 6 5 5 0 0 0 0-14" /><circle cx="8" cy="9" r="0.5" fill="currentColor" /><circle cx="8" cy="15" r="0.5" fill="currentColor" /><circle cx="16" cy="9" r="0.5" fill="currentColor" /></svg>
+            </button>
+            {state.status === 'playing' && (
+              <>
+                <button
+                  onClick={offerDraw}
+                  title="Offer draw"
+                  className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors font-bold"
+                >
+                  ½
+                </button>
+                <button
+                  onClick={resign}
+                  title="Resign"
+                  className="flex-1 flex items-center justify-center py-2 rounded-md text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22V4M4 4l7 3 4-2 5 2v9l-5-2-4 2-7-3" /></svg>
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Inline theme picker (opens from toolbar) */}
+          {showThemes && (
+            <div className="flex gap-2 mt-2 flex-wrap justify-center bg-[#2b2926] border border-white/[0.07] rounded-lg p-2">
+              {BOARD_THEMES.map((t, i) => (
+                <button
+                  key={t.name}
+                  onClick={() => { setThemeIndex(i); localStorage.setItem('checkmate_board_theme', String(i)); }}
+                  title={t.name}
+                  className={`w-9 h-9 rounded-md overflow-hidden border-2 transition ${i === themeIndex ? 'border-[#81b64c]' : 'border-transparent'}`}
+                  style={{ background: `linear-gradient(135deg, ${t.light} 50%, ${t.dark} 50%)` }}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -449,14 +524,6 @@ export default function GamePage() {
             </div>
           )}
 
-          {/* Actions (desktop — mobile has its own row under the board) */}
-          {state.status === 'playing' && (
-            <div className="card space-y-2 hidden lg:block">
-              <button onClick={offerDraw} className="btn-secondary w-full text-sm">Offer Draw</button>
-              <button onClick={resign} className="btn-danger w-full text-sm">Resign</button>
-            </div>
-          )}
-
           {/* Report opponent */}
           {state.status !== 'spectating' && (
             <button
@@ -466,29 +533,6 @@ export default function GamePage() {
               ⚑ Report opponent
             </button>
           )}
-
-          {/* Board theme picker */}
-          <div className="card">
-            <button
-              onClick={() => setShowThemes(!showThemes)}
-              className="text-xs text-white/50 hover:text-white w-full text-left"
-            >
-              🎨 Board theme: {theme.name}
-            </button>
-            {showThemes && (
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {BOARD_THEMES.map((t, i) => (
-                  <button
-                    key={t.name}
-                    onClick={() => { setThemeIndex(i); setShowThemes(false); localStorage.setItem('checkmate_board_theme', String(i)); }}
-                    title={t.name}
-                    className={`w-8 h-8 rounded overflow-hidden border-2 ${i === themeIndex ? 'border-white' : 'border-transparent'}`}
-                    style={{ background: `linear-gradient(135deg, ${t.light} 50%, ${t.dark} 50%)` }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
 
           {error && <div className="card border border-red-500/30 text-red-400 text-sm">{error}</div>}
         </div>
