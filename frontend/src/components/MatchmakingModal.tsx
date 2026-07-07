@@ -83,7 +83,7 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
                   disabled={balance < tier}
                   className={`rounded-xl p-4 border-2 transition-all ${
                     selectedTier === tier
-                      ? 'border-[#4caf50] bg-[#4caf50]/20'
+                      ? 'border-[#81b64c] bg-[#81b64c]/20'
                       : 'border-white/10 hover:border-white/30'
                   } disabled:opacity-40 disabled:cursor-not-allowed`}
                 >
@@ -103,7 +103,7 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
                   onClick={() => setSelectedTC(tc.value as TimeControl)}
                   className={`rounded-lg p-3 border transition-all text-center ${
                     selectedTC === tc.value
-                      ? 'border-[#ffd700] bg-[#ffd700]/10'
+                      ? 'border-[#f0b232] bg-[#f0b232]/10'
                       : 'border-white/10 hover:border-white/30'
                   }`}
                 >

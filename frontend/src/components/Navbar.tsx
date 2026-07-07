@@ -151,26 +151,34 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className="border-b border-white/10 px-4 py-3 flex items-center justify-between sticky top-0 z-50"
-        style={{ background: 'rgba(15, 22, 41, 0.75)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
+        className="border-b border-white/[0.06] px-4 py-2.5 flex items-center justify-between sticky top-0 z-50"
+        style={{ background: '#21201d' }}
       >
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-xl font-bold text-[#ffd700] shrink-0" onClick={() => setMenuOpen(false)}>
-            ♟ Checkmate
+        <div className="flex items-center gap-5">
+          <Link href="/" className="flex items-center gap-2 shrink-0 group" onClick={() => setMenuOpen(false)}>
+            <span className="w-8 h-8 rounded-md bg-[#81b64c] flex items-center justify-center text-[#21201d] text-lg font-black leading-none">♟</span>
+            <span className="text-lg font-bold tracking-tight text-white hidden sm:inline">Checkmate</span>
           </Link>
           {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-5">
-            {navLinks.map((l) => (
-              <Link key={l.href} href={l.href} className="text-sm text-white/70 hover:text-white transition-colors">
-                {l.label}
-              </Link>
-            ))}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((l) => {
+              const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`text-sm px-3 py-1.5 rounded-md transition-colors ${active ? 'text-white bg-white/[0.08] font-semibold' : 'text-white/60 hover:text-white hover:bg-white/[0.05]'}`}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           {authenticated && balance !== null && (
-            <span className="text-sm text-[#4caf50] font-semibold hidden sm:inline">
+            <span className="text-sm text-[#81b64c] font-bold bg-[#81b64c]/10 border border-[#81b64c]/20 px-2.5 py-1 rounded-md hidden sm:inline">
               ${balance.toFixed(2)}
             </span>
           )}
@@ -195,7 +203,7 @@ export default function Navbar() {
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 top-10 w-80 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[200]">
+                <div className="absolute right-0 top-10 w-80 bg-[#262421] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[200]">
                   <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
                     <span className="font-bold text-sm">Notifications</span>
                     {unreadCount > 0 && (
@@ -222,7 +230,7 @@ export default function Navbar() {
                             <p className="text-xs text-white/30 mt-0.5">{timeAgo(n.created_at)}</p>
                           </div>
                           {!n.read && (
-                            <div className="w-2 h-2 bg-[#4caf50] rounded-full shrink-0 mt-1.5 ml-auto" />
+                            <div className="w-2 h-2 bg-[#81b64c] rounded-full shrink-0 mt-1.5 ml-auto" />
                           )}
                         </button>
                       ))
@@ -265,11 +273,11 @@ export default function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="md:hidden border-b border-white/10 px-4 py-3 space-y-1 z-40"
-          style={{ background: 'rgba(15, 22, 41, 0.95)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
+          className="md:hidden border-b border-white/[0.06] px-4 py-3 space-y-1 z-40"
+          style={{ background: '#21201d' }}
         >
           {authenticated && balance !== null && (
-            <div className="text-sm text-[#4caf50] font-semibold py-2 border-b border-white/10 mb-2">
+            <div className="text-sm text-[#81b64c] font-semibold py-2 border-b border-white/10 mb-2">
               ${balance.toFixed(2)}
             </div>
           )}
@@ -296,12 +304,12 @@ export default function Navbar() {
 
       {/* Incoming challenge notification */}
       {incomingChallenge && (
-        <div className="fixed bottom-6 right-6 z-[100] card border border-[#ffd700]/40 shadow-2xl w-72">
+        <div className="fixed bottom-6 right-6 z-[100] card border border-[#f0b232]/40 shadow-2xl w-72">
           <p className="font-bold text-sm mb-1">⚔️ Challenge received!</p>
           <p className="text-sm text-white/70 mb-3">
             <span className="text-white font-semibold">{incomingChallenge.from.username}</span>{' '}
             ({incomingChallenge.from.elo} ELO) challenges you to a{' '}
-            <span className="text-[#ffd700] font-semibold">${incomingChallenge.betAmount}</span> game
+            <span className="text-[#f0b232] font-semibold">${incomingChallenge.betAmount}</span> game
           </p>
           <div className="flex gap-2">
             <button onClick={acceptChallenge} className="btn-primary flex-1 text-sm py-1.5">Accept</button>

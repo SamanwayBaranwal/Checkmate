@@ -314,11 +314,11 @@ export default function GamePage() {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <div className="text-white/40 text-xs">Pot</div>
-                <div className="font-bold text-[#ffd700]">${(state.betAmount * 2).toFixed(2)}</div>
+                <div className="font-bold text-[#f0b232]">${(state.betAmount * 2).toFixed(2)}</div>
               </div>
               <div>
                 <div className="text-white/40 text-xs">Winner gets</div>
-                <div className="text-[#4caf50] font-semibold">${(state.betAmount * 2 * 0.975).toFixed(2)}</div>
+                <div className="text-[#81b64c] font-semibold">${(state.betAmount * 2 * 0.975).toFixed(2)}</div>
               </div>
               <div>
                 <div className="text-white/40 text-xs">Spectators</div>
@@ -326,7 +326,7 @@ export default function GamePage() {
               </div>
               <div>
                 <div className="text-white/40 text-xs">Turn</div>
-                <div className={isMyTurn ? 'text-[#4caf50] font-semibold' : 'text-white/60'}>
+                <div className={isMyTurn ? 'text-[#81b64c] font-semibold' : 'text-white/60'}>
                   {state.status === 'spectating' ? 'Spectating' : isMyTurn ? 'Yours' : 'Opponent'}
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function GamePage() {
               ) : (
                 state.chatMessages.map((msg, i) => (
                   <div key={i} className="text-xs">
-                    <span className="font-semibold text-[#4caf50]">{msg.sender}: </span>
+                    <span className="font-semibold text-[#81b64c]">{msg.sender}: </span>
                     <span className="text-white/80">{msg.text}</span>
                   </div>
                 ))
@@ -359,11 +359,11 @@ export default function GamePage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') handleChatSend(); }}
                 placeholder="Say something..."
                 maxLength={200}
-                className="flex-1 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#4caf50]"
+                className="flex-1 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#81b64c]"
               />
               <button
                 onClick={handleChatSend}
-                className="px-2 py-1 bg-[#4caf50]/20 hover:bg-[#4caf50]/40 rounded text-xs text-[#4caf50] transition"
+                className="px-2 py-1 bg-[#81b64c]/20 hover:bg-[#81b64c]/40 rounded text-xs text-[#81b64c] transition"
               >
                 ↵
               </button>
@@ -372,7 +372,7 @@ export default function GamePage() {
 
           {/* Draw offer */}
           {state.drawOffered && state.status === 'playing' && (
-            <div className="card border border-[#ffd700]/40">
+            <div className="card border border-[#f0b232]/40">
               <p className="text-sm mb-2">Opponent offered a draw</p>
               <div className="flex gap-2">
                 <button onClick={acceptDraw} className="btn-primary flex-1 text-sm py-1.5">Accept</button>
@@ -458,7 +458,7 @@ export default function GamePage() {
           <div className="card w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold mb-4">Report Opponent</h3>
             {reportDone ? (
-              <p className="text-[#4caf50] text-center py-4">Report submitted. Thank you.</p>
+              <p className="text-[#81b64c] text-center py-4">Report submitted. Thank you.</p>
             ) : (
               <>
                 <div className="space-y-2 mb-4">
@@ -470,7 +470,7 @@ export default function GamePage() {
                         value={r.value}
                         checked={reportReason === r.value}
                         onChange={() => setReportReason(r.value)}
-                        className="accent-[#4caf50]"
+                        className="accent-[#81b64c]"
                       />
                       <span className="text-sm">{r.label}</span>
                     </label>
@@ -482,7 +482,7 @@ export default function GamePage() {
                   placeholder="Additional details (optional)"
                   maxLength={500}
                   rows={3}
-                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#4caf50] mb-4"
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#81b64c] mb-4"
                 />
                 <div className="flex gap-3">
                   <button onClick={() => setShowReport(false)} className="btn-secondary flex-1">Cancel</button>

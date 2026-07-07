@@ -21,7 +21,7 @@ export default function ChessClock({ ms, active, label }: Props) {
         active
           ? isLow
             ? 'bg-red-600 text-white'
-            : 'bg-[#4caf50] text-white'
+            : 'bg-[#81b64c] text-white'
           : 'bg-white/10 text-white/60'
       }`}
     >

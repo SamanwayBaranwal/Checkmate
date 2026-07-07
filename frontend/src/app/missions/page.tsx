@@ -20,7 +20,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   return (
     <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
       <div
-        className="h-full bg-[#4caf50] rounded-full transition-all duration-500"
+        className="h-full bg-[#81b64c] rounded-full transition-all duration-500"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -80,7 +80,7 @@ export default function MissionsPage() {
         {msUntilReset > 0 && (
           <div className="text-right shrink-0">
             <div className="text-xs text-white/40 mb-0.5">Resets in</div>
-            <div className="text-[#ffd700] font-bold text-lg tabular-nums">
+            <div className="text-[#f0b232] font-bold text-lg tabular-nums">
               {msToCountdown(msUntilReset)}
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function MissionsPage() {
             <span className="text-sm text-white/60">
               {completedCount} / {missions.length} missions complete
             </span>
-            <span className="text-sm font-bold text-[#4caf50]">
+            <span className="text-sm font-bold text-[#81b64c]">
               ${earnedReward.toFixed(2)} / ${totalReward.toFixed(2)} earned
             </span>
           </div>
@@ -112,7 +112,7 @@ export default function MissionsPage() {
               key={m.key}
               className={`card border transition-all ${
                 m.completed
-                  ? 'border-[#4caf50]/40 bg-[#4caf50]/5'
+                  ? 'border-[#81b64c]/40 bg-[#81b64c]/5'
                   : 'border-white/10'
               }`}
             >
@@ -123,12 +123,12 @@ export default function MissionsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-bold">{m.label}</span>
                       {m.completed && (
-                        <span className="text-xs bg-[#4caf50]/20 text-[#4caf50] px-2 py-0.5 rounded-full font-semibold">
+                        <span className="text-xs bg-[#81b64c]/20 text-[#81b64c] px-2 py-0.5 rounded-full font-semibold">
                           Complete ✓
                         </span>
                       )}
                     </div>
-                    <div className={`text-sm font-bold shrink-0 ${m.rewarded ? 'text-[#4caf50]' : 'text-[#ffd700]'}`}>
+                    <div className={`text-sm font-bold shrink-0 ${m.rewarded ? 'text-[#81b64c]' : 'text-[#f0b232]'}`}>
                       +${m.reward.toFixed(2)}
                     </div>
                   </div>

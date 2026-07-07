@@ -16,7 +16,7 @@ function BracketMatch({ match, round }: { match: any; round: number }) {
   const isDone = match.status === 'completed';
   return (
     <div className={`rounded-xl border-2 p-3 min-w-[160px] transition-all ${
-      isActive ? 'border-[#ffd700]/60 bg-[#ffd700]/5' :
+      isActive ? 'border-[#f0b232]/60 bg-[#f0b232]/5' :
       isDone   ? 'border-white/10 bg-white/5' :
                  'border-white/10'
     }`}>
@@ -30,7 +30,7 @@ function BracketMatch({ match, round }: { match: any; round: number }) {
         return (
           <div key={p.id}
             className={`flex items-center justify-between px-2 py-1 rounded text-sm mb-1 ${
-              isWinner ? 'bg-[#4caf50]/20 text-[#4caf50] font-bold' :
+              isWinner ? 'bg-[#81b64c]/20 text-[#81b64c] font-bold' :
               isLoser  ? 'text-white/30 line-through' :
                          'text-white/80'
             }`}>
@@ -40,7 +40,7 @@ function BracketMatch({ match, round }: { match: any; round: number }) {
         );
       })}
       {isActive && match.game_id && (
-        <Link href={`/game/${match.game_id}`} className="text-xs text-[#ffd700] hover:underline mt-1 block text-center">
+        <Link href={`/game/${match.game_id}`} className="text-xs text-[#f0b232] hover:underline mt-1 block text-center">
           ▶ Watch live
         </Link>
       )}
@@ -172,14 +172,14 @@ export default function TournamentPage() {
         <div>
           <div className="flex items-center gap-3 mb-1 flex-wrap">
             {tournament.is_seasonal && (
-              <span className="text-xs font-bold uppercase tracking-widest text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/30 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#f0b232] bg-[#f0b232]/10 border border-[#f0b232]/30 px-2 py-0.5 rounded-full">
                 🏆 {tournament.season_name}
               </span>
             )}
             <h1 className="text-3xl font-bold">{tournament.name}</h1>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-              isOpen     ? 'bg-[#4caf50]/20 text-[#4caf50] border-[#4caf50]/30' :
-              isActive   ? 'bg-[#ffd700]/20 text-[#ffd700] border-[#ffd700]/30' :
+              isOpen     ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]/30' :
+              isActive   ? 'bg-[#f0b232]/20 text-[#f0b232] border-[#f0b232]/30' :
                            'bg-white/10 text-white/40 border-white/10'
             }`}>
               {tournament.status.charAt(0).toUpperCase() + tournament.status.slice(1)}
@@ -212,8 +212,8 @@ export default function TournamentPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Entry Fee', value: `$${tournament.entry_fee}`, color: 'text-[#ffd700]' },
-          { label: 'Prize Pool', value: `$${parseFloat(tournament.prize_pool).toFixed(2)}`, color: 'text-[#4caf50]' },
+          { label: 'Entry Fee', value: `$${tournament.entry_fee}`, color: 'text-[#f0b232]' },
+          { label: 'Prize Pool', value: `$${parseFloat(tournament.prize_pool).toFixed(2)}`, color: 'text-[#81b64c]' },
           { label: 'Players', value: `${tournament.players?.length ?? 0}/${tournament.max_players}`, color: 'text-white' },
           { label: 'Rounds', value: tournament.total_rounds, color: 'text-white' },
         ].map((s) => (
@@ -226,9 +226,9 @@ export default function TournamentPage() {
 
       {/* Winner banner */}
       {isComplete && winnerPlayer && (
-        <div className="card border border-[#ffd700]/40 text-center py-6">
+        <div className="card border border-[#f0b232]/40 text-center py-6">
           <div className="text-5xl mb-3">🏆</div>
-          <p className="text-2xl font-bold text-[#ffd700]">{winnerPlayer.username} wins!</p>
+          <p className="text-2xl font-bold text-[#f0b232]">{winnerPlayer.username} wins!</p>
           <p className="text-white/50 mt-1">Prize: ${(parseFloat(tournament.prize_pool) * 0.975).toFixed(2)}</p>
         </div>
       )}
@@ -239,7 +239,7 @@ export default function TournamentPage() {
           <h2 className="font-bold mb-3">
             Players ({tournament.players?.length ?? 0}/{tournament.max_players})
             {isOpen && !isFull && (
-              <span className="text-xs text-[#4caf50] ml-2">
+              <span className="text-xs text-[#81b64c] ml-2">
                 — {tournament.max_players - (tournament.players?.length ?? 0)} spots left
               </span>
             )}
@@ -251,13 +251,13 @@ export default function TournamentPage() {
               {tournament.players.map((p: any) => (
                 <Link key={p.user_id} href={`/profile/${p.user_id}`}>
                   <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors hover:bg-white/5 ${
-                    p.user_id === myId ? 'border-[#4caf50]/40 bg-[#4caf50]/10' : 'border-white/10'
+                    p.user_id === myId ? 'border-[#81b64c]/40 bg-[#81b64c]/10' : 'border-white/10'
                   }`}>
                     <span className="text-lg">♟</span>
                     <div>
                       <div className="text-sm font-semibold truncate max-w-[80px]">
                         {p.username || '???'}
-                        {p.user_id === myId && <span className="text-[#4caf50] text-xs ml-1">(you)</span>}
+                        {p.user_id === myId && <span className="text-[#81b64c] text-xs ml-1">(you)</span>}
                       </div>
                       <div className="text-xs text-white/40">{p.elo} ELO</div>
                     </div>

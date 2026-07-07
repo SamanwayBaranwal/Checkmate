@@ -34,7 +34,7 @@ function PlayerCard({ player, token, onChallengeSent }: { player: any; token: st
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 rounded-lg transition-colors">
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-[#4caf50]/20 border border-[#4caf50]/30 flex items-center justify-center text-sm font-bold text-[#4caf50]">
+        <div className="w-8 h-8 rounded-full bg-[#81b64c]/20 border border-[#81b64c]/30 flex items-center justify-center text-sm font-bold text-[#81b64c]">
           {(player.username || player.wallet || '?')[0].toUpperCase()}
         </div>
         <div>
@@ -153,10 +153,10 @@ export default function LobbyPage() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Daily bonus toast */}
       {bonusNotice && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-[#1a1a2e] border border-[#ffd700]/40 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3 animate-fade-in">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-[#262421] border border-[#f0b232]/40 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3 animate-fade-in">
           <span className="text-2xl">🎁</span>
           <div>
-            <p className="font-bold text-sm text-[#ffd700]">Daily bonus claimed! +${bonusNotice.amount.toFixed(2)}</p>
+            <p className="font-bold text-sm text-[#f0b232]">Daily bonus claimed! +${bonusNotice.amount.toFixed(2)}</p>
             <p className="text-xs text-white/50">Day {bonusNotice.streak} streak — keep it up!</p>
           </div>
           <button onClick={() => setBonusNotice(null)} className="text-white/30 hover:text-white text-lg ml-2">×</button>
@@ -167,7 +167,7 @@ export default function LobbyPage() {
       <div className="text-center mb-10">
         <h1 className="text-3xl sm:text-5xl font-bold mb-4">
           Play Chess.<br />
-          <span className="text-[#ffd700]">Win Real Money.</span>
+          <span className="text-[#f0b232]">Win Real Money.</span>
         </h1>
         <p className="text-white/60 text-base sm:text-lg mb-8">
           Bet USDC, beat your opponent, climb the leaderboard.
@@ -182,7 +182,7 @@ export default function LobbyPage() {
         {authenticated && (
           <div className="flex flex-col items-center gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-[#4caf50]">${balance.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-[#81b64c]">${balance.toFixed(2)}</div>
               <div className="text-xs text-white/50">Balance</div>
             </div>
             <div className="flex gap-3 flex-wrap justify-center">
@@ -275,7 +275,7 @@ export default function LobbyPage() {
       )}
 
       {challengeSentNotice && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1a1a2e] border border-[#4caf50]/40 rounded-xl px-5 py-3 text-sm text-[#4caf50] shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#262421] border border-[#81b64c]/40 rounded-xl px-5 py-3 text-sm text-[#81b64c] shadow-2xl">
           ⚔️ {challengeSentNotice}
         </div>
       )}

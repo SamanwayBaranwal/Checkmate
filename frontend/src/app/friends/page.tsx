@@ -144,7 +144,7 @@ export default function FriendsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Friends</h1>
         {incoming.length > 0 && (
-          <span className="bg-[#ffd700] text-black text-xs font-bold px-2 py-1 rounded-full">
+          <span className="bg-[#f0b232] text-black text-xs font-bold px-2 py-1 rounded-full">
             {incoming.length} pending
           </span>
         )}
@@ -157,7 +157,7 @@ export default function FriendsPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by username..."
-          className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#4caf50] mb-3"
+          className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#81b64c] mb-3"
         />
         {searching && <p className="text-sm text-white/40">Searching...</p>}
         {searchResults.length > 0 && (
@@ -169,11 +169,11 @@ export default function FriendsPage() {
               return (
                 <div key={u.id} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
                   <div>
-                    <Link href={`/profile/${u.id}`} className="font-semibold hover:text-[#ffd700]">{u.username}</Link>
+                    <Link href={`/profile/${u.id}`} className="font-semibold hover:text-[#f0b232]">{u.username}</Link>
                     <div className="text-xs text-white/40">{u.elo} ELO · {winRate(u.games_won, u.games_played)} WR</div>
                   </div>
                   {isFriend ? (
-                    <span className="text-xs text-[#4caf50]">Friends</span>
+                    <span className="text-xs text-[#81b64c]">Friends</span>
                   ) : isPending || status === 'sent' ? (
                     <span className="text-xs text-white/40">Sent</span>
                   ) : (
@@ -199,7 +199,7 @@ export default function FriendsPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition capitalize ${
-              tab === t ? 'bg-[#ffd700] text-black' : 'btn-secondary'
+              tab === t ? 'bg-[#f0b232] text-black' : 'btn-secondary'
             }`}
           >
             {t === 'friends' ? `Friends (${friends.length})` : 'Friend Leaderboard'}
@@ -209,14 +209,14 @@ export default function FriendsPage() {
 
       {/* Incoming requests */}
       {incoming.length > 0 && tab === 'friends' && (
-        <div className="card border border-[#ffd700]/30">
-          <h2 className="font-bold mb-3 text-[#ffd700]">Pending Requests</h2>
+        <div className="card border border-[#f0b232]/30">
+          <h2 className="font-bold mb-3 text-[#f0b232]">Pending Requests</h2>
           <div className="space-y-2">
             {incoming.map((u) => (
               <div key={u.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${u.isOnline ? 'bg-[#4caf50]' : 'bg-white/20'}`} />
-                  <Link href={`/profile/${u.id}`} className="font-semibold hover:text-[#ffd700]">
+                  <div className={`w-2 h-2 rounded-full ${u.isOnline ? 'bg-[#81b64c]' : 'bg-white/20'}`} />
+                  <Link href={`/profile/${u.id}`} className="font-semibold hover:text-[#f0b232]">
                     {u.username || shortAddr(u.wallet)}
                   </Link>
                   <span className="text-xs text-white/40">{u.elo} ELO</span>
@@ -252,9 +252,9 @@ export default function FriendsPage() {
               {friends.map((f) => (
                 <div key={f.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/5">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${f.isOnline ? 'bg-[#4caf50] shadow-[0_0_6px_#4caf50]' : 'bg-white/20'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${f.isOnline ? 'bg-[#81b64c] shadow-[0_0_6px_#81b64c]' : 'bg-white/20'}`} />
                     <div>
-                      <Link href={`/profile/${f.id}`} className="font-semibold hover:text-[#ffd700]">
+                      <Link href={`/profile/${f.id}`} className="font-semibold hover:text-[#f0b232]">
                         {f.username || shortAddr(f.wallet)}
                       </Link>
                       <div className="text-xs text-white/40">
@@ -297,7 +297,7 @@ export default function FriendsPage() {
                       onClick={() => setSelectedBet(tier)}
                       className={`rounded-xl p-3 border-2 text-center transition-all ${
                         selectedBet === tier
-                          ? 'border-[#4caf50] bg-[#4caf50]/20'
+                          ? 'border-[#81b64c] bg-[#81b64c]/20'
                           : 'border-white/10 hover:border-white/30'
                       }`}
                     >
@@ -343,21 +343,21 @@ export default function FriendsPage() {
               </thead>
               <tbody>
                 {leaderboard.map((p, i) => (
-                  <tr key={p.id} className={`border-b border-white/5 ${p.isMe ? 'bg-[#4caf50]/10' : 'hover:bg-white/5'}`}>
+                  <tr key={p.id} className={`border-b border-white/5 ${p.isMe ? 'bg-[#81b64c]/10' : 'hover:bg-white/5'}`}>
                     <td className="px-4 py-2 text-lg">
                       {i < 3 ? MEDAL[i] : <span className="text-white/40 text-sm">#{i + 1}</span>}
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${p.isOnline ? 'bg-[#4caf50]' : 'bg-white/20'}`} />
-                        <Link href={`/profile/${p.id}`} className="font-semibold hover:text-[#ffd700]">
+                        <div className={`w-2 h-2 rounded-full ${p.isOnline ? 'bg-[#81b64c]' : 'bg-white/20'}`} />
+                        <Link href={`/profile/${p.id}`} className="font-semibold hover:text-[#f0b232]">
                           {p.username || shortAddr(p.wallet)}
                         </Link>
-                        {p.isMe && <span className="text-xs text-[#4caf50]">(you)</span>}
+                        {p.isMe && <span className="text-xs text-[#81b64c]">(you)</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-right font-bold text-[#ffd700]">{p.elo}</td>
-                    <td className="px-4 py-2 text-right text-[#4caf50]">{winRate(p.games_won, p.games_played)}</td>
+                    <td className="px-4 py-2 text-right font-bold text-[#f0b232]">{p.elo}</td>
+                    <td className="px-4 py-2 text-right text-[#81b64c]">{winRate(p.games_won, p.games_played)}</td>
                   </tr>
                 ))}
               </tbody>

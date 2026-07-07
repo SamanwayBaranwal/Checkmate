@@ -10,7 +10,7 @@ type Tab = {
   icon: (active: boolean) => React.ReactNode;
 };
 
-const stroke = (active: boolean) => (active ? '#4caf50' : 'currentColor');
+const stroke = (active: boolean) => (active ? '#81b64c' : 'currentColor');
 
 const TABS: Tab[] = [
   {
@@ -70,27 +70,21 @@ export default function BottomNav() {
   const tabs = authenticated ? TABS : TABS.filter((t) => t.href === '/' || t.href === '/leaderboard' || t.href === '/puzzle');
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe">
-      <div
-        className="mx-2 mb-2 rounded-2xl border border-white/10 flex items-center justify-around px-1 py-1.5"
-        style={{
-          background: 'rgba(15, 22, 41, 0.85)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.35)',
-        }}
-      >
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe border-t border-white/[0.06]"
+      style={{ background: '#21201d' }}
+    >
+      <div className="flex items-center justify-around px-1 pt-1.5 pb-1">
         {tabs.map((tab) => {
           const active = tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href);
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-colors"
-              style={active ? { background: 'rgba(76,175,80,0.12)' } : undefined}
+              className="flex flex-col items-center gap-1 py-1 px-3 flex-1 transition-colors"
             >
-              <span className={active ? 'text-[#4caf50]' : 'text-white/50'}>{tab.icon(active)}</span>
-              <span className={`text-[10px] font-medium ${active ? 'text-[#4caf50]' : 'text-white/50'}`}>{tab.label}</span>
+              <span className={active ? 'text-[#81b64c]' : 'text-white/45'}>{tab.icon(active)}</span>
+              <span className={`text-[10px] font-medium ${active ? 'text-[#81b64c]' : 'text-white/45'}`}>{tab.label}</span>
             </Link>
           );
         })}

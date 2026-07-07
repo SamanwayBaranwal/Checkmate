@@ -150,7 +150,7 @@ export default function ReplayPage() {
             <button onClick={() => goTo(cursor - 1)} disabled={cursor === 0} className="btn-secondary px-3 py-2 text-lg" title="Previous (←)">◀</button>
             <button
               onClick={() => setAutoPlay((a) => !a)}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${autoPlay ? 'bg-[#ffd700] text-black' : 'btn-secondary'}`}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${autoPlay ? 'bg-[#f0b232] text-black' : 'btn-secondary'}`}
             >
               {autoPlay ? '⏸ Pause' : '▶ Play'}
             </button>
@@ -177,13 +177,13 @@ export default function ReplayPage() {
                       <td className="text-white/30 pr-2 w-6 text-right select-none">{i + 1}.</td>
                       <td
                         onClick={() => goTo(whiteIdx)}
-                        className={`pr-3 py-0.5 cursor-pointer rounded px-1 ${cursor === whiteIdx ? 'bg-[#4caf50]/20 text-[#4caf50]' : 'hover:bg-white/5'}`}
+                        className={`pr-3 py-0.5 cursor-pointer rounded px-1 ${cursor === whiteIdx ? 'bg-[#81b64c]/20 text-[#81b64c]' : 'hover:bg-white/5'}`}
                       >
                         {white}
                       </td>
                       <td
                         onClick={() => black ? goTo(blackIdx) : undefined}
-                        className={`py-0.5 cursor-pointer rounded px-1 ${cursor === blackIdx ? 'bg-[#4caf50]/20 text-[#4caf50]' : 'hover:bg-white/5'} ${!black ? 'pointer-events-none' : ''}`}
+                        className={`py-0.5 cursor-pointer rounded px-1 ${cursor === blackIdx ? 'bg-[#81b64c]/20 text-[#81b64c]' : 'hover:bg-white/5'} ${!black ? 'pointer-events-none' : ''}`}
                       >
                         {black ?? ''}
                       </td>

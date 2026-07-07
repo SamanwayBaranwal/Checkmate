@@ -62,11 +62,11 @@ export default function GameOverModal({
 
         <div className="space-y-2 mb-6">
           {!isDraw && (
-            <div className={`text-lg font-bold ${isWinner ? 'text-[#4caf50]' : 'text-red-400'}`}>
+            <div className={`text-lg font-bold ${isWinner ? 'text-[#81b64c]' : 'text-red-400'}`}>
               {isWinner ? `+$${payout?.toFixed(2) ?? betAmount.toFixed(2)}` : `-$${betAmount.toFixed(2)}`}
             </div>
           )}
-          <div className={`text-sm ${isDraw ? 'text-white/50' : isWinner ? 'text-[#4caf50]' : 'text-red-400'}`}>
+          <div className={`text-sm ${isDraw ? 'text-white/50' : isWinner ? 'text-[#81b64c]' : 'text-red-400'}`}>
             {isDraw ? 'ELO unchanged' : isWinner ? `+${eloChange} ELO` : `-${eloChange} ELO`}
           </div>
           {isWinner && streakBonus && streakBonus > 0 && (
@@ -89,7 +89,7 @@ export default function GameOverModal({
           </div>
         )}
         {rematchState === 'incoming' && onAcceptRematch && (
-          <button onClick={onAcceptRematch} className="btn-primary w-full mb-3 bg-[#ffd700] hover:bg-[#e6c200] text-black">
+          <button onClick={onAcceptRematch} className="btn-primary w-full mb-3 bg-[#f0b232] hover:bg-[#e6c200] text-black">
             Accept Rematch
           </button>
         )}

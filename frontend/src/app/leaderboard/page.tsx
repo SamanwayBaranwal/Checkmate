@@ -61,7 +61,7 @@ export default function LeaderboardPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-              tab === t ? 'bg-[#ffd700] text-black' : 'btn-secondary'
+              tab === t ? 'bg-[#f0b232] text-black' : 'btn-secondary'
             }`}
           >
             {TAB_CONFIG[t].label}
@@ -71,7 +71,7 @@ export default function LeaderboardPage() {
 
       {/* Your rank banner */}
       {myRank >= 0 && (
-        <div className="mb-4 px-4 py-2 rounded-lg bg-[#4caf50]/10 border border-[#4caf50]/30 text-sm text-[#4caf50]">
+        <div className="mb-4 px-4 py-2 rounded-lg bg-[#81b64c]/10 border border-[#81b64c]/30 text-sm text-[#81b64c]">
           Your rank: <strong>#{myRank + 1}</strong>{' '}
           {myRank < 3 && <span>— you're on the podium! 🏆</span>}
         </div>
@@ -103,17 +103,17 @@ export default function LeaderboardPage() {
                     <tr
                       key={player.id}
                       className={`border-b border-white/5 transition-colors ${
-                        isMe ? 'bg-[#4caf50]/10 border-[#4caf50]/20' : 'hover:bg-white/5'
+                        isMe ? 'bg-[#81b64c]/10 border-[#81b64c]/20' : 'hover:bg-white/5'
                       }`}
                     >
                       <td className="px-4 py-3 text-lg">
                         {isTop3 ? MEDAL[i] : <span className="text-white/40 text-sm">#{i + 1}</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/profile/${player.id}`} className="hover:text-[#ffd700] transition-colors">
+                        <Link href={`/profile/${player.id}`} className="hover:text-[#f0b232] transition-colors">
                           <div className="font-semibold flex items-center gap-2">
                             {player.username || shortAddr(player.wallet)}
-                            {isMe && <span className="text-xs text-[#4caf50] font-normal">(you)</span>}
+                            {isMe && <span className="text-xs text-[#81b64c] font-normal">(you)</span>}
                           </div>
                           {player.username && (
                             <div className="text-xs text-white/40 font-mono">{shortAddr(player.wallet)}</div>
@@ -121,14 +121,14 @@ export default function LeaderboardPage() {
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={`font-bold ${tab === 'elo' ? 'text-[#ffd700]' : 'text-[#4caf50]'}`}>
+                        <span className={`font-bold ${tab === 'elo' ? 'text-[#f0b232]' : 'text-[#81b64c]'}`}>
                           {cfg.format(player[cfg.valueKey] ?? 0)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right text-white/60 hidden sm:table-cell">
                         {tab === 'referrals' ? (player.referred_count ?? 0) : player.games_played}
                       </td>
-                      <td className="px-4 py-3 text-right text-[#4caf50] hidden sm:table-cell">
+                      <td className="px-4 py-3 text-right text-[#81b64c] hidden sm:table-cell">
                         {tab === 'referrals' ? (
                           <span className="text-white/40 text-xs">{player.elo} ELO</span>
                         ) : winRate(player.games_won, player.games_played)}

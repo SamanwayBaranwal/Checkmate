@@ -196,7 +196,7 @@ export default function LearnPage() {
           <p className="text-white/50 text-sm mt-1">Master the fundamentals before you bet.</p>
         </div>
         <div className="card text-center px-4 py-2">
-          <div className="text-xl font-bold text-[#4caf50]">{doneCount}/{totalLessons}</div>
+          <div className="text-xl font-bold text-[#81b64c]">{doneCount}/{totalLessons}</div>
           <div className="text-xs text-white/40">Lessons done</div>
         </div>
       </div>
@@ -204,7 +204,7 @@ export default function LearnPage() {
       {/* Progress bar */}
       <div className="h-1.5 bg-white/10 rounded-full mb-6 overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-[#4caf50] to-[#ffd700] rounded-full transition-all"
+          className="h-full bg-gradient-to-r from-[#81b64c] to-[#f0b232] rounded-full transition-all"
           style={{ width: `${totalLessons > 0 ? (doneCount / totalLessons) * 100 : 0}%` }}
         />
       </div>
@@ -213,7 +213,7 @@ export default function LearnPage() {
       <div className="flex gap-2 mb-6 flex-wrap">
         {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${tab === t ? 'bg-[#ffd700] text-black' : 'btn-secondary'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${tab === t ? 'bg-[#f0b232] text-black' : 'btn-secondary'}`}>
             {TAB_LABELS[t]}
           </button>
         ))}
@@ -223,10 +223,10 @@ export default function LearnPage() {
       {tab === 'basics' && (
         <div className="space-y-6">
           {/* Ash tip */}
-          <div className="card border border-[#ffd700]/30 bg-[#ffd700]/5 flex gap-4 items-start">
+          <div className="card border border-[#f0b232]/30 bg-[#f0b232]/5 flex gap-4 items-start">
             <div className="text-4xl shrink-0">🤖</div>
             <div>
-              <p className="font-bold text-[#ffd700] mb-1">Ash says:</p>
+              <p className="font-bold text-[#f0b232] mb-1">Ash says:</p>
               <p className="text-sm text-white/70">
                 Every chess piece has a job. Learn their moves and values first — then you'll know when a trade is worth it.
                 Material counts, but activity matters more. A well-placed knight beats a sleeping rook!
@@ -241,7 +241,7 @@ export default function LearnPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-bold">{p.name}</span>
-                    <span className="text-xs text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/20 px-1.5 py-0.5 rounded-full">
+                    <span className="text-xs text-[#f0b232] bg-[#f0b232]/10 border border-[#f0b232]/20 px-1.5 py-0.5 rounded-full">
                       {p.value} {p.value !== '∞' ? 'pt' : ''}
                     </span>
                   </div>
@@ -284,11 +284,11 @@ export default function LearnPage() {
                   key={item.name}
                   onClick={() => setSelected(i)}
                   className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center gap-2 ${
-                    i === selected ? 'bg-[#ffd700]/20 text-[#ffd700] border border-[#ffd700]/30' : 'hover:bg-white/5 text-white/70'
+                    i === selected ? 'bg-[#f0b232]/20 text-[#f0b232] border border-[#f0b232]/30' : 'hover:bg-white/5 text-white/70'
                   }`}
                 >
                   {done ? (
-                    <span className="text-[#4caf50] shrink-0">✓</span>
+                    <span className="text-[#81b64c] shrink-0">✓</span>
                   ) : (
                     <span className="w-4 h-4 rounded-full border border-white/20 shrink-0 inline-block" />
                   )}
@@ -308,7 +308,7 @@ export default function LearnPage() {
                 <div className="flex items-center gap-3 flex-wrap">
                   <h2 className="text-xl font-bold">{item.name}</h2>
                   {done && (
-                    <span className="text-xs text-[#4caf50] bg-[#4caf50]/10 border border-[#4caf50]/30 px-2 py-0.5 rounded-full">
+                    <span className="text-xs text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/30 px-2 py-0.5 rounded-full">
                       ✓ Completed
                     </span>
                   )}
@@ -327,7 +327,7 @@ export default function LearnPage() {
                 {/* Description */}
                 <div className="card border border-white/10 space-y-3">
                   {'moves' in item && (
-                    <div className="font-mono text-sm text-[#ffd700] bg-[#ffd700]/5 border border-[#ffd700]/20 px-3 py-1.5 rounded-lg inline-block">
+                    <div className="font-mono text-sm text-[#f0b232] bg-[#f0b232]/5 border border-[#f0b232]/20 px-3 py-1.5 rounded-lg inline-block">
                       {item.moves}
                     </div>
                   )}
@@ -341,10 +341,10 @@ export default function LearnPage() {
                 </div>
 
                 {/* Ash mascot tip */}
-                <div className="card border border-[#ffd700]/20 bg-[#ffd700]/5 flex gap-3 items-start">
+                <div className="card border border-[#f0b232]/20 bg-[#f0b232]/5 flex gap-3 items-start">
                   <span className="text-2xl shrink-0">🤖</span>
                   <div>
-                    <p className="text-xs font-bold text-[#ffd700] mb-1">Ash says:</p>
+                    <p className="text-xs font-bold text-[#f0b232] mb-1">Ash says:</p>
                     <p className="text-xs text-white/60">
                       {tab === 'openings' && 'Study one opening system deeply rather than dabbling in many. Consistency builds pattern recognition faster.'}
                       {tab === 'tactics' && 'Tactics are the vocabulary of chess. Drill puzzles daily — even 5 minutes before a game sharpens your eye.'}

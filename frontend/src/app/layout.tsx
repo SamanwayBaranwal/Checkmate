@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <title>Checkmate — Bet Chess</title>
         <meta name="description" content="Play chess for real USDC. Wager, win, withdraw instantly." />
-        <meta name="theme-color" content="#1a1a2e" />
+        <meta name="theme-color" content="#262421" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

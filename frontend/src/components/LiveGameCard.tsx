@@ -24,12 +24,12 @@ export default function LiveGameCard({ game }: { game: LiveGame }) {
 
   return (
     <Link href={`/game/${game.id}`}>
-      <div className="card hover:border-[#4caf50]/50 transition-colors cursor-pointer">
+      <div className="card hover:border-[#81b64c]/50 transition-colors cursor-pointer">
         <div className="flex justify-between items-start mb-3">
           <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-medium">
             ● LIVE
           </span>
-          <span className="text-sm font-bold text-[#ffd700]">${game.bet_amount} USDC</span>
+          <span className="text-sm font-bold text-[#f0b232]">${game.bet_amount} USDC</span>
         </div>
 
         <div className="space-y-1">

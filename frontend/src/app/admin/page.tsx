@@ -134,7 +134,7 @@ export default function AdminPage() {
             onChange={(e) => setSecret(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             placeholder="Admin secret"
-            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#4caf50]"
+            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#81b64c]"
           />
           {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
           <button onClick={handleLogin} disabled={loading} className="btn-primary w-full">
@@ -158,7 +158,7 @@ export default function AdminPage() {
               { label: 'Banned', value: stats.bannedUsers },
             ].map((s) => (
               <div key={s.label} className={`card text-center px-4 py-2 ${s.highlight ? 'border-red-500/40' : ''}`}>
-                <div className={`text-xl font-bold ${s.highlight ? 'text-red-400' : 'text-[#ffd700]'}`}>{s.value}</div>
+                <div className={`text-xl font-bold ${s.highlight ? 'text-red-400' : 'text-[#f0b232]'}`}>{s.value}</div>
                 <div className="text-xs text-white/40">{s.label}</div>
               </div>
             ))}
@@ -170,7 +170,7 @@ export default function AdminPage() {
       <div className="flex gap-2">
         {(['reports', 'banned', 'users'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition capitalize ${tab === t ? 'bg-[#ffd700] text-black' : 'btn-secondary'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition capitalize ${tab === t ? 'bg-[#f0b232] text-black' : 'btn-secondary'}`}>
             {t === 'reports' ? `Open Reports${stats?.openReports > 0 ? ` (${stats.openReports})` : ''}` :
              t === 'banned' ? `Banned Users` : 'User Search'}
           </button>
@@ -220,7 +220,7 @@ export default function AdminPage() {
                   )}
                   <button
                     onClick={() => { setNotesModal({ reportId: r.id, action: 'resolve' }); setAdminNotes(''); }}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-[#4caf50]/20 border border-[#4caf50]/30 text-[#4caf50] hover:bg-[#4caf50]/30 transition"
+                    className="text-xs px-3 py-1.5 rounded-lg bg-[#81b64c]/20 border border-[#81b64c]/30 text-[#81b64c] hover:bg-[#81b64c]/30 transition"
                   >
                     Resolve
                   </button>
@@ -264,7 +264,7 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => handleUnban(u.id)}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-[#4caf50]/20 border border-[#4caf50]/30 text-[#4caf50] hover:bg-[#4caf50]/30 transition"
+                        className="text-xs px-3 py-1.5 rounded-lg bg-[#81b64c]/20 border border-[#81b64c]/30 text-[#81b64c] hover:bg-[#81b64c]/30 transition"
                       >
                         Unban
                       </button>
@@ -286,7 +286,7 @@ export default function AdminPage() {
               onChange={(e) => setUserQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && loadUsers(secret, userQuery)}
               placeholder="Search by username or wallet…"
-              className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#4caf50]"
+              className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#81b64c]"
             />
             <button onClick={() => loadUsers(secret, userQuery)} className="btn-primary text-sm">Search</button>
           </div>
@@ -312,20 +312,20 @@ export default function AdminPage() {
                         <div className="font-semibold">{u.username || shortAddr(u.wallet)}</div>
                         <div className="text-xs text-white/40 font-mono">{shortAddr(u.wallet)}</div>
                       </td>
-                      <td className="px-4 py-3 text-right text-[#ffd700] font-bold">{u.elo}</td>
-                      <td className="px-4 py-3 text-right text-[#4caf50]">${u.usdc_balance.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right text-[#f0b232] font-bold">{u.elo}</td>
+                      <td className="px-4 py-3 text-right text-[#81b64c]">${u.usdc_balance.toFixed(2)}</td>
                       <td className="px-4 py-3 text-right text-white/60">{u.games_played}</td>
                       <td className="px-4 py-3 text-right">
                         {u.banned_at ? (
                           <span className="text-xs text-red-400">Banned</span>
                         ) : (
-                          <span className="text-xs text-[#4caf50]">Active</span>
+                          <span className="text-xs text-[#81b64c]">Active</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {u.banned_at ? (
                           <button onClick={() => handleUnban(u.id)}
-                            className="text-xs px-3 py-1 rounded-lg bg-[#4caf50]/20 border border-[#4caf50]/30 text-[#4caf50] hover:bg-[#4caf50]/30 transition">
+                            className="text-xs px-3 py-1 rounded-lg bg-[#81b64c]/20 border border-[#81b64c]/30 text-[#81b64c] hover:bg-[#81b64c]/30 transition">
                             Unban
                           </button>
                         ) : (
@@ -378,7 +378,7 @@ export default function AdminPage() {
               onChange={(e) => setAdminNotes(e.target.value)}
               placeholder="Admin notes (optional)…"
               rows={3}
-              className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#4caf50] resize-none"
+              className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#81b64c] resize-none"
             />
             <div className="flex gap-3">
               <button onClick={() => setNotesModal(null)} className="btn-secondary flex-1">Cancel</button>

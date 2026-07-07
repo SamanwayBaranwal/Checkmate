@@ -9,8 +9,8 @@ import { api } from '@/lib/api';
 type PuzzleState = 'idle' | 'playing' | 'solved' | 'failed' | 'revealed';
 
 const DIFFICULTY_COLOR: Record<string, string> = {
-  easy: 'text-[#4caf50] bg-[#4caf50]/10 border-[#4caf50]/30',
-  medium: 'text-[#ffd700] bg-[#ffd700]/10 border-[#ffd700]/30',
+  easy: 'text-[#81b64c] bg-[#81b64c]/10 border-[#81b64c]/30',
+  medium: 'text-[#f0b232] bg-[#f0b232]/10 border-[#f0b232]/30',
   hard: 'text-red-400 bg-red-500/10 border-red-500/30',
 };
 
@@ -189,7 +189,7 @@ export default function PuzzlePage() {
         {stats && (
           <div className="flex gap-3">
             <div className="card text-center px-4 py-2">
-              <div className="text-xl font-bold text-[#ffd700]">{stats.streak}</div>
+              <div className="text-xl font-bold text-[#f0b232]">{stats.streak}</div>
               <div className="text-xs text-white/40">Streak</div>
             </div>
             <div className="card text-center px-4 py-2">
@@ -243,7 +243,7 @@ export default function PuzzlePage() {
           {/* Feedback */}
           <div className={`card border ${
             puzzleState === 'solved'
-              ? 'border-[#4caf50]/40 bg-[#4caf50]/5'
+              ? 'border-[#81b64c]/40 bg-[#81b64c]/5'
               : puzzleState === 'failed' || puzzleState === 'revealed'
               ? 'border-red-500/30 bg-red-500/5'
               : 'border-white/10'
@@ -260,7 +260,7 @@ export default function PuzzlePage() {
             {puzzleState === 'playing' && (
               <div className="mt-3 flex items-center gap-2">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className={`w-2 h-2 rounded-full ${i < attemptsLeft ? 'bg-[#4caf50]' : 'bg-white/10'}`} />
+                  <div key={i} className={`w-2 h-2 rounded-full ${i < attemptsLeft ? 'bg-[#81b64c]' : 'bg-white/10'}`} />
                 ))}
                 <span className="text-xs text-white/40 ml-1">{attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} left</span>
               </div>
@@ -270,16 +270,16 @@ export default function PuzzlePage() {
               <div className="mt-3 space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-white/50">XP earned</span>
-                  <span className="font-bold text-[#ffd700]">+{result.xpEarned} XP</span>
+                  <span className="font-bold text-[#f0b232]">+{result.xpEarned} XP</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-white/50">Bonus</span>
-                  <span className="font-bold text-[#4caf50]">+${result.bonusUsdc?.toFixed(2)}</span>
+                  <span className="font-bold text-[#81b64c]">+${result.bonusUsdc?.toFixed(2)}</span>
                 </div>
                 {result.streak > 1 && (
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-white/50">Streak</span>
-                    <span className="font-bold text-[#ffd700]">{result.streak} days 🔥</span>
+                    <span className="font-bold text-[#f0b232]">{result.streak} days 🔥</span>
                   </div>
                 )}
               </div>
