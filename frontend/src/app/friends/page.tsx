@@ -4,7 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { getSocket } from '@/lib/socket';
 import Link from 'next/link';
+
+const BET_TIERS = [1, 5, 10, 25] as const;
 
 function shortAddr(addr: string) {
   return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '???';
@@ -32,6 +35,10 @@ export default function FriendsPage() {
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionStatus, setActionStatus] = useState<Record<string, string>>({});
+  const [challengeTarget, setChallengeTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectedBet, setSelectedBet] = useState<number>(1);
+  const [challengeStatus, setChallengeStatus] = useState<'idle' | 'sent' | 'error'>('idle');
+  const [challengeError, setChallengeError] = useState('');
 
   useEffect(() => {
     if (ready && !authenticated) { router.push('/'); return; }
@@ -103,6 +110,33 @@ export default function FriendsPage() {
       loadFriends();
       loadLeaderboard();
     } catch {}
+  };
+
+  const openChallengeModal = (friend: any) => {
+    setChallengeTarget({ id: friend.id, name: friend.username || `${friend.wallet?.slice(0, 6)}...` });
+    setChallengeStatus('idle');
+    setChallengeError('');
+    setSelectedBet(1);
+  };
+
+  const sendChallenge = () => {
+    if (!challengeTarget) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('checkmate_token') ?? undefined : undefined;
+    const socket = getSocket(token);
+    socket.emit('challenge_user', { targetId: challengeTarget.id, betAmount: selectedBet });
+
+    const onSent = () => { setChallengeStatus('sent'); cleanup(); };
+    const onError = ({ reason }: { reason: string }) => {
+      setChallengeStatus('error');
+      setChallengeError(reason);
+      cleanup();
+    };
+    const cleanup = () => {
+      socket.off('challenge_sent', onSent);
+      socket.off('challenge_error', onError);
+    };
+    socket.once('challenge_sent', onSent);
+    socket.once('challenge_error', onError);
   };
 
   return (
@@ -229,6 +263,14 @@ export default function FriendsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {f.isOnline && (
+                      <button
+                        onClick={() => openChallengeModal(f)}
+                        className="btn-primary text-xs py-1 px-3"
+                      >
+                        ⚔️ Challenge
+                      </button>
+                    )}
                     <Link href={`/profile/${f.id}`} className="btn-secondary text-xs py-1 px-3">Profile</Link>
                     <button onClick={() => removeFriend(f.id)} className="text-xs text-white/30 hover:text-red-400 px-2 py-1">✕</button>
                   </div>
@@ -236,6 +278,48 @@ export default function FriendsPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Challenge modal */}
+      {challengeTarget && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setChallengeTarget(null)}>
+          <div className="card w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-1">Challenge {challengeTarget.name}</h2>
+            <p className="text-sm text-white/50 mb-5">Winner takes 97.5% of the pot</p>
+
+            {challengeStatus !== 'sent' ? (
+              <>
+                <div className="grid grid-cols-4 gap-2 mb-5">
+                  {BET_TIERS.map((tier) => (
+                    <button
+                      key={tier}
+                      onClick={() => setSelectedBet(tier)}
+                      className={`rounded-xl p-3 border-2 text-center transition-all ${
+                        selectedBet === tier
+                          ? 'border-[#4caf50] bg-[#4caf50]/20'
+                          : 'border-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      <div className="text-lg font-bold">${tier}</div>
+                    </button>
+                  ))}
+                </div>
+                {challengeError && <p className="text-red-400 text-sm mb-3">{challengeError}</p>}
+                <div className="flex gap-3">
+                  <button onClick={() => setChallengeTarget(null)} className="btn-secondary flex-1">Cancel</button>
+                  <button onClick={sendChallenge} className="btn-primary flex-1">Send Challenge</button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <div className="text-3xl mb-3 animate-pulse">⚔️</div>
+                <p className="font-semibold mb-1">Challenge sent!</p>
+                <p className="text-sm text-white/50 mb-4">Waiting for {challengeTarget.name} to respond...</p>
+                <button onClick={() => setChallengeTarget(null)} className="btn-secondary">Close</button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
