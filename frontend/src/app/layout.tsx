@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import './globals.css';
 import { PrivyProvider } from '@privy-io/react-auth';
 import { privyConfig, PRIVY_APP_ID } from '@/lib/privy';
