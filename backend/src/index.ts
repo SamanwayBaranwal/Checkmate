@@ -33,16 +33,25 @@ import { db } from './db/client';
 const app = express();
 const httpServer = createServer(app);
 
+// Support comma-separated FRONTEND_URL for multiple origins (localhost + Vercel)
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim());
+
+const originFn = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+  if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.vercel.app'))) {
+    cb(null, true);
+  } else {
+    cb(new Error('Not allowed by CORS'));
+  }
+};
+
 const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
+  cors: { origin: originFn, methods: ['GET', 'POST'], credentials: true },
 });
 
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
+app.use(cors({ origin: originFn, credentials: true }));
 app.use(express.json());
 
 app.use('/api/auth', authRouter);

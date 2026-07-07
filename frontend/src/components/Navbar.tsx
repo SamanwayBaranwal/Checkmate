@@ -167,7 +167,7 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {authenticated && balance !== null && (
             <span className="text-sm text-[#4caf50] font-semibold hidden sm:inline">
-              ${balance.toFixed(2)} USDC
+              ${balance.toFixed(2)}
             </span>
           )}
 
@@ -263,7 +263,7 @@ export default function Navbar() {
         <div className="md:hidden bg-[#0f3460] border-b border-white/10 px-4 py-3 space-y-1 z-40">
           {authenticated && balance !== null && (
             <div className="text-sm text-[#4caf50] font-semibold py-2 border-b border-white/10 mb-2">
-              ${balance.toFixed(2)} USDC
+              ${balance.toFixed(2)}
             </div>
           )}
           {navLinks.map((l) => (

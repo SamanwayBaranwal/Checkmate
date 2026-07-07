@@ -119,7 +119,9 @@ export const api = {
     solution: () => request<{ solution: string[] }>('/api/puzzles/daily/solution'),
   },
   dev: {
-    addBalance: () =>
-      request<{ message: string; balance: number }>('/api/dev/add-balance', { method: 'POST' }),
+    claimStarter: () =>
+      request<{ message: string; balance: number }>('/api/dev/claim-starter', { method: 'POST' }),
+    topup: () =>
+      request<{ message: string; balance: number }>('/api/dev/topup', { method: 'POST' }),
   },
 };

@@ -9,7 +9,6 @@ import Link from 'next/link';
 interface ChartPoint { day: string; income: number; expenses: number; }
 
 function EarningsChart({ rawData }: { rawData: ChartPoint[] }) {
-  // Build a filled 30-day array
   const days: { date: string; net: number }[] = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
@@ -34,29 +33,15 @@ function EarningsChart({ rawData }: { rawData: ChartPoint[] }) {
           {totalNet >= 0 ? '+' : ''}{totalNet.toFixed(2)} net
         </span>
       </div>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
-        style={{ height: 80 }}
-        preserveAspectRatio="none"
-      >
-        {/* Baseline */}
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 80 }} preserveAspectRatio="none">
         <line x1="0" y1={H - 1} x2={W} y2={H - 1} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
         {days.map((d, i) => {
           const barH = Math.max(2, (Math.abs(d.net) / maxAbs) * (H - 8));
           const x = i * (barW + gap);
           const fill = d.net >= 0 ? '#4caf50' : '#ef4444';
           return (
-            <rect
-              key={d.date}
-              x={x}
-              y={H - barH - 1}
-              width={barW}
-              height={barH}
-              fill={fill}
-              opacity={d.net === 0 ? 0.15 : 0.75}
-              rx="1"
-            />
+            <rect key={d.date} x={x} y={H - barH - 1} width={barW} height={barH} fill={fill}
+              opacity={d.net === 0 ? 0.15 : 0.75} rx="1" />
           );
         })}
       </svg>
@@ -70,13 +55,12 @@ function EarningsChart({ rawData }: { rawData: ChartPoint[] }) {
 }
 
 const TX_TYPE_LABELS: Record<string, string> = {
-  deposit: 'Deposit',
+  deposit: 'Credits',
   win: 'Game Win',
   loss: 'Game Loss',
   withdrawal: 'Withdrawal',
   refund: 'Refund',
   fee: 'Fee',
-  game_credit: 'Credit',
   bonus: 'Bonus',
   referral: 'Referral Earning',
 };
@@ -90,41 +74,70 @@ export default function WalletPage() {
   const router = useRouter();
   const [balance, setBalance] = useState(0);
   const [bonusBalance, setBonusBalance] = useState(0);
-  const [depositInfo, setDepositInfo] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawAddress, setWithdrawAddress] = useState('');
-  const [withdrawing, setWithdrawing] = useState(false);
-  const [withdrawResult, setWithdrawResult] = useState('');
-  const [copied, setCopied] = useState(false);
   const [referral, setReferral] = useState<{ referralCode: string | null; referralLink: string | null; referredCount: number; referralEarnings: number } | null>(null);
   const [copiedRef, setCopiedRef] = useState(false);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
 
-  useEffect(() => {
-    if (ready && !authenticated) { router.push('/'); return; }
-    if (!authenticated) return;
+  const [starterStatus, setStarterStatus] = useState<'idle' | 'claiming' | 'claimed' | 'already'>('idle');
+  const [starterMsg, setStarterMsg] = useState('');
+  const [topupStatus, setTopupStatus] = useState<'idle' | 'claiming' | 'claimed' | 'error'>('idle');
+  const [topupMsg, setTopupMsg] = useState('');
 
-    Promise.all([
+  const loadData = async () => {
+    const [b, txs, ref, chart] = await Promise.all([
       api.wallet.balance(),
-      api.wallet.depositAddress(),
       api.wallet.transactions(),
       api.users.referral(),
       api.wallet.earningsChart(),
-    ]).then(([b, d, txs, ref, chart]) => {
-      setBalance(b.balance);
-      setBonusBalance((b as any).bonusBalance ?? 0);
-      setDepositInfo(d);
-      setTransactions(txs);
-      setReferral(ref);
-      setChartData(chart);
-    }).catch(() => {});
+    ]);
+    setBalance(b.balance);
+    setBonusBalance((b as any).bonusBalance ?? 0);
+    setTransactions(txs);
+    setReferral(ref);
+    setChartData(chart);
+  };
+
+  useEffect(() => {
+    if (ready && !authenticated) { router.push('/'); return; }
+    if (!authenticated) return;
+    loadData().catch(() => {});
   }, [authenticated, ready, router]);
 
-  const copyAddress = () => {
-    navigator.clipboard.writeText(depositInfo?.address || '');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const claimStarter = async () => {
+    setStarterStatus('claiming');
+    try {
+      const r = await api.dev.claimStarter();
+      setStarterMsg(r.message);
+      setStarterStatus('claimed');
+      setBalance(r.balance);
+      loadData().catch(() => {});
+    } catch (err: any) {
+      let msg = '';
+      try { msg = JSON.parse(err?.message || '').error; } catch {}
+      if (msg === 'Already claimed') {
+        setStarterStatus('already');
+        setStarterMsg('Already claimed');
+      } else {
+        setStarterStatus('idle');
+      }
+    }
+  };
+
+  const claimTopup = async () => {
+    setTopupStatus('claiming');
+    try {
+      const r = await api.dev.topup();
+      setTopupMsg(r.message);
+      setTopupStatus('claimed');
+      setBalance(r.balance);
+      loadData().catch(() => {});
+    } catch (err: any) {
+      let msg = '';
+      try { msg = JSON.parse(err?.message || '').error; } catch {}
+      setTopupMsg(msg || 'Cannot top-up right now');
+      setTopupStatus('error');
+    }
   };
 
   const copyReferralLink = () => {
@@ -132,28 +145,6 @@ export default function WalletPage() {
       navigator.clipboard.writeText(referral.referralLink);
       setCopiedRef(true);
       setTimeout(() => setCopiedRef(false), 2000);
-    }
-  };
-
-  const handleWithdraw = async () => {
-    const amount = parseFloat(withdrawAmount);
-    if (!amount || amount <= 0 || !withdrawAddress) return;
-    if (amount > balance) { setWithdrawResult('Insufficient balance'); return; }
-
-    setWithdrawing(true);
-    setWithdrawResult('');
-    try {
-      const { txHash } = await api.wallet.withdraw(amount, withdrawAddress);
-      setWithdrawResult(`Success! TX: ${txHash}`);
-      const [b, txs] = await Promise.all([api.wallet.balance(), api.wallet.transactions()]);
-      setBalance(b.balance);
-      setTransactions(txs);
-      setWithdrawAmount('');
-      setWithdrawAddress('');
-    } catch {
-      setWithdrawResult('Withdrawal failed. Try again.');
-    } finally {
-      setWithdrawing(false);
     }
   };
 
@@ -165,13 +156,69 @@ export default function WalletPage() {
       <div className="card">
         <p className="text-sm text-white/50 mb-1">Available Balance</p>
         <p className="text-4xl font-bold text-[#4caf50]">${balance.toFixed(2)}</p>
-        <p className="text-sm text-white/40 mt-1">USDC on Base</p>
+        <p className="text-sm text-white/40 mt-1">Game credits</p>
         {bonusBalance > 0 && (
           <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
             <span className="text-xs text-white/40">Lifetime bonus earned</span>
             <span className="text-xs font-semibold text-[#ffd700]">+${bonusBalance.toFixed(2)}</span>
           </div>
         )}
+      </div>
+
+      {/* Free Credits */}
+      <div className="card border border-[#4caf50]/20">
+        <h2 className="text-lg font-bold mb-1">🎁 Free Credits</h2>
+        <p className="text-sm text-white/50 mb-4">
+          Claim free credits to start playing. No payment needed — just play and have fun!
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          {/* Starter pack */}
+          <div className="bg-white/5 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-[#ffd700] mb-1">$10</div>
+            <div className="text-xs text-white/50 mb-3">Starter Pack · Once ever</div>
+            {starterStatus === 'idle' && (
+              <button onClick={claimStarter} className="btn-primary text-sm w-full">Claim $10</button>
+            )}
+            {starterStatus === 'claiming' && (
+              <button disabled className="btn-primary text-sm w-full opacity-50">Claiming...</button>
+            )}
+            {(starterStatus === 'claimed') && (
+              <p className="text-[#4caf50] text-sm font-semibold">✓ {starterMsg}</p>
+            )}
+            {starterStatus === 'already' && (
+              <p className="text-white/40 text-xs">Already claimed</p>
+            )}
+          </div>
+
+          {/* Top-up when broke */}
+          <div className="bg-white/5 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-[#4caf50] mb-1">$5</div>
+            <div className="text-xs text-white/50 mb-3">Low balance top-up · Daily</div>
+            {(topupStatus === 'idle' || topupStatus === 'error') && (
+              <button
+                onClick={claimTopup}
+                disabled={balance >= 1}
+                className="btn-secondary text-sm w-full disabled:opacity-40"
+              >
+                {balance >= 1 ? 'Balance OK' : 'Get $5'}
+              </button>
+            )}
+            {topupStatus === 'claiming' && (
+              <button disabled className="btn-secondary text-sm w-full opacity-50">Claiming...</button>
+            )}
+            {topupStatus === 'claimed' && (
+              <p className="text-[#4caf50] text-sm font-semibold">✓ {topupMsg}</p>
+            )}
+            {topupStatus === 'error' && (
+              <p className="text-red-400 text-xs mt-1">{topupMsg}</p>
+            )}
+          </div>
+        </div>
+
+        <p className="text-xs text-white/30 mt-3 text-center">
+          Win games to earn more · Daily login bonus · Complete missions for extra credits
+        </p>
       </div>
 
       {/* Earnings chart */}
@@ -185,7 +232,7 @@ export default function WalletPage() {
         <div className="card">
           <h2 className="text-lg font-bold mb-1">Refer &amp; Earn</h2>
           <p className="text-sm text-white/50 mb-4">
-            Earn 10% of platform fees whenever someone you refer plays a game — forever.
+            Invite friends to play — you both benefit when they join.
           </p>
           {referral.referralLink ? (
             <>
@@ -215,64 +262,6 @@ export default function WalletPage() {
           )}
         </div>
       )}
-
-      {/* Deposit */}
-      <div className="card">
-        <h2 className="text-lg font-bold mb-3">Deposit USDC</h2>
-        {depositInfo && (
-          <>
-            <p className="text-sm text-white/60 mb-3">{depositInfo.note}</p>
-            <div className="bg-black/30 rounded-lg p-3 flex items-center justify-between gap-3 mb-2">
-              <code className="text-xs text-[#4caf50] break-all">{depositInfo.address}</code>
-              <button onClick={copyAddress} className="btn-secondary text-xs shrink-0">
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <p className="text-xs text-white/40">Network: {depositInfo.network} · Token: {depositInfo.token}</p>
-          </>
-        )}
-      </div>
-
-      {/* Withdraw */}
-      <div className="card">
-        <h2 className="text-lg font-bold mb-3">Withdraw USDC</h2>
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm text-white/60 block mb-1">Amount (USDC)</label>
-            <input
-              type="number"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              placeholder="0.00"
-              min="0"
-              max={balance}
-              className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#4caf50]"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-white/60 block mb-1">Destination wallet (Base)</label>
-            <input
-              type="text"
-              value={withdrawAddress}
-              onChange={(e) => setWithdrawAddress(e.target.value)}
-              placeholder="0x..."
-              className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-[#4caf50]"
-            />
-          </div>
-          {withdrawResult && (
-            <p className={`text-sm ${withdrawResult.startsWith('Success') ? 'text-[#4caf50]' : 'text-red-400'}`}>
-              {withdrawResult}
-            </p>
-          )}
-          <button
-            onClick={handleWithdraw}
-            disabled={withdrawing || !withdrawAmount || !withdrawAddress}
-            className="btn-primary w-full"
-          >
-            {withdrawing ? 'Processing...' : 'Withdraw'}
-          </button>
-        </div>
-      </div>
 
       {/* Transaction history */}
       <div className="card p-0 overflow-hidden">
@@ -306,11 +295,6 @@ export default function WalletPage() {
                         <Link href={`/replay/${tx.game_id}`} className="text-xs text-white/40 hover:text-white">
                           Game ▶
                         </Link>
-                      )}
-                      {tx.tx_hash && (
-                        <span className="text-xs text-white/30 font-mono ml-1">
-                          {tx.tx_hash.slice(0, 8)}…
-                        </span>
                       )}
                     </td>
                   </tr>

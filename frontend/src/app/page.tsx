@@ -74,7 +74,6 @@ export default function LobbyPage() {
   const [token, setToken] = useState('');
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [authInitialized, setAuthInitialized] = useState(false);
-  const [addingBalance, setAddingBalance] = useState(false);
   const [bonusNotice, setBonusNotice] = useState<{ streak: number; amount: number } | null>(null);
   const [recentOpponents, setRecentOpponents] = useState<any[]>([]);
   const [suggested, setSuggested] = useState<any[]>([]);
@@ -184,7 +183,7 @@ export default function LobbyPage() {
           <div className="flex flex-col items-center gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-[#4caf50]">${balance.toFixed(2)}</div>
-              <div className="text-xs text-white/50">USDC Balance</div>
+              <div className="text-xs text-white/50">Balance</div>
             </div>
             <div className="flex gap-3 flex-wrap justify-center">
               <button
@@ -194,25 +193,14 @@ export default function LobbyPage() {
               >
                 Find Match ♟
               </button>
-              {/* Dev only — remove before launch */}
-              <button
-                onClick={async () => {
-                  setAddingBalance(true);
-                  try {
-                    const r = await api.dev.addBalance();
-                    setBalance(r.balance);
-                  } finally {
-                    setAddingBalance(false);
-                  }
-                }}
-                disabled={addingBalance}
-                className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-6 py-3 rounded-lg transition-colors text-sm disabled:opacity-50"
-              >
-                {addingBalance ? 'Adding...' : '🪙 Get $100 Test Money'}
-              </button>
+              {balance === 0 && (
+                <Link href="/wallet" className="btn-secondary text-sm px-4 py-3">
+                  🎁 Get Free Credits
+                </Link>
+              )}
             </div>
             {balance === 0 && (
-              <p className="text-sm text-white/50">Click "Get $100 Test Money" to start playing</p>
+              <p className="text-sm text-white/50">Claim free credits from your wallet to start playing</p>
             )}
           </div>
         )}
