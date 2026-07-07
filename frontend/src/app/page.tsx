@@ -164,59 +164,80 @@ export default function LobbyPage() {
       )}
 
       {/* Hero */}
-      <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-5xl font-bold mb-4">
-          Play Chess.<br />
-          <span className="text-[#f0b232]">Win Real Money.</span>
-        </h1>
-        <p className="text-white/60 text-base sm:text-lg mb-8">
-          Bet USDC, beat your opponent, climb the leaderboard.
-        </p>
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] mb-10">
+        {/* Ambient board pattern backdrop */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: 'conic-gradient(#fff 90deg, transparent 90deg 180deg, #fff 180deg 270deg, transparent 270deg)',
+            backgroundSize: '48px 48px',
+          }}
+        />
+        <div
+          className="absolute -top-24 -right-16 w-80 h-80 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(129,182,76,0.16) 0%, transparent 70%)' }}
+        />
 
-        {ready && !authenticated && (
-          <button onClick={login} className="btn-primary text-lg px-8 py-3">
-            Connect to Play
-          </button>
-        )}
+        <div className="relative px-6 sm:px-10 py-12 sm:py-16">
+          <div className="pill mb-5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c] animate-pulse-dot" />
+            {activeGames.length} live {activeGames.length === 1 ? 'game' : 'games'} now
+          </div>
 
-        {authenticated && (
-          <div className="flex flex-col items-center gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#81b64c]">${balance.toFixed(2)}</div>
-              <div className="text-xs text-white/50">Balance</div>
-            </div>
-            <div className="flex gap-3 flex-wrap justify-center">
+          <h1 className="text-4xl sm:text-6xl font-extrabold leading-[1.05] mb-4 max-w-2xl">
+            Play chess.<br />
+            <span className="text-[#81b64c]">Win real money.</span>
+          </h1>
+          <p className="text-white/55 text-base sm:text-lg mb-8 max-w-lg">
+            Wager, outplay your opponent, and climb the global leaderboard. Fast, fair, and skill-based.
+          </p>
+
+          {ready && !authenticated && (
+            <button onClick={login} className="btn-primary text-base px-8 py-3.5">
+              Get started — it&apos;s free
+            </button>
+          )}
+
+          {authenticated && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <button
                 onClick={() => setShowMatchmaking(true)}
                 disabled={balance === 0}
-                className="btn-primary text-lg px-8 py-3"
+                className="btn-primary text-base px-8 py-3.5 flex items-center justify-center gap-2"
               >
-                Find Match ♟
+                <span className="text-lg">♟</span> Find a Match
               </button>
-              {balance === 0 && (
-                <Link href="/wallet" className="btn-secondary text-sm px-4 py-3">
-                  🎁 Get Free Credits
-                </Link>
-              )}
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-white/[0.04] border border-white/[0.07] px-4 py-2">
+                  <div className="text-lg font-bold text-[#81b64c] leading-none font-display">${balance.toFixed(2)}</div>
+                  <div className="text-[11px] text-white/45 mt-1">Balance</div>
+                </div>
+                {balance === 0 && (
+                  <Link href="/wallet" className="btn-gold text-sm px-4 py-2.5">
+                    Claim free credits
+                  </Link>
+                )}
+              </div>
             </div>
-            {balance === 0 && (
-              <p className="text-sm text-white/50">Claim free credits from your wallet to start playing</p>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Live Games */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Live Games</h2>
-          <span className="text-sm text-white/40">{activeGames.length} active</span>
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse-dot" />
+            <h2 className="text-lg font-bold">Live Games</h2>
+          </div>
+          <span className="pill">{activeGames.length} active</span>
         </div>
 
         {activeGames.length === 0 ? (
-          <div className="card text-center py-12 text-white/40">
-            <div className="text-4xl mb-3">♟</div>
-            <p>No live games right now. Be the first to play!</p>
+          <div className="card text-center py-14 text-white/40">
+            <div className="text-5xl mb-3 opacity-60">♟</div>
+            <p className="font-medium">No live games right now</p>
+            <p className="text-sm text-white/30 mt-1">Be the first to play!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -232,8 +253,8 @@ export default function LobbyPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
           {recentOpponents.length > 0 && (
             <div className="card p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/10">
-                <h2 className="font-bold text-sm">Play Again</h2>
+              <div className="px-4 py-3 border-b border-white/[0.07]">
+                <h2 className="eyebrow">Play Again</h2>
               </div>
               <div className="py-1">
                 {recentOpponents.map((p) => (
@@ -253,8 +274,8 @@ export default function LobbyPage() {
 
           {suggested.length > 0 && (
             <div className="card p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/10">
-                <h2 className="font-bold text-sm">Suggested Opponents</h2>
+              <div className="px-4 py-3 border-b border-white/[0.07]">
+                <h2 className="eyebrow">Suggested Opponents</h2>
               </div>
               <div className="py-1">
                 {suggested.map((p) => (

@@ -3,14 +3,18 @@
 export const dynamic = 'force-dynamic';
 
 import './globals.css';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import { PrivyProvider } from '@privy-io/react-auth';
 import { privyConfig, PRIVY_APP_ID } from '@/lib/privy';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
 
+const inter = Inter({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['500', '600', '700', '800'], variable: '--font-display', display: 'swap' });
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
       <head>
         <title>Checkmate — Bet Chess</title>
         <meta name="description" content="Play chess for real USDC. Wager, win, withdraw instantly." />

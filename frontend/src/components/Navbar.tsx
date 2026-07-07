@@ -152,7 +152,7 @@ export default function Navbar() {
     <>
       <nav
         className="border-b border-white/[0.06] px-4 py-2.5 flex items-center justify-between sticky top-0 z-50"
-        style={{ background: '#21201d' }}
+        style={{ background: 'rgba(28, 27, 24, 0.72)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)' }}
       >
         <div className="flex items-center gap-5">
           <Link href="/" className="flex items-center gap-2 shrink-0 group" onClick={() => setMenuOpen(false)}>
