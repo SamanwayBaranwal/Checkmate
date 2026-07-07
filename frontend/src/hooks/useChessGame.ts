@@ -34,6 +34,7 @@ export interface GameState {
   drawOffered?: boolean;
   spectatorCount: number;
   moves: string[];
+  lastMove?: { from: string; to: string };
   chatMessages: ChatMessage[];
 }
 
@@ -139,7 +140,8 @@ export function useChessGame(gameId: string, token?: string) {
         // Server is authoritative. If we already applied this optimistically
         // (same fen), this is a no-op reconcile; otherwise it's the opponent's move.
         const moves = data.san && prev.fen !== data.fen ? [...prev.moves, data.san] : prev.moves;
-        const next = { ...prev, fen: data.fen, turn: data.turn, clocks: data.clocks, moves };
+        const lastMove = data.from && data.to ? { from: data.from, to: data.to } : prev.lastMove;
+        const next = { ...prev, fen: data.fen, turn: data.turn, clocks: data.clocks, moves, lastMove };
         confirmedRef.current = { fen: data.fen, turn: data.turn, clocks: data.clocks, moves };
         return next;
       });
@@ -220,7 +222,7 @@ export function useChessGame(gameId: string, token?: string) {
         // Snapshot current confirmed state so we can revert on rejection
         confirmedRef.current = { fen: prev.fen, turn: prev.turn, clocks: prev.clocks, moves: prev.moves };
         const nextTurn: 'white' | 'black' = prev.turn === 'white' ? 'black' : 'white';
-        return { ...prev, fen: chess.fen(), turn: nextTurn, moves: [...prev.moves, mv.san] };
+        return { ...prev, fen: chess.fen(), turn: nextTurn, moves: [...prev.moves, mv.san], lastMove: { from, to } };
       } catch {
         return prev;
       }

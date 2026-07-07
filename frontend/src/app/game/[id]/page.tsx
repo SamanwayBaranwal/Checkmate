@@ -9,6 +9,7 @@ import { useChessGame } from '@/hooks/useChessGame';
 import ChessClock from '@/components/ChessClock';
 import GameOverModal from '@/components/GameOverModal';
 import MoveHistory from '@/components/MoveHistory';
+import CapturedPieces from '@/components/CapturedPieces';
 import { sounds } from '@/lib/sounds';
 import { api } from '@/lib/api';
 import { getCustomPieces, type PieceTheme } from '@/lib/pieceThemes';
@@ -266,6 +267,12 @@ export default function GamePage() {
         [preMove.to]:   { backgroundColor: 'rgba(255, 140, 0, 0.5)' },
       }
     : {};
+  const lastMoveSquares: Record<string, React.CSSProperties> = state.lastMove
+    ? {
+        [state.lastMove.from]: { backgroundColor: 'rgba(129, 182, 76, 0.32)' },
+        [state.lastMove.to]:   { backgroundColor: 'rgba(129, 182, 76, 0.42)' },
+      }
+    : {};
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
@@ -274,9 +281,17 @@ export default function GamePage() {
         {/* Board area */}
         <div className="flex-1">
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="font-semibold">{state.opponent.username}</p>
-              <p className="text-xs text-white/50">{state.opponent.elo} ELO · {state.color === 'white' ? 'Black' : 'White'}</p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-9 h-9 rounded-lg bg-[#3a3835] border border-white/10 flex items-center justify-center text-sm font-bold shrink-0">
+                {(state.opponent.username || '?')[0].toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold truncate">{state.opponent.username}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-white/50">{state.opponent.elo}</p>
+                  <CapturedPieces fen={state.fen} side={state.color === 'white' ? 'black' : 'white'} />
+                </div>
+              </div>
             </div>
             <ChessClock ms={opponentClock} active={state.turn !== state.color && state.status === 'playing'} label="" />
           </div>
@@ -292,15 +307,23 @@ export default function GamePage() {
               customBoardStyle={{ borderRadius: '0' }}
               customDarkSquareStyle={{ backgroundColor: theme.dark }}
               customLightSquareStyle={{ backgroundColor: theme.light }}
-              customSquareStyles={{ ...legalMoveSquares, ...preMoveSquares }}
+              customSquareStyles={{ ...lastMoveSquares, ...legalMoveSquares, ...preMoveSquares }}
               customPieces={customPieces}
             />
           </div>
 
           <div className="flex items-center justify-between mt-3">
-            <div>
-              <p className="font-semibold">{user?.wallet?.address ? shortAddr(user.wallet.address) : 'You'}</p>
-              <p className="text-xs text-white/50">{state.color === 'white' ? 'White' : 'Black'}</p>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-9 h-9 rounded-lg bg-[#81b64c] text-[#21201d] flex items-center justify-center text-sm font-bold shrink-0">
+                {(user?.wallet?.address || 'Y')[2]?.toUpperCase() || 'Y'}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold truncate">You</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-white/50">{state.color === 'white' ? 'White' : 'Black'}</p>
+                  <CapturedPieces fen={state.fen} side={state.color} />
+                </div>
+              </div>
             </div>
             <ChessClock ms={myClock} active={isMyTurn} label="" />
           </div>

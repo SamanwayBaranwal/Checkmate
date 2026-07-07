@@ -36,7 +36,6 @@ export default function Navbar() {
   const [balance, setBalance] = useState<number | null>(null);
   const [incomingChallenge, setIncomingChallenge] = useState<IncomingChallenge | null>(null);
   const [declinedNotice, setDeclinedNotice] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
 
   // Notifications
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -155,7 +154,7 @@ export default function Navbar() {
         style={{ background: 'rgba(28, 27, 24, 0.72)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)' }}
       >
         <div className="flex items-center gap-5">
-          <Link href="/" className="flex items-center gap-2 shrink-0 group" onClick={() => setMenuOpen(false)}>
+          <Link href="/" className="flex items-center gap-2 shrink-0 group">
             <span className="w-8 h-8 rounded-md bg-[#81b64c] flex items-center justify-center text-[#21201d] text-lg font-black leading-none">♟</span>
             <span className="text-lg font-bold tracking-tight text-white hidden sm:inline">Checkmate</span>
           </Link>
@@ -243,64 +242,16 @@ export default function Navbar() {
 
           {ready && !authenticated && (
             <button onClick={login} className="btn-primary text-sm">
-              Connect
+              Sign in
             </button>
           )}
           {authenticated && (
             <button onClick={logout} className="btn-secondary text-sm hidden md:inline-flex">
-              Disconnect
+              Sign out
             </button>
           )}
-          {/* Hamburger — mobile only */}
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            className="md:hidden p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-            aria-label="Menu"
-          >
-            {menuOpen ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            )}
-          </button>
         </div>
       </nav>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div
-          className="md:hidden border-b border-white/[0.06] px-4 py-3 space-y-1 z-40"
-          style={{ background: '#21201d' }}
-        >
-          {authenticated && balance !== null && (
-            <div className="text-sm text-[#81b64c] font-semibold py-2 border-b border-white/10 mb-2">
-              ${balance.toFixed(2)}
-            </div>
-          )}
-          {navLinks.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => setMenuOpen(false)}
-              className="block py-2 text-sm text-white/70 hover:text-white transition-colors"
-            >
-              {l.label}
-            </Link>
-          ))}
-          {authenticated && (
-            <button
-              onClick={() => { setMenuOpen(false); logout(); }}
-              className="block w-full text-left py-2 text-sm text-white/50 hover:text-white transition-colors border-t border-white/10 mt-2 pt-3"
-            >
-              Disconnect
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Incoming challenge notification */}
       {incomingChallenge && (

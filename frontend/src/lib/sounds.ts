@@ -30,6 +30,12 @@ function playTone(
   } catch {}
 }
 
+function haptic(pattern: number | number[]) {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try { navigator.vibrate(pattern); } catch {}
+  }
+}
+
 export const sounds = {
   move() {
     playTone(440, 0.08, 'square', 0.08);
@@ -37,20 +43,24 @@ export const sounds = {
   capture() {
     playTone(280, 0.15, 'sawtooth', 0.12);
     setTimeout(() => playTone(220, 0.1, 'sawtooth', 0.08), 60);
+    haptic(15);
   },
   check() {
     playTone(660, 0.1, 'sine', 0.15);
     setTimeout(() => playTone(880, 0.15, 'sine', 0.12), 80);
+    haptic([0, 20, 40, 20]);
   },
   win() {
     [523, 659, 784, 1047].forEach((f, i) => {
       setTimeout(() => playTone(f, 0.3, 'sine', 0.15), i * 120);
     });
+    haptic([0, 40, 60, 40, 60, 80]);
   },
   lose() {
     [523, 440, 349, 262].forEach((f, i) => {
       setTimeout(() => playTone(f, 0.3, 'sine', 0.12), i * 120);
     });
+    haptic(120);
   },
   draw() {
     [440, 440].forEach((f, i) => {
