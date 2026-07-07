@@ -312,23 +312,30 @@ router.get('/me/recent-opponents', requireAuth, async (req: AuthenticatedRequest
 });
 
 router.get('/me/suggested', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const uid = req.userId!;
-  const user = await db('users').where({ id: uid }).select('elo').first();
-  if (!user) { res.json([]); return; }
+  try {
+    const uid = req.userId!;
+    const user = await db('users').where({ id: uid }).select('elo').first();
+    if (!user) { res.json([]); return; }
 
-  const result = await db.raw(`
-    SELECT DISTINCT u.id, u.username, u.wallet, u.elo, u.games_played, u.games_won
-    FROM users u
-    JOIN games g ON (g.player_white = u.id OR g.player_black = u.id)
-    WHERE u.id != ?
-      AND u.elo BETWEEN ? AND ?
-      AND g.status = 'completed'
-      AND g.completed_at >= NOW() - INTERVAL '7 days'
-    ORDER BY RANDOM()
-    LIMIT 5
-  `, [uid, user.elo - 150, user.elo + 150]);
+    const result = await db.raw(`
+      SELECT u.id, u.username, u.wallet, u.elo, u.games_played, u.games_won
+      FROM users u
+      WHERE u.id != ?
+        AND u.elo BETWEEN ? AND ?
+        AND EXISTS (
+          SELECT 1 FROM games g
+          WHERE (g.player_white = u.id OR g.player_black = u.id)
+            AND g.status = 'completed'
+            AND g.completed_at >= NOW() - INTERVAL '7 days'
+        )
+      ORDER BY RANDOM()
+      LIMIT 5
+    `, [uid, user.elo - 150, user.elo + 150]);
 
-  res.json(result.rows);
+    res.json(result.rows);
+  } catch {
+    res.json([]);
+  }
 });
 
 router.get('/search', requireAuth, async (req: AuthenticatedRequest, res: Response) => {

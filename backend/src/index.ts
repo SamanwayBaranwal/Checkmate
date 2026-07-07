@@ -258,6 +258,14 @@ db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ`).catch
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
 db.raw(`ALTER TABLE reports ADD COLUMN IF NOT EXISTS admin_notes TEXT`).catch(() => {});
 
+// Safety net: never let one bad async query crash the whole server
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {
   console.log(`Checkmate backend running on port ${PORT}`);
