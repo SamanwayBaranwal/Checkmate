@@ -3,33 +3,84 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #1a1a2e;
+  --bg-primary: #0e1424;
   --bg-secondary: #16213e;
   --bg-card: #0f3460;
-  --text-primary: #e0e0e0;
+  --text-primary: #e8eaf0;
   --text-muted: #9e9e9e;
   --accent-green: #4caf50;
   --accent-gold: #ffd700;
 }
 
-body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
+body {
+  background: radial-gradient(1200px 800px at 50% -10%, #1e2a4a 0%, #141b30 45%, #0c1120 100%);
+  background-attachment: fixed;
+  color: #e8eaf0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Modern glass card */
 .card {
-  @apply bg-[#16213e] rounded-xl border border-white/10 p-4;
+  @apply rounded-2xl border p-4;
+  background: rgba(22, 33, 62, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
 }
 
 .btn-primary {
-  @apply bg-[#4caf50] hover:bg-[#43a047] text-white font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply text-white font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95;
+  background: linear-gradient(135deg, #56c15a 0%, #3d9c42 100%);
+  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.3);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 22px rgba(76, 175, 80, 0.45);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  @apply bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-colors;
+  @apply text-white font-semibold px-4 py-2 rounded-xl transition-all active:scale-95;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .btn-danger {
-  @apply bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors;
+  @apply text-white font-semibold px-4 py-2 rounded-xl transition-all active:scale-95;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+
+/* Gold accent button (for premium CTAs) */
+.btn-gold {
+  @apply font-bold px-4 py-2 rounded-xl transition-all active:scale-95;
+  background: linear-gradient(135deg, #ffd700 0%, #f0b000 100%);
+  color: #1a1a2e;
+  box-shadow: 0 4px 16px rgba(255, 215, 0, 0.3);
+}
+
+/* Subtle fade-in for page content */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Hide scrollbars but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Safe-area padding for mobile bottom nav (iPhone notch/home indicator) */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px));
 }

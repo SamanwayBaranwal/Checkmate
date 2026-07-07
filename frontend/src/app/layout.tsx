@@ -6,6 +6,7 @@ import './globals.css';
 import { PrivyProvider } from '@privy-io/react-auth';
 import { privyConfig, PRIVY_APP_ID } from '@/lib/privy';
 import Navbar from '@/components/Navbar';
+import BottomNav from '@/components/BottomNav';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -26,7 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PrivyProvider appId={PRIVY_APP_ID} config={privyConfig}>
           <Navbar />
-          <main className="min-h-screen">{children}</main>
+          <main className="min-h-screen animate-in pb-24 md:pb-0">{children}</main>
+          <BottomNav />
         </PrivyProvider>
       </body>
     </html>

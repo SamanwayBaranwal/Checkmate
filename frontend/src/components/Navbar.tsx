@@ -136,6 +136,7 @@ export default function Navbar() {
   };
 
   const navLinks = [
+    { href: '/', label: 'Home', auth: false },
     { href: '/leaderboard', label: 'Leaderboard', auth: false },
     { href: '/tournaments', label: 'Tournaments', auth: false },
     { href: '/puzzle', label: '♟ Puzzle', auth: false },
@@ -149,7 +150,10 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="border-b border-white/10 bg-[#0f3460] px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+      <nav
+        className="border-b border-white/10 px-4 py-3 flex items-center justify-between sticky top-0 z-50"
+        style={{ background: 'rgba(15, 22, 41, 0.75)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
+      >
         <div className="flex items-center gap-4">
           <Link href="/" className="text-xl font-bold text-[#ffd700] shrink-0" onClick={() => setMenuOpen(false)}>
             ♟ Checkmate
@@ -260,7 +264,10 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden bg-[#0f3460] border-b border-white/10 px-4 py-3 space-y-1 z-40">
+        <div
+          className="md:hidden border-b border-white/10 px-4 py-3 space-y-1 z-40"
+          style={{ background: 'rgba(15, 22, 41, 0.95)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
+        >
           {authenticated && balance !== null && (
             <div className="text-sm text-[#4caf50] font-semibold py-2 border-b border-white/10 mb-2">
               ${balance.toFixed(2)}
