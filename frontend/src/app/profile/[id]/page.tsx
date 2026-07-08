@@ -5,23 +5,24 @@ import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
+import { Icon, type IconName } from '@/components/Icons';
 import Link from 'next/link';
 
 function shortAddr(addr: string) {
   return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '???';
 }
 
-function computeBadges(p: any) {
-  const badges = [];
+function computeBadges(p: any): { icon: IconName; label: string; desc: string; highlight: boolean }[] {
+  const badges: { icon: IconName; label: string; desc: string; highlight: boolean }[] = [];
   const winRate = p.gamesPlayed ? (p.gamesWon / p.gamesPlayed) * 100 : 0;
-  if (p.fairPlay) badges.push({ icon: '🛡️', label: 'Fair Play', desc: 'No fair play violations on record', highlight: true });
-  if (p.gamesWon >= 1) badges.push({ icon: '🏆', label: 'First Win', desc: '', highlight: false });
-  if (p.gamesPlayed >= 10) badges.push({ icon: '⚡', label: 'Veteran', desc: '', highlight: false });
-  if (p.gamesPlayed >= 50) badges.push({ icon: '💎', label: 'Grinder', desc: '', highlight: false });
-  if (winRate >= 60 && p.gamesPlayed >= 10) badges.push({ icon: '🎯', label: 'Sharp', desc: '', highlight: false });
-  if (p.elo >= 1400) badges.push({ icon: '🌙', label: 'Rising Star', desc: '', highlight: false });
-  if (p.elo >= 1600) badges.push({ icon: '👑', label: 'Elite', desc: '', highlight: false });
-  if (p.totalEarnings !== null && p.totalEarnings >= 10) badges.push({ icon: '💰', label: 'Earner', desc: '', highlight: false });
+  if (p.fairPlay) badges.push({ icon: 'shield', label: 'Fair Play', desc: 'No fair play violations on record', highlight: true });
+  if (p.gamesWon >= 1) badges.push({ icon: 'trophy', label: 'First Win', desc: '', highlight: false });
+  if (p.gamesPlayed >= 10) badges.push({ icon: 'bolt', label: 'Veteran', desc: '', highlight: false });
+  if (p.gamesPlayed >= 50) badges.push({ icon: 'gem', label: 'Grinder', desc: '', highlight: false });
+  if (winRate >= 60 && p.gamesPlayed >= 10) badges.push({ icon: 'target', label: 'Sharp', desc: '', highlight: false });
+  if (p.elo >= 1400) badges.push({ icon: 'star', label: 'Rising Star', desc: '', highlight: false });
+  if (p.elo >= 1600) badges.push({ icon: 'crown', label: 'Elite', desc: '', highlight: false });
+  if (p.totalEarnings !== null && p.totalEarnings >= 10) badges.push({ icon: 'coin', label: 'Earner', desc: '', highlight: false });
   return badges;
 }
 
@@ -155,7 +156,7 @@ export default function PublicProfilePage() {
                     ? 'bg-[#46a883]/10 border-[#46a883]/40 text-[#46a883]'
                     : 'bg-white/5 border-white/10'
                 }`}>
-                <span className="text-xl">{b.icon}</span>
+                <span className={b.highlight ? 'text-[#46a883]' : 'text-white/60'}><Icon name={b.icon} size={18} /></span>
                 <span className="text-sm font-semibold">{b.label}</span>
               </div>
             ))}

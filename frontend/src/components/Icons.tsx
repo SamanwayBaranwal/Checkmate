@@ -10,7 +10,7 @@ export type IconName =
   | 'gift' | 'play' | 'wallet' | 'fire' | 'target' | 'crown'
   | 'star' | 'bolt' | 'gem' | 'coin' | 'check' | 'bell'
   | 'google' | 'wallet-connect' | 'sound' | 'flag' | 'users' | 'puzzle' | 'clock'
-  | 'mail' | 'phone';
+  | 'mail' | 'phone' | 'shield';
 
 const PATHS: Record<IconName, string> = {
   pawn: 'M12 3a3 3 0 0 0-1.6 5.5C9 9.2 8 10.7 8 12.4c0 1.3.7 2.5 1.7 3.2-.5 2.3-1.6 4.6-2.9 6-.4.5-.1 1.4.7 1.4h9c.8 0 1.1-.9.7-1.4-1.3-1.4-2.4-3.7-2.9-6 1-.7 1.7-1.9 1.7-3.2 0-1.7-1-3.2-2.4-3.9A3 3 0 0 0 12 3Z',
@@ -40,6 +40,7 @@ const PATHS: Record<IconName, string> = {
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z|M12 7v5l3 2',
   mail: 'M3 6h18v12H3z|M3 7l9 6 9-6',
   phone: 'M7 3h10v18H7z|M11 18h2',
+  shield: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z|M9 12l2 2 4-4',
 };
 
 // Icons that read better filled

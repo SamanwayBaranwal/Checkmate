@@ -3,15 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSocket } from '@/lib/socket';
+import { Icon, type IconName } from '@/components/Icons';
 
 const BET_TIERS = [1, 5, 10, 25] as const;
 type BetTier = (typeof BET_TIERS)[number];
 
-const TIME_CONTROLS = [
-  { value: '3+0', label: '3+0', sub: 'Bullet', icon: '⚡' },
-  { value: '5+0', label: '5+0', sub: 'Blitz',  icon: '♟' },
-  { value: '10+0', label: '10+0', sub: 'Rapid', icon: '🕐' },
-] as const;
+const TIME_CONTROLS: { value: string; label: string; sub: string; icon: IconName }[] = [
+  { value: '3+0', label: '3+0', sub: 'Bullet', icon: 'bolt' },
+  { value: '5+0', label: '5+0', sub: 'Blitz',  icon: 'pawn' },
+  { value: '10+0', label: '10+0', sub: 'Rapid', icon: 'clock' },
+];
 type TimeControl = '3+0' | '5+0' | '10+0';
 
 interface Props {
@@ -107,8 +108,8 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
                       : 'border-white/10 hover:border-white/30'
                   }`}
                 >
-                  <div className="text-lg">{tc.icon}</div>
-                  <div className="text-sm font-bold mt-0.5">{tc.label}</div>
+                  <div className="flex justify-center mb-1 text-white/70"><Icon name={tc.icon} size={18} /></div>
+                  <div className="text-sm font-bold">{tc.label}</div>
                   <div className="text-xs text-white/50">{tc.sub}</div>
                 </button>
               ))}
@@ -125,10 +126,10 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
           </>
         ) : (
           <div className="text-center py-8">
-            <div className="text-4xl mb-4 animate-pulse">♟</div>
+            <div className="flex justify-center mb-4 text-[#46a883] animate-pulse-dot"><Icon name="pawn" size={40} /></div>
             <p className="text-lg font-semibold mb-2">Searching for opponent...</p>
-            <p className="text-sm text-white/60 mb-6">
-              Bet: ${selectedTier} USDC · {tcLabel?.icon} {selectedTC} {tcLabel?.sub}
+            <p className="text-sm text-white/60 mb-6 flex items-center justify-center gap-1.5">
+              ${selectedTier} · {selectedTC} {tcLabel?.sub}
             </p>
             <button onClick={cancelSearch} className="btn-secondary">Cancel Search</button>
           </div>
