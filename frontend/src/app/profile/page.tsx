@@ -107,23 +107,30 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[#46a883]/20 border border-[#46a883]/30 flex items-center justify-center text-3xl select-none">
-            {AVATARS.find((a) => a.key === selectedAvatar)?.icon || '♟'}
+      {/* Green profile banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-[#46a883]/25">
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, rgba(70,168,131,0.22) 0%, rgba(70,168,131,0.05) 45%, transparent 75%)' }} />
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{ backgroundImage: 'conic-gradient(#fff 90deg, transparent 90deg 180deg, #fff 180deg 270deg, transparent 270deg)', backgroundSize: '44px 44px' }}
+        />
+        <div className="relative p-5 sm:p-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#0e1110] border border-[#46a883]/40 flex items-center justify-center text-3xl sm:text-4xl select-none shrink-0">
+              {AVATARS.find((a) => a.key === selectedAvatar)?.icon || '♟'}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold truncate">{profile.username || shortAddr(profile.wallet)}</h1>
+                <span className="text-[#46a883] shrink-0">✓</span>
+              </div>
+              <p className="text-white/45 text-sm mt-0.5">{profile.elo} ELO · Rank climber</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">{profile.username || shortAddr(profile.wallet)}</h1>
-            <p className="text-white/40 text-sm">{profile.elo} ELO</p>
-          </div>
+          <Link href={`/profile/${profile.id}`} className="btn-secondary text-sm shrink-0 hidden sm:inline-flex" target="_blank">
+            View Public ↗
+          </Link>
         </div>
-        <Link
-          href={`/profile/${profile.id}`}
-          className="btn-secondary text-sm"
-          target="_blank"
-        >
-          View Public Profile ↗
-        </Link>
       </div>
 
       {/* Stats grid */}
