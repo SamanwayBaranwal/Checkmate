@@ -7,7 +7,7 @@ import { Icon, type IconName } from './Icons';
 const FEATURES: { icon: IconName; title: string; desc: string }[] = [
   { icon: 'pawn', title: 'Play', desc: 'Real-time chess matches, any skill level' },
   { icon: 'winrate', title: 'Improve', desc: 'Climb the ELO ladder and track progress' },
-  { icon: 'trophy', title: 'Earn', desc: 'Win games, tournaments, and daily rewards' },
+  { icon: 'trophy', title: 'Earn', desc: 'Win games and climb for daily rewards' },
 ];
 
 export default function AuthLanding() {

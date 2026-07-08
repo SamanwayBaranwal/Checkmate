@@ -39,7 +39,7 @@ export default function LiveGameCard({ game }: { game: LiveGame }) {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-6 h-6 rounded bg-white text-[#21201d] text-xs font-bold flex items-center justify-center shrink-0">{initial(white)}</span>
+              <span className="w-6 h-6 rounded bg-white text-[#0b0d0c] text-xs font-bold flex items-center justify-center shrink-0">{initial(white)}</span>
               <span className="text-sm font-semibold truncate">{white}</span>
             </div>
             <span className="text-xs text-white/45 shrink-0 ml-2">{game.white_elo_before}</span>

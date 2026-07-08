@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { Icon } from '@/components/Icons';
 
 type RematchState = 'idle' | 'offered' | 'incoming';
 
@@ -31,10 +32,10 @@ export default function GameOverModal({
   const handleShare = () => {
     const earned = payout ?? betAmount * 2 * 0.975;
     const msg = isDraw
-      ? `I drew a $${betAmount} chess game on Checkmate!`
+      ? `I drew a $${betAmount} chess game on ELO!`
       : isWinner
-      ? `I just won $${earned.toFixed(2)} on Checkmate! 🏆 +${eloChange} ELO`
-      : `Tough game on Checkmate. -$${betAmount} but I'll be back! 💪`;
+      ? `I just won $${earned.toFixed(2)} on ELO! +${eloChange} ELO rating`
+      : `Tough game on ELO — I'll be back!`;
     const url = typeof window !== 'undefined'
       ? `${window.location.origin}${gameId ? `/replay/${gameId}` : ''}`
       : '';
@@ -52,13 +53,15 @@ export default function GameOverModal({
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
       <div className="card w-full max-w-sm mx-4 text-center">
-        <div className="text-5xl mb-4">
-          {isDraw ? '🤝' : isWinner ? '🏆' : '💀'}
-        </div>
-        <h2 className="text-2xl font-bold mb-2">
-          {isDraw ? 'Draw!' : isWinner ? 'You Won!' : 'You Lost'}
+        <img
+          src={isDraw ? '/brand/el-thinking.png' : isWinner ? '/brand/el-victory.png' : '/brand/el-relaxed.png'}
+          alt=""
+          className="w-24 h-24 mx-auto rounded-2xl mb-3 select-none pointer-events-none"
+        />
+        <h2 className="text-2xl font-bold mb-1">
+          {isDraw ? 'Draw' : isWinner ? 'You Won!' : 'You Lost'}
         </h2>
-        <p className="text-white/60 mb-4 capitalize">{result.replace('_', ' ')}</p>
+        <p className="text-white/50 text-sm mb-4 capitalize">{result.replace('_', ' ')}</p>
 
         <div className="space-y-2 mb-6">
           {!isDraw && (
@@ -71,7 +74,7 @@ export default function GameOverModal({
           </div>
           {isWinner && streakBonus && streakBonus > 0 && (
             <div className="inline-flex items-center gap-2 bg-orange-500/20 border border-orange-500/40 rounded-full px-3 py-1 text-sm text-orange-400 font-semibold">
-              <span>🔥</span>
+              <Icon name="fire" size={14} />
               <span>{streak}-win streak bonus +${streakBonus.toFixed(2)}!</span>
             </div>
           )}
@@ -95,14 +98,14 @@ export default function GameOverModal({
         )}
 
         <div className="flex gap-3 mb-3">
-          <Link href="/" className="btn-secondary flex-1">Lobby</Link>
+          <Link href="/" className="btn-secondary flex-1">Home</Link>
           {gameId && (
             <Link href={`/replay/${gameId}`} className="btn-secondary flex-1">Watch Replay</Link>
           )}
         </div>
 
         <button onClick={handleShare} className="btn-secondary w-full text-sm">
-          {copied ? '✓ Copied to clipboard!' : '↗ Share Result'}
+          {copied ? 'Copied to clipboard' : 'Share Result'}
         </button>
       </div>
     </div>

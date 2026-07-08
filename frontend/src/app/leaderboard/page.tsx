@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
+import { Icon } from '@/components/Icons';
 import Link from 'next/link';
 
 type Tab = 'elo' | 'earnings' | 'weekly' | 'referrals';
@@ -95,8 +96,8 @@ export default function LeaderboardPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-1">
+        <span className="text-[#f0b232]"><Icon name="trophy" size={22} /></span>
         <h1 className="text-2xl font-bold">Leaderboard</h1>
-        <span className="text-lg">🏆</span>
       </div>
       <p className="text-sm text-white/45 mb-6">Top players ranked by performance.</p>
 

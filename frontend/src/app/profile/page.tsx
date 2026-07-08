@@ -27,12 +27,10 @@ const AVATARS = [
 ];
 
 const NOTIF_TYPES = [
-  { key: 'mission_complete', label: 'Mission completed' },
-  { key: 'friend_request',   label: 'Friend requests' },
   { key: 'challenge_received', label: 'Challenges received' },
+  { key: 'friend_request',   label: 'Friend requests' },
   { key: 'friend_accepted',  label: 'Friend request accepted' },
   { key: 'streak_bonus',     label: 'Streak bonuses' },
-  { key: 'tournament_start', label: 'Tournament starting' },
 ];
 
 function computeBadges(profile: any): { icon: IconName; label: string; desc: string }[] {
@@ -171,9 +169,9 @@ export default function ProfilePage() {
             {profile.timeControlStats.map((tc: any) => {
               const wr = tc.played ? Math.round((tc.won / tc.played) * 100) : 0;
               const pct = wr;
-              const label = tc.timeControl === '3+0' ? '⚡ 3+0 Bullet'
-                : tc.timeControl === '5+0' ? '♟ 5+0 Blitz'
-                : tc.timeControl === '10+0' ? '🕐 10+0 Rapid'
+              const label = tc.timeControl === '3+0' ? 'Bullet · 3 min'
+                : tc.timeControl === '5+0' ? 'Blitz · 5 min'
+                : tc.timeControl === '10+0' ? 'Rapid · 10 min'
                 : tc.timeControl;
               return (
                 <div key={tc.timeControl}>

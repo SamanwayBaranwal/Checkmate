@@ -6,6 +6,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
+import { Icon, type IconName } from '@/components/Icons';
 
 interface IncomingChallenge {
   challengeId: string;
@@ -13,12 +14,12 @@ interface IncomingChallenge {
   betAmount: number;
 }
 
-const NOTIF_ICONS: Record<string, string> = {
-  mission_complete: '🎯',
-  streak_bonus: '🔥',
-  friend_request: '👋',
-  friend_accepted: '🤝',
-  referral_earned: '💸',
+const NOTIF_ICONS: Record<string, IconName> = {
+  streak_bonus: 'fire',
+  friend_request: 'users',
+  friend_accepted: 'users',
+  referral_earned: 'coin',
+  challenge_received: 'pawn',
 };
 
 function timeAgo(iso: string) {
@@ -176,7 +177,7 @@ export default function Navbar() {
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 top-10 w-80 bg-[#262421] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[200]">
+                <div className="absolute right-0 top-10 w-80 bg-[#141715] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[200]">
                   <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
                     <span className="font-bold text-sm">Notifications</span>
                     {unreadCount > 0 && (
@@ -197,7 +198,7 @@ export default function Navbar() {
                             !n.read ? 'bg-white/5' : ''
                           }`}
                         >
-                          <span className="text-lg shrink-0 mt-0.5">{NOTIF_ICONS[n.type] ?? '🔔'}</span>
+                          <span className="text-white/60 shrink-0 mt-0.5"><Icon name={NOTIF_ICONS[n.type] ?? 'bell'} size={18} /></span>
                           <div className="min-w-0">
                             <p className="text-sm text-white/90 leading-snug">{n.message}</p>
                             <p className="text-xs text-white/30 mt-0.5">{timeAgo(n.created_at)}</p>
@@ -230,7 +231,7 @@ export default function Navbar() {
       {/* Incoming challenge notification */}
       {incomingChallenge && (
         <div className="fixed bottom-6 right-6 z-[100] card border border-[#f0b232]/40 shadow-2xl w-72">
-          <p className="font-bold text-sm mb-1">⚔️ Challenge received!</p>
+          <p className="font-bold text-sm mb-1">Challenge received</p>
           <p className="text-sm text-white/70 mb-3">
             <span className="text-white font-semibold">{incomingChallenge.from.username}</span>{' '}
             ({incomingChallenge.from.elo} ELO) challenges you to a{' '}

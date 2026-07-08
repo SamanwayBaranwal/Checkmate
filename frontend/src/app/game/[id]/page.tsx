@@ -364,7 +364,7 @@ export default function GamePage() {
 
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-8 h-8 rounded-lg bg-[#46a883] text-[#21201d] flex items-center justify-center text-sm font-bold shrink-0">
+              <span className="w-8 h-8 rounded-lg bg-[#46a883] text-[#0b0d0c] flex items-center justify-center text-sm font-bold shrink-0">
                 {(user?.wallet?.address || 'Y')[2]?.toUpperCase() || 'Y'}
               </span>
               <div className="min-w-0">
@@ -379,7 +379,7 @@ export default function GamePage() {
           </div>
 
           {/* Control toolbar — standard chess controls, always under the board */}
-          <div className="flex items-center gap-1.5 mt-2 bg-[#2b2926] border border-white/[0.07] rounded-lg p-1.5">
+          <div className="flex items-center gap-1.5 mt-2 bg-[#141715] border border-white/[0.07] rounded-lg p-1.5">
             <button
               onClick={() => setFlipped((f) => !f)}
               title="Flip board"
@@ -427,7 +427,7 @@ export default function GamePage() {
 
           {/* Inline theme picker (opens from toolbar) */}
           {showThemes && (
-            <div className="flex gap-2 mt-2 flex-wrap justify-center bg-[#2b2926] border border-white/[0.07] rounded-lg p-2">
+            <div className="flex gap-2 mt-2 flex-wrap justify-center bg-[#141715] border border-white/[0.07] rounded-lg p-2">
               {BOARD_THEMES.map((t, i) => (
                 <button
                   key={t.name}
@@ -530,7 +530,7 @@ export default function GamePage() {
               onClick={() => setShowReport(true)}
               className="text-xs text-white/25 hover:text-red-400 transition-colors text-center w-full py-1"
             >
-              ⚑ Report opponent
+              Report opponent
             </button>
           )}
 

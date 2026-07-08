@@ -57,7 +57,7 @@ export default function BottomNav() {
           <div className="absolute inset-0 bg-black/50" />
           <div
             className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-white/10 p-4 pb-8 pb-safe animate-in"
-            style={{ background: '#26241f' }}
+            style={{ background: '#0e1110' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
@@ -88,7 +88,7 @@ export default function BottomNav() {
 
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe border-t border-white/[0.06]"
-        style={{ background: 'rgba(28, 27, 24, 0.92)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+        style={{ background: 'rgba(11, 13, 12, 0.92)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
       >
         <div className="flex items-center justify-around px-1 pt-1.5 pb-1">
           {tabs.map((tab) => {
@@ -103,7 +103,7 @@ export default function BottomNav() {
 
           {/* Center prominent Play button */}
           <Link href="/" className="flex-1 flex justify-center">
-            <span className="w-14 h-14 -mt-6 rounded-2xl bg-[#46a883] flex items-center justify-center text-[#21201d] text-2xl shadow-lg border-4 border-[#1c1b18]">
+            <span className="w-14 h-14 -mt-6 rounded-2xl bg-[#46a883] flex items-center justify-center text-[#0b0d0c] text-2xl shadow-lg border-4 border-[#1c1b18]">
               ♟
             </span>
           </Link>

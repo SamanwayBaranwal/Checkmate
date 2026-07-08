@@ -221,7 +221,7 @@ export default function WalletPage() {
         </div>
 
         <p className="text-xs text-white/30 mt-3 text-center">
-          Win games to earn more · Daily login bonus · Complete missions for extra credits
+          Win games to earn more · Daily login bonus · Win streaks pay extra
         </p>
       </div>
 

@@ -166,8 +166,8 @@ export default function LobbyPage() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Daily bonus toast */}
       {bonusNotice && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-[#262421] border border-[#f0b232]/40 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3 animate-fade-in">
-          <span className="text-2xl">🎁</span>
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-[#141715] border border-[#f0b232]/40 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3 animate-in">
+          <span className="text-[#f0b232]"><Icon name="gift" size={22} /></span>
           <div>
             <p className="font-bold text-sm text-[#f0b232]">Daily bonus claimed! +${bonusNotice.amount.toFixed(2)}</p>
             <p className="text-xs text-white/50">Day {bonusNotice.streak} streak — keep it up!</p>
@@ -383,8 +383,8 @@ export default function LobbyPage() {
       )}
 
       {challengeSentNotice && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#262421] border border-[#46a883]/40 rounded-xl px-5 py-3 text-sm text-[#46a883] shadow-2xl">
-          ⚔️ {challengeSentNotice}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#141715] border border-[#46a883]/40 rounded-xl px-5 py-3 text-sm text-[#46a883] shadow-2xl">
+          {challengeSentNotice}
         </div>
       )}
 

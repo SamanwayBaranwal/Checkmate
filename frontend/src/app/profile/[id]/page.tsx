@@ -100,7 +100,7 @@ export default function PublicProfilePage() {
               onClick={() => { setShowChallengeModal(true); setChallengeStatus('idle'); setChallengeError(''); }}
               className="btn-primary text-sm"
             >
-              ⚔️ Challenge
+              Challenge
             </button>
           )}
           <Link href="/leaderboard" className="btn-secondary text-sm">Leaderboard</Link>
@@ -241,7 +241,7 @@ export default function PublicProfilePage() {
               </>
             ) : (
               <div className="text-center py-4">
-                <div className="text-3xl mb-3 animate-pulse">⚔️</div>
+                <img src="/brand/el-focused.png" alt="" className="w-16 h-16 mx-auto rounded-xl mb-3 animate-pulse-dot" />
                 <p className="font-semibold mb-1">Challenge sent!</p>
                 <p className="text-sm text-white/50 mb-4">Waiting for {displayName} to respond...</p>
                 <button onClick={() => setShowChallengeModal(false)} className="btn-secondary">Close</button>

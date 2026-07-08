@@ -268,7 +268,7 @@ export default function FriendsPage() {
                         onClick={() => openChallengeModal(f)}
                         className="btn-primary text-xs py-1 px-3"
                       >
-                        ⚔️ Challenge
+                        Challenge
                       </button>
                     )}
                     <Link href={`/profile/${f.id}`} className="btn-secondary text-xs py-1 px-3">Profile</Link>
@@ -313,7 +313,7 @@ export default function FriendsPage() {
               </>
             ) : (
               <div className="text-center py-4">
-                <div className="text-3xl mb-3 animate-pulse">⚔️</div>
+                <img src="/brand/el-focused.png" alt="" className="w-16 h-16 mx-auto rounded-xl mb-3 animate-pulse-dot" />
                 <p className="font-semibold mb-1">Challenge sent!</p>
                 <p className="text-sm text-white/50 mb-4">Waiting for {challengeTarget.name} to respond...</p>
                 <button onClick={() => setChallengeTarget(null)} className="btn-secondary">Close</button>
