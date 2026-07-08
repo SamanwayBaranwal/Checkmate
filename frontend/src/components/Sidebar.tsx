@@ -64,11 +64,11 @@ export default function Sidebar() {
               href={n.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 active
-                  ? 'bg-[#57b06a]/12 text-[#57b06a]'
+                  ? 'bg-[#46a883]/12 text-[#46a883]'
                   : 'text-white/55 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
-              <span className={active ? 'text-[#57b06a]' : ''}><I d={ICONS[n.icon]} /></span>
+              <span className={active ? 'text-[#46a883]' : ''}><I d={ICONS[n.icon]} /></span>
               {n.label}
             </Link>
           );

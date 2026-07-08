@@ -177,13 +177,13 @@ export default function ReplayPage() {
                       <td className="text-white/30 pr-2 w-6 text-right select-none">{i + 1}.</td>
                       <td
                         onClick={() => goTo(whiteIdx)}
-                        className={`pr-3 py-0.5 cursor-pointer rounded px-1 ${cursor === whiteIdx ? 'bg-[#57b06a]/20 text-[#57b06a]' : 'hover:bg-white/5'}`}
+                        className={`pr-3 py-0.5 cursor-pointer rounded px-1 ${cursor === whiteIdx ? 'bg-[#46a883]/20 text-[#46a883]' : 'hover:bg-white/5'}`}
                       >
                         {white}
                       </td>
                       <td
                         onClick={() => black ? goTo(blackIdx) : undefined}
-                        className={`py-0.5 cursor-pointer rounded px-1 ${cursor === blackIdx ? 'bg-[#57b06a]/20 text-[#57b06a]' : 'hover:bg-white/5'} ${!black ? 'pointer-events-none' : ''}`}
+                        className={`py-0.5 cursor-pointer rounded px-1 ${cursor === blackIdx ? 'bg-[#46a883]/20 text-[#46a883]' : 'hover:bg-white/5'} ${!black ? 'pointer-events-none' : ''}`}
                       >
                         {black ?? ''}
                       </td>

@@ -30,7 +30,7 @@ function BracketMatch({ match, round }: { match: any; round: number }) {
         return (
           <div key={p.id}
             className={`flex items-center justify-between px-2 py-1 rounded text-sm mb-1 ${
-              isWinner ? 'bg-[#57b06a]/20 text-[#57b06a] font-bold' :
+              isWinner ? 'bg-[#46a883]/20 text-[#46a883] font-bold' :
               isLoser  ? 'text-white/30 line-through' :
                          'text-white/80'
             }`}>
@@ -178,7 +178,7 @@ export default function TournamentPage() {
             )}
             <h1 className="text-3xl font-bold">{tournament.name}</h1>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-              isOpen     ? 'bg-[#57b06a]/20 text-[#57b06a] border-[#57b06a]/30' :
+              isOpen     ? 'bg-[#46a883]/20 text-[#46a883] border-[#46a883]/30' :
               isActive   ? 'bg-[#f0b232]/20 text-[#f0b232] border-[#f0b232]/30' :
                            'bg-white/10 text-white/40 border-white/10'
             }`}>
@@ -213,7 +213,7 @@ export default function TournamentPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Entry Fee', value: `$${tournament.entry_fee}`, color: 'text-[#f0b232]' },
-          { label: 'Prize Pool', value: `$${parseFloat(tournament.prize_pool).toFixed(2)}`, color: 'text-[#57b06a]' },
+          { label: 'Prize Pool', value: `$${parseFloat(tournament.prize_pool).toFixed(2)}`, color: 'text-[#46a883]' },
           { label: 'Players', value: `${tournament.players?.length ?? 0}/${tournament.max_players}`, color: 'text-white' },
           { label: 'Rounds', value: tournament.total_rounds, color: 'text-white' },
         ].map((s) => (
@@ -239,7 +239,7 @@ export default function TournamentPage() {
           <h2 className="font-bold mb-3">
             Players ({tournament.players?.length ?? 0}/{tournament.max_players})
             {isOpen && !isFull && (
-              <span className="text-xs text-[#57b06a] ml-2">
+              <span className="text-xs text-[#46a883] ml-2">
                 — {tournament.max_players - (tournament.players?.length ?? 0)} spots left
               </span>
             )}
@@ -251,13 +251,13 @@ export default function TournamentPage() {
               {tournament.players.map((p: any) => (
                 <Link key={p.user_id} href={`/profile/${p.user_id}`}>
                   <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors hover:bg-white/5 ${
-                    p.user_id === myId ? 'border-[#57b06a]/40 bg-[#57b06a]/10' : 'border-white/10'
+                    p.user_id === myId ? 'border-[#46a883]/40 bg-[#46a883]/10' : 'border-white/10'
                   }`}>
                     <span className="text-lg">♟</span>
                     <div>
                       <div className="text-sm font-semibold truncate max-w-[80px]">
                         {p.username || '???'}
-                        {p.user_id === myId && <span className="text-[#57b06a] text-xs ml-1">(you)</span>}
+                        {p.user_id === myId && <span className="text-[#46a883] text-xs ml-1">(you)</span>}
                       </div>
                       <div className="text-xs text-white/40">{p.elo} ELO</div>
                     </div>

@@ -134,7 +134,7 @@ export default function AdminPage() {
             onChange={(e) => setSecret(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             placeholder="Admin secret"
-            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#57b06a]"
+            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#46a883]"
           />
           {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
           <button onClick={handleLogin} disabled={loading} className="btn-primary w-full">
@@ -220,7 +220,7 @@ export default function AdminPage() {
                   )}
                   <button
                     onClick={() => { setNotesModal({ reportId: r.id, action: 'resolve' }); setAdminNotes(''); }}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-[#57b06a]/20 border border-[#57b06a]/30 text-[#57b06a] hover:bg-[#57b06a]/30 transition"
+                    className="text-xs px-3 py-1.5 rounded-lg bg-[#46a883]/20 border border-[#46a883]/30 text-[#46a883] hover:bg-[#46a883]/30 transition"
                   >
                     Resolve
                   </button>
@@ -264,7 +264,7 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => handleUnban(u.id)}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-[#57b06a]/20 border border-[#57b06a]/30 text-[#57b06a] hover:bg-[#57b06a]/30 transition"
+                        className="text-xs px-3 py-1.5 rounded-lg bg-[#46a883]/20 border border-[#46a883]/30 text-[#46a883] hover:bg-[#46a883]/30 transition"
                       >
                         Unban
                       </button>
@@ -286,7 +286,7 @@ export default function AdminPage() {
               onChange={(e) => setUserQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && loadUsers(secret, userQuery)}
               placeholder="Search by username or wallet…"
-              className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#57b06a]"
+              className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#46a883]"
             />
             <button onClick={() => loadUsers(secret, userQuery)} className="btn-primary text-sm">Search</button>
           </div>
@@ -313,19 +313,19 @@ export default function AdminPage() {
                         <div className="text-xs text-white/40 font-mono">{shortAddr(u.wallet)}</div>
                       </td>
                       <td className="px-4 py-3 text-right text-[#f0b232] font-bold">{u.elo}</td>
-                      <td className="px-4 py-3 text-right text-[#57b06a]">${u.usdc_balance.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right text-[#46a883]">${u.usdc_balance.toFixed(2)}</td>
                       <td className="px-4 py-3 text-right text-white/60">{u.games_played}</td>
                       <td className="px-4 py-3 text-right">
                         {u.banned_at ? (
                           <span className="text-xs text-red-400">Banned</span>
                         ) : (
-                          <span className="text-xs text-[#57b06a]">Active</span>
+                          <span className="text-xs text-[#46a883]">Active</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {u.banned_at ? (
                           <button onClick={() => handleUnban(u.id)}
-                            className="text-xs px-3 py-1 rounded-lg bg-[#57b06a]/20 border border-[#57b06a]/30 text-[#57b06a] hover:bg-[#57b06a]/30 transition">
+                            className="text-xs px-3 py-1 rounded-lg bg-[#46a883]/20 border border-[#46a883]/30 text-[#46a883] hover:bg-[#46a883]/30 transition">
                             Unban
                           </button>
                         ) : (
@@ -378,7 +378,7 @@ export default function AdminPage() {
               onChange={(e) => setAdminNotes(e.target.value)}
               placeholder="Admin notes (optional)…"
               rows={3}
-              className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#57b06a] resize-none"
+              className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4 focus:outline-none focus:border-[#46a883] resize-none"
             />
             <div className="flex gap-3">
               <button onClick={() => setNotesModal(null)} className="btn-secondary flex-1">Cancel</button>

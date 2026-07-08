@@ -9,9 +9,9 @@
   --border: rgba(255, 255, 255, 0.07);
   --text: #f4f6f4;
   --text-muted: #9aa09b;
-  --green: #57b06a;        /* ELO brand green — faded from neon */
-  --green-hover: #63c076;
-  --green-dim: rgba(87, 176, 106, 0.14);
+  --green: #46a883;        /* ELO mint — muted, darker, not glowing */
+  --green-hover: #52b491;
+  --green-dim: rgba(70, 168, 131, 0.13);
   --gold: #e0a83c;
   --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
@@ -47,7 +47,7 @@ h1, h2, h3, h4, .font-display {
   transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 .card-hover:hover {
-  border-color: rgba(87, 176, 106, 0.35);
+  border-color: rgba(70, 168, 131, 0.35);
   background: #181c19;
   transform: translateY(-2px);
 }
@@ -103,7 +103,7 @@ h1, h2, h3, h4, .font-display {
 }
 .pill-green {
   background: var(--green-dim);
-  border-color: rgba(87, 176, 106, 0.3);
+  border-color: rgba(70, 168, 131, 0.3);
   color: var(--green);
 }
 

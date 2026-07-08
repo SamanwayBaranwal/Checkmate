@@ -144,14 +144,14 @@ export default function Navbar() {
         <div className="flex items-center gap-5">
           {/* Logo — mobile only (desktop has the sidebar) */}
           <Link href="/" className="flex items-center gap-2 shrink-0 md:hidden">
-            <span className="w-8 h-8 rounded-lg bg-[#57b06a] flex items-center justify-center text-[#0b0d0c] text-lg font-black leading-none">♟</span>
+            <span className="w-8 h-8 rounded-lg bg-[#46a883] flex items-center justify-center text-[#0b0d0c] text-lg font-black leading-none">♟</span>
             <span className="text-lg font-extrabold tracking-tight text-white">ELO</span>
           </Link>
         </div>
 
         <div className="flex items-center gap-3">
           {authenticated && balance !== null && (
-            <span className="text-sm text-[#57b06a] font-bold bg-[#57b06a]/10 border border-[#57b06a]/20 px-2.5 py-1 rounded-md hidden sm:inline">
+            <span className="text-sm text-[#46a883] font-bold bg-[#46a883]/10 border border-[#46a883]/20 px-2.5 py-1 rounded-md hidden sm:inline">
               ${balance.toFixed(2)}
             </span>
           )}
@@ -203,7 +203,7 @@ export default function Navbar() {
                             <p className="text-xs text-white/30 mt-0.5">{timeAgo(n.created_at)}</p>
                           </div>
                           {!n.read && (
-                            <div className="w-2 h-2 bg-[#57b06a] rounded-full shrink-0 mt-1.5 ml-auto" />
+                            <div className="w-2 h-2 bg-[#46a883] rounded-full shrink-0 mt-1.5 ml-auto" />
                           )}
                         </button>
                       ))

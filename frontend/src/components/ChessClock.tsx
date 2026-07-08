@@ -22,7 +22,7 @@ export default function ChessClock({ ms, active, label }: Props) {
         active
           ? isLow
             ? 'bg-red-600 text-white'
-            : 'bg-[#57b06a] text-white shadow-lg'
+            : 'bg-[#46a883] text-white shadow-lg'
           : 'bg-white/[0.06] text-white/55'
       } ${isCritical ? 'animate-pulse-dot' : ''}`}
     >

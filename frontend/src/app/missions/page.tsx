@@ -20,7 +20,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   return (
     <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
       <div
-        className="h-full bg-[#57b06a] rounded-full transition-all duration-500"
+        className="h-full bg-[#46a883] rounded-full transition-all duration-500"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -94,7 +94,7 @@ export default function MissionsPage() {
             <span className="text-sm text-white/60">
               {completedCount} / {missions.length} missions complete
             </span>
-            <span className="text-sm font-bold text-[#57b06a]">
+            <span className="text-sm font-bold text-[#46a883]">
               ${earnedReward.toFixed(2)} / ${totalReward.toFixed(2)} earned
             </span>
           </div>
@@ -112,7 +112,7 @@ export default function MissionsPage() {
               key={m.key}
               className={`card border transition-all ${
                 m.completed
-                  ? 'border-[#57b06a]/40 bg-[#57b06a]/5'
+                  ? 'border-[#46a883]/40 bg-[#46a883]/5'
                   : 'border-white/10'
               }`}
             >
@@ -123,12 +123,12 @@ export default function MissionsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-bold">{m.label}</span>
                       {m.completed && (
-                        <span className="text-xs bg-[#57b06a]/20 text-[#57b06a] px-2 py-0.5 rounded-full font-semibold">
+                        <span className="text-xs bg-[#46a883]/20 text-[#46a883] px-2 py-0.5 rounded-full font-semibold">
                           Complete ✓
                         </span>
                       )}
                     </div>
-                    <div className={`text-sm font-bold shrink-0 ${m.rewarded ? 'text-[#57b06a]' : 'text-[#f0b232]'}`}>
+                    <div className={`text-sm font-bold shrink-0 ${m.rewarded ? 'text-[#46a883]' : 'text-[#f0b232]'}`}>
                       +${m.reward.toFixed(2)}
                     </div>
                   </div>

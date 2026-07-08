@@ -11,7 +11,7 @@ const MAX_PLAYERS = [4, 8, 16] as const;
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    open: 'bg-[#57b06a]/20 text-[#57b06a] border-[#57b06a]/30',
+    open: 'bg-[#46a883]/20 text-[#46a883] border-[#46a883]/30',
     active: 'bg-[#f0b232]/20 text-[#f0b232] border-[#f0b232]/30',
     completed: 'bg-white/10 text-white/40 border-white/10',
   };
@@ -50,7 +50,7 @@ function SeasonalBanner({ t }: { t: any }) {
         </div>
         <div className="flex items-center gap-4 mt-4 text-sm relative">
           <span className="text-white/60">Entry: <span className="text-white font-semibold">${t.entry_fee}</span></span>
-          <span className="text-[#57b06a] font-semibold group-hover:underline">Join now →</span>
+          <span className="text-[#46a883] font-semibold group-hover:underline">Join now →</span>
         </div>
       </div>
     </Link>
@@ -156,7 +156,7 @@ export default function TournamentsPage() {
                           <div className="text-xs text-white/40">Entry</div>
                         </div>
                         <div className="text-center">
-                          <div className="font-bold text-[#57b06a]">${parseFloat(t.prize_pool).toFixed(2)}</div>
+                          <div className="font-bold text-[#46a883]">${parseFloat(t.prize_pool).toFixed(2)}</div>
                           <div className="text-xs text-white/40">Prize pool</div>
                         </div>
                         <div className="text-center">
@@ -191,7 +191,7 @@ export default function TournamentsPage() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Saturday Blitz"
                   maxLength={40}
-                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#57b06a]"
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#46a883]"
                 />
               </div>
 
@@ -200,7 +200,7 @@ export default function TournamentsPage() {
                 <div className="grid grid-cols-4 gap-2">
                   {ENTRY_FEES.map((f) => (
                     <button key={f} onClick={() => setEntryFee(f)}
-                      className={`rounded-xl p-3 border-2 text-center transition-all ${entryFee === f ? 'border-[#57b06a] bg-[#57b06a]/20' : 'border-white/10 hover:border-white/30'}`}>
+                      className={`rounded-xl p-3 border-2 text-center transition-all ${entryFee === f ? 'border-[#46a883] bg-[#46a883]/20' : 'border-white/10 hover:border-white/30'}`}>
                       <div className="font-bold">${f}</div>
                     </button>
                   ))}
@@ -212,7 +212,7 @@ export default function TournamentsPage() {
                 <div className="grid grid-cols-3 gap-2">
                   {MAX_PLAYERS.map((n) => (
                     <button key={n} onClick={() => setMaxPlayers(n)}
-                      className={`rounded-xl p-3 border-2 text-center transition-all ${maxPlayers === n ? 'border-[#57b06a] bg-[#57b06a]/20' : 'border-white/10 hover:border-white/30'}`}>
+                      className={`rounded-xl p-3 border-2 text-center transition-all ${maxPlayers === n ? 'border-[#46a883] bg-[#46a883]/20' : 'border-white/10 hover:border-white/30'}`}>
                       <div className="font-bold">{n}</div>
                       <div className="text-xs text-white/50">{Math.log2(n)} rounds</div>
                     </button>
@@ -227,7 +227,7 @@ export default function TournamentsPage() {
                 </div>
                 <div className="flex justify-between text-white/60 mt-1">
                   <span>Winner takes</span>
-                  <span className="text-[#57b06a] font-bold">${(entryFee * maxPlayers * 0.975).toFixed(2)}</span>
+                  <span className="text-[#46a883] font-bold">${(entryFee * maxPlayers * 0.975).toFixed(2)}</span>
                 </div>
               </div>
             </div>

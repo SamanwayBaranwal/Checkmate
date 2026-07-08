@@ -53,7 +53,7 @@ export default function LiveGameCard({ game }: { game: LiveGame }) {
           </div>
         </div>
 
-        <div className="mt-3.5 pt-3 border-t border-white/[0.06] text-xs text-white/40 text-center group-hover:text-[#57b06a] transition-colors font-medium">
+        <div className="mt-3.5 pt-3 border-t border-white/[0.06] text-xs text-white/40 text-center group-hover:text-[#46a883] transition-colors font-medium">
           Watch game →
         </div>
       </div>

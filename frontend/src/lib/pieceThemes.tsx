@@ -54,7 +54,7 @@ export function getCustomPieces(theme: PieceTheme): Record<string, PieceFn> | un
           fontSize: squareWidth * 0.70, lineHeight: 1, userSelect: 'none',
           paddingBottom: squareWidth * 0.04,
           filter: isWhite
-            ? 'drop-shadow(0 0 5px #57b06a) drop-shadow(0 0 10px #57b06a60)'
+            ? 'drop-shadow(0 0 5px #46a883) drop-shadow(0 0 10px #46a88360)'
             : 'drop-shadow(0 0 5px #f0b232) drop-shadow(0 0 10px #f0b23260)',
         }}>{unicode}</div>
       );

@@ -62,11 +62,11 @@ export default function GameOverModal({
 
         <div className="space-y-2 mb-6">
           {!isDraw && (
-            <div className={`text-lg font-bold ${isWinner ? 'text-[#57b06a]' : 'text-red-400'}`}>
+            <div className={`text-lg font-bold ${isWinner ? 'text-[#46a883]' : 'text-red-400'}`}>
               {isWinner ? `+$${payout?.toFixed(2) ?? betAmount.toFixed(2)}` : `-$${betAmount.toFixed(2)}`}
             </div>
           )}
-          <div className={`text-sm ${isDraw ? 'text-white/50' : isWinner ? 'text-[#57b06a]' : 'text-red-400'}`}>
+          <div className={`text-sm ${isDraw ? 'text-white/50' : isWinner ? 'text-[#46a883]' : 'text-red-400'}`}>
             {isDraw ? 'ELO unchanged' : isWinner ? `+${eloChange} ELO` : `-${eloChange} ELO`}
           </div>
           {isWinner && streakBonus && streakBonus > 0 && (

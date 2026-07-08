@@ -34,7 +34,7 @@ function PlayerCard({ player, token, onChallengeSent }: { player: any; token: st
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 rounded-lg transition-colors">
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-[#57b06a]/20 border border-[#57b06a]/30 flex items-center justify-center text-sm font-bold text-[#57b06a]">
+        <div className="w-8 h-8 rounded-full bg-[#46a883]/20 border border-[#46a883]/30 flex items-center justify-center text-sm font-bold text-[#46a883]">
           {(player.username || player.wallet || '?')[0].toUpperCase()}
         </div>
         <div>
@@ -78,6 +78,8 @@ export default function LobbyPage() {
   const [recentOpponents, setRecentOpponents] = useState<any[]>([]);
   const [suggested, setSuggested] = useState<any[]>([]);
   const [challengeSentNotice, setChallengeSentNotice] = useState('');
+  const [me, setMe] = useState<any>(null);
+  const [rank, setRank] = useState<number | null>(null);
 
   // Initialize backend session after Privy login
   useEffect(() => {
@@ -105,9 +107,14 @@ export default function LobbyPage() {
         setBalance(userData.usdcBalance || 0);
         setAuthInitialized(true);
 
-        // Load discovery data
+        // Load discovery data + my stats
         api.users.recentOpponents().then(setRecentOpponents).catch(() => {});
         api.users.suggested().then(setSuggested).catch(() => {});
+        api.users.me().then(setMe).catch(() => {});
+        api.users.leaderboard('elo').then((rows: any[]) => {
+          const idx = rows.findIndex((r) => r.id === userData.id);
+          if (idx >= 0) setRank(idx + 1);
+        }).catch(() => {});
 
         // Claim daily bonus after auth
         try {
@@ -163,6 +170,21 @@ export default function LobbyPage() {
         </div>
       )}
 
+      {/* Welcome header (signed-in) */}
+      {authenticated && (
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold">
+              Welcome back{me?.username ? `, ${me.username}` : ''} <span className="inline-block">👋</span>
+            </h2>
+            <p className="text-sm text-white/45 mt-0.5">Ready to play and climb the ranks?</p>
+          </div>
+          <Link href="/wallet" className="pill pill-green shrink-0">
+            ${balance.toFixed(2)}
+          </Link>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] mb-8">
         <div
@@ -180,13 +202,13 @@ export default function LobbyPage() {
         <div className="relative px-6 sm:px-10 py-10 sm:py-14 flex items-center justify-between gap-6">
           <div className="min-w-0">
             <div className="pill pill-green mb-5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#57b06a] animate-pulse-dot" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#46a883] animate-pulse-dot" />
               {activeGames.length} live {activeGames.length === 1 ? 'game' : 'games'} now
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-extrabold leading-[1.02] mb-3">
               EVERY MOVE.<br />
-              EVERY <span className="text-[#57b06a]">RISE.</span>
+              EVERY <span className="text-[#46a883]">RISE.</span>
             </h1>
             <p className="text-white/50 text-sm sm:text-base font-semibold tracking-wide mb-8">
               PLAY. IMPROVE. EARN.
@@ -231,17 +253,26 @@ export default function LobbyPage() {
       {/* Stat row (signed-in) */}
       {authenticated && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          {[
-            { label: 'Balance', value: `$${balance.toFixed(2)}`, accent: true },
-            { label: 'Live games', value: activeGames.length },
-            { label: 'Play', value: 'Ready', cta: true },
-            { label: 'Rank', value: 'Climb' },
-          ].map((s, i) => (
-            <div key={i} className="card">
-              <div className="text-xs text-white/40 mb-1">{s.label}</div>
-              <div className={`text-2xl font-bold font-display ${s.accent ? 'text-[#57b06a]' : 'text-white'}`}>{s.value}</div>
-            </div>
-          ))}
+          {(() => {
+            const gp = me?.gamesPlayed ?? me?.games_played ?? 0;
+            const gw = me?.gamesWon ?? me?.games_won ?? 0;
+            const wr = gp ? Math.round((gw / gp) * 100) : 0;
+            const stats = [
+              { label: 'ELO Rating', value: me?.elo ?? '—', icon: '♟', accent: true },
+              { label: 'Games Played', value: gp, icon: '🎮' },
+              { label: 'Win Rate', value: `${wr}%`, icon: '📈' },
+              { label: 'Global Rank', value: rank ? `#${rank}` : '—', icon: '🏆' },
+            ];
+            return stats.map((s, i) => (
+              <div key={i} className="card">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-white/40">{s.label}</span>
+                  <span className="text-sm opacity-60">{s.icon}</span>
+                </div>
+                <div className={`text-2xl font-bold font-display ${s.accent ? 'text-[#46a883]' : 'text-white'}`}>{s.value}</div>
+              </div>
+            ));
+          })()}
         </div>
       )}
 
@@ -318,7 +349,7 @@ export default function LobbyPage() {
       )}
 
       {challengeSentNotice && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#262421] border border-[#57b06a]/40 rounded-xl px-5 py-3 text-sm text-[#57b06a] shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#262421] border border-[#46a883]/40 rounded-xl px-5 py-3 text-sm text-[#46a883] shadow-2xl">
           ⚔️ {challengeSentNotice}
         </div>
       )}
