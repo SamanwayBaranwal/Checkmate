@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 type PuzzleState = 'idle' | 'playing' | 'solved' | 'failed' | 'revealed';
 
 const DIFFICULTY_COLOR: Record<string, string> = {
-  easy: 'text-[#81b64c] bg-[#81b64c]/10 border-[#81b64c]/30',
+  easy: 'text-[#57b06a] bg-[#57b06a]/10 border-[#57b06a]/30',
   medium: 'text-[#f0b232] bg-[#f0b232]/10 border-[#f0b232]/30',
   hard: 'text-red-400 bg-red-500/10 border-red-500/30',
 };
@@ -243,7 +243,7 @@ export default function PuzzlePage() {
           {/* Feedback */}
           <div className={`card border ${
             puzzleState === 'solved'
-              ? 'border-[#81b64c]/40 bg-[#81b64c]/5'
+              ? 'border-[#57b06a]/40 bg-[#57b06a]/5'
               : puzzleState === 'failed' || puzzleState === 'revealed'
               ? 'border-red-500/30 bg-red-500/5'
               : 'border-white/10'
@@ -260,7 +260,7 @@ export default function PuzzlePage() {
             {puzzleState === 'playing' && (
               <div className="mt-3 flex items-center gap-2">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className={`w-2 h-2 rounded-full ${i < attemptsLeft ? 'bg-[#81b64c]' : 'bg-white/10'}`} />
+                  <div key={i} className={`w-2 h-2 rounded-full ${i < attemptsLeft ? 'bg-[#57b06a]' : 'bg-white/10'}`} />
                 ))}
                 <span className="text-xs text-white/40 ml-1">{attemptsLeft} attempt{attemptsLeft !== 1 ? 's' : ''} left</span>
               </div>
@@ -274,7 +274,7 @@ export default function PuzzlePage() {
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-white/50">Bonus</span>
-                  <span className="font-bold text-[#81b64c]">+${result.bonusUsdc?.toFixed(2)}</span>
+                  <span className="font-bold text-[#57b06a]">+${result.bonusUsdc?.toFixed(2)}</span>
                 </div>
                 {result.streak > 1 && (
                   <div className="flex items-center justify-between text-xs">

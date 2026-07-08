@@ -29,7 +29,7 @@ function EarningsChart({ rawData }: { rawData: ChartPoint[] }) {
     <div>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-white/40">Last 30 days</span>
-        <span className={`text-sm font-bold ${totalNet >= 0 ? 'text-[#81b64c]' : 'text-red-400'}`}>
+        <span className={`text-sm font-bold ${totalNet >= 0 ? 'text-[#57b06a]' : 'text-red-400'}`}>
           {totalNet >= 0 ? '+' : ''}{totalNet.toFixed(2)} net
         </span>
       </div>
@@ -38,7 +38,7 @@ function EarningsChart({ rawData }: { rawData: ChartPoint[] }) {
         {days.map((d, i) => {
           const barH = Math.max(2, (Math.abs(d.net) / maxAbs) * (H - 8));
           const x = i * (barW + gap);
-          const fill = d.net >= 0 ? '#81b64c' : '#ef4444';
+          const fill = d.net >= 0 ? '#57b06a' : '#ef4444';
           return (
             <rect key={d.date} x={x} y={H - barH - 1} width={barW} height={barH} fill={fill}
               opacity={d.net === 0 ? 0.15 : 0.75} rx="1" />
@@ -155,7 +155,7 @@ export default function WalletPage() {
       {/* Balance */}
       <div className="card">
         <p className="text-sm text-white/50 mb-1">Available Balance</p>
-        <p className="text-4xl font-bold text-[#81b64c]">${balance.toFixed(2)}</p>
+        <p className="text-4xl font-bold text-[#57b06a]">${balance.toFixed(2)}</p>
         <p className="text-sm text-white/40 mt-1">Game credits</p>
         {bonusBalance > 0 && (
           <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
@@ -166,7 +166,7 @@ export default function WalletPage() {
       </div>
 
       {/* Free Credits */}
-      <div className="card border border-[#81b64c]/20">
+      <div className="card border border-[#57b06a]/20">
         <h2 className="text-lg font-bold mb-1">🎁 Free Credits</h2>
         <p className="text-sm text-white/50 mb-4">
           Claim free credits to start playing. No payment needed — just play and have fun!
@@ -184,7 +184,7 @@ export default function WalletPage() {
               <button disabled className="btn-primary text-sm w-full opacity-50">Claiming...</button>
             )}
             {(starterStatus === 'claimed') && (
-              <p className="text-[#81b64c] text-sm font-semibold">✓ {starterMsg}</p>
+              <p className="text-[#57b06a] text-sm font-semibold">✓ {starterMsg}</p>
             )}
             {starterStatus === 'already' && (
               <p className="text-white/40 text-xs">Already claimed</p>
@@ -193,7 +193,7 @@ export default function WalletPage() {
 
           {/* Top-up when broke */}
           <div className="bg-white/5 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-[#81b64c] mb-1">$5</div>
+            <div className="text-2xl font-bold text-[#57b06a] mb-1">$5</div>
             <div className="text-xs text-white/50 mb-3">Low balance top-up · Daily</div>
             {(topupStatus === 'idle' || topupStatus === 'error') && (
               <button
@@ -208,7 +208,7 @@ export default function WalletPage() {
               <button disabled className="btn-secondary text-sm w-full opacity-50">Claiming...</button>
             )}
             {topupStatus === 'claimed' && (
-              <p className="text-[#81b64c] text-sm font-semibold">✓ {topupMsg}</p>
+              <p className="text-[#57b06a] text-sm font-semibold">✓ {topupMsg}</p>
             )}
             {topupStatus === 'error' && (
               <p className="text-red-400 text-xs mt-1">{topupMsg}</p>
@@ -248,7 +248,7 @@ export default function WalletPage() {
                   <div className="text-xs text-white/50 mt-0.5">Referred</div>
                 </div>
                 <div className="bg-white/5 rounded-lg p-3 text-center">
-                  <div className="text-xl font-bold text-[#81b64c]">${referral.referralEarnings.toFixed(2)}</div>
+                  <div className="text-xl font-bold text-[#57b06a]">${referral.referralEarnings.toFixed(2)}</div>
                   <div className="text-xs text-white/50 mt-0.5">Earned</div>
                 </div>
                 <div className="bg-white/5 rounded-lg p-3 text-center">
@@ -287,7 +287,7 @@ export default function WalletPage() {
                   <tr key={tx.id} className="border-b border-white/5 hover:bg-white/5">
                     <td className="px-4 py-2 text-white/50 text-xs whitespace-nowrap">{formatDate(tx.created_at)}</td>
                     <td className="px-4 py-2 text-white/80">{TX_TYPE_LABELS[tx.type] || tx.type}</td>
-                    <td className={`px-4 py-2 text-right font-semibold ${positive ? 'text-[#81b64c]' : 'text-red-400'}`}>
+                    <td className={`px-4 py-2 text-right font-semibold ${positive ? 'text-[#57b06a]' : 'text-red-400'}`}>
                       {positive ? '+' : ''}{tx.amount.toFixed(2)}
                     </td>
                     <td className="px-4 py-2 text-right">

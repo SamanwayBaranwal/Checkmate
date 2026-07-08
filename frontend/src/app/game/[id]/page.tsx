@@ -364,7 +364,7 @@ export default function GamePage() {
 
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-8 h-8 rounded-lg bg-[#81b64c] text-[#21201d] flex items-center justify-center text-sm font-bold shrink-0">
+              <span className="w-8 h-8 rounded-lg bg-[#57b06a] text-[#21201d] flex items-center justify-center text-sm font-bold shrink-0">
                 {(user?.wallet?.address || 'Y')[2]?.toUpperCase() || 'Y'}
               </span>
               <div className="min-w-0">
@@ -433,7 +433,7 @@ export default function GamePage() {
                   key={t.name}
                   onClick={() => { setThemeIndex(i); localStorage.setItem('checkmate_board_theme', String(i)); }}
                   title={t.name}
-                  className={`w-9 h-9 rounded-md overflow-hidden border-2 transition ${i === themeIndex ? 'border-[#81b64c]' : 'border-transparent'}`}
+                  className={`w-9 h-9 rounded-md overflow-hidden border-2 transition ${i === themeIndex ? 'border-[#57b06a]' : 'border-transparent'}`}
                   style={{ background: `linear-gradient(135deg, ${t.light} 50%, ${t.dark} 50%)` }}
                 />
               ))}
@@ -453,7 +453,7 @@ export default function GamePage() {
               </div>
               <div>
                 <div className="text-white/40 text-xs">Winner gets</div>
-                <div className="text-[#81b64c] font-semibold">${(state.betAmount * 2 * 0.975).toFixed(2)}</div>
+                <div className="text-[#57b06a] font-semibold">${(state.betAmount * 2 * 0.975).toFixed(2)}</div>
               </div>
               <div>
                 <div className="text-white/40 text-xs">Spectators</div>
@@ -461,7 +461,7 @@ export default function GamePage() {
               </div>
               <div>
                 <div className="text-white/40 text-xs">Turn</div>
-                <div className={isMyTurn ? 'text-[#81b64c] font-semibold' : 'text-white/60'}>
+                <div className={isMyTurn ? 'text-[#57b06a] font-semibold' : 'text-white/60'}>
                   {state.status === 'spectating' ? 'Spectating' : isMyTurn ? 'Yours' : 'Opponent'}
                 </div>
               </div>
@@ -480,7 +480,7 @@ export default function GamePage() {
               ) : (
                 state.chatMessages.map((msg, i) => (
                   <div key={i} className="text-xs">
-                    <span className="font-semibold text-[#81b64c]">{msg.sender}: </span>
+                    <span className="font-semibold text-[#57b06a]">{msg.sender}: </span>
                     <span className="text-white/80">{msg.text}</span>
                   </div>
                 ))
@@ -494,11 +494,11 @@ export default function GamePage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') handleChatSend(); }}
                 placeholder="Say something..."
                 maxLength={200}
-                className="flex-1 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#81b64c]"
+                className="flex-1 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#57b06a]"
               />
               <button
                 onClick={handleChatSend}
-                className="px-2 py-1 bg-[#81b64c]/20 hover:bg-[#81b64c]/40 rounded text-xs text-[#81b64c] transition"
+                className="px-2 py-1 bg-[#57b06a]/20 hover:bg-[#57b06a]/40 rounded text-xs text-[#57b06a] transition"
               >
                 ↵
               </button>
@@ -562,7 +562,7 @@ export default function GamePage() {
           <div className="card w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold mb-4">Report Opponent</h3>
             {reportDone ? (
-              <p className="text-[#81b64c] text-center py-4">Report submitted. Thank you.</p>
+              <p className="text-[#57b06a] text-center py-4">Report submitted. Thank you.</p>
             ) : (
               <>
                 <div className="space-y-2 mb-4">
@@ -574,7 +574,7 @@ export default function GamePage() {
                         value={r.value}
                         checked={reportReason === r.value}
                         onChange={() => setReportReason(r.value)}
-                        className="accent-[#81b64c]"
+                        className="accent-[#57b06a]"
                       />
                       <span className="text-sm">{r.label}</span>
                     </label>
@@ -586,7 +586,7 @@ export default function GamePage() {
                   placeholder="Additional details (optional)"
                   maxLength={500}
                   rows={3}
-                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#81b64c] mb-4"
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#57b06a] mb-4"
                 />
                 <div className="flex gap-3">
                   <button onClick={() => setShowReport(false)} className="btn-secondary flex-1">Cancel</button>

@@ -109,7 +109,7 @@ export default function ProfilePage() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[#81b64c]/20 border border-[#81b64c]/30 flex items-center justify-center text-3xl select-none">
+          <div className="w-16 h-16 rounded-full bg-[#57b06a]/20 border border-[#57b06a]/30 flex items-center justify-center text-3xl select-none">
             {AVATARS.find((a) => a.key === selectedAvatar)?.icon || '♟'}
           </div>
           <div>
@@ -130,9 +130,9 @@ export default function ProfilePage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'ELO', value: profile.elo, color: 'text-[#f0b232]' },
-          { label: 'Win Rate', value: `${winRate}%`, color: 'text-[#81b64c]' },
+          { label: 'Win Rate', value: `${winRate}%`, color: 'text-[#57b06a]' },
           { label: 'Win Streak', value: profile.currentStreak || 0, color: profile.currentStreak >= 3 ? 'text-orange-400' : 'text-white' },
-          { label: 'Total Earned', value: `$${(profile.totalEarnings || 0).toFixed(2)}`, color: 'text-[#81b64c]' },
+          { label: 'Total Earned', value: `$${(profile.totalEarnings || 0).toFixed(2)}`, color: 'text-[#57b06a]' },
         ].map((s) => (
           <div key={s.label} className="card text-center">
             <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
@@ -171,11 +171,11 @@ export default function ProfilePage() {
                 <div key={tc.timeControl}>
                   <div className="flex items-center justify-between text-sm mb-1">
                     <span className="text-white/80">{label}</span>
-                    <span className="text-white/50 text-xs">{tc.won}W / {tc.played - tc.won}L — <span className="text-[#81b64c] font-semibold">{wr}%</span></span>
+                    <span className="text-white/50 text-xs">{tc.won}W / {tc.played - tc.won}L — <span className="text-[#57b06a] font-semibold">{wr}%</span></span>
                   </div>
                   <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
                     <div
-                      className="h-full bg-[#81b64c] rounded-full transition-all duration-500"
+                      className="h-full bg-[#57b06a] rounded-full transition-all duration-500"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -216,13 +216,13 @@ export default function ProfilePage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Pick a username..."
-            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#81b64c]"
+            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#57b06a]"
           />
           <button onClick={saveUsername} disabled={saving || !username} className="btn-primary">
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
-        {msg && <p className={`text-sm mt-2 ${msg.includes('saved') ? 'text-[#81b64c]' : 'text-red-400'}`}>{msg}</p>}
+        {msg && <p className={`text-sm mt-2 ${msg.includes('saved') ? 'text-[#57b06a]' : 'text-red-400'}`}>{msg}</p>}
       </div>
 
       {/* Avatar selection */}
@@ -237,7 +237,7 @@ export default function ProfilePage() {
               title={a.label}
               className={`w-full aspect-square rounded-lg flex items-center justify-center text-2xl transition-all border-2 ${
                 selectedAvatar === a.key
-                  ? 'border-[#81b64c] bg-[#81b64c]/20'
+                  ? 'border-[#57b06a] bg-[#57b06a]/20'
                   : 'border-white/10 hover:border-white/30 bg-white/5'
               }`}
             >
@@ -259,7 +259,7 @@ export default function ProfilePage() {
                 <span className="text-sm">{n.label}</span>
                 <button
                   onClick={() => toggleNotif(n.key, !enabled)}
-                  className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-[#81b64c]' : 'bg-white/20'}`}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-[#57b06a]' : 'bg-white/20'}`}
                 >
                   <span
                     className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`}
@@ -298,13 +298,13 @@ export default function ProfilePage() {
                 return (
                   <tr key={g.id} className="border-b border-white/5 hover:bg-white/5">
                     <td className="px-4 py-2">
-                      <span className={`font-semibold ${isDraw ? 'text-yellow-400' : won ? 'text-[#81b64c]' : 'text-red-400'}`}>
+                      <span className={`font-semibold ${isDraw ? 'text-yellow-400' : won ? 'text-[#57b06a]' : 'text-red-400'}`}>
                         {isDraw ? 'Draw' : won ? 'Won' : 'Lost'}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-white/70">{opponentName || 'Opponent'}</td>
                     <td className="px-4 py-2 text-right text-[#f0b232]">${g.bet_amount}</td>
-                    <td className={`px-4 py-2 text-right ${won ? 'text-[#81b64c]' : isDraw ? 'text-white/50' : 'text-red-400'}`}>
+                    <td className={`px-4 py-2 text-right ${won ? 'text-[#57b06a]' : isDraw ? 'text-white/50' : 'text-red-400'}`}>
                       {isDraw ? '±0' : won ? `+${g.elo_change}` : `-${g.elo_change}`}
                     </td>
                     <td className="px-4 py-2 text-right">

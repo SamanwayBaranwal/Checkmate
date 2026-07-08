@@ -110,12 +110,12 @@ export default function PublicProfilePage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'ELO', value: profile.elo, color: 'text-[#f0b232]' },
-          { label: 'Win Rate', value: `${winRate}%`, color: 'text-[#81b64c]' },
+          { label: 'Win Rate', value: `${winRate}%`, color: 'text-[#57b06a]' },
           { label: 'Games', value: profile.gamesPlayed, color: 'text-white' },
           {
             label: 'Earned',
             value: profile.totalEarnings !== null ? `$${profile.totalEarnings.toFixed(2)}` : 'Private',
-            color: profile.totalEarnings !== null ? 'text-[#81b64c]' : 'text-white/40',
+            color: profile.totalEarnings !== null ? 'text-[#57b06a]' : 'text-white/40',
           },
         ].map((s) => (
           <div key={s.label} className="card text-center">
@@ -133,7 +133,7 @@ export default function PublicProfilePage() {
           {
             label: 'Avg per Win',
             value: profile.avgEarnings ? `$${profile.avgEarnings.toFixed(2)}` : '—',
-            color: profile.avgEarnings > 0 ? 'text-[#81b64c]' : 'text-white/40',
+            color: profile.avgEarnings > 0 ? 'text-[#57b06a]' : 'text-white/40',
           },
         ].map((s) => (
           <div key={s.label} className="card text-center py-3">
@@ -152,7 +152,7 @@ export default function PublicProfilePage() {
               <div key={b.label} title={b.desc || undefined}
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 border ${
                   b.highlight
-                    ? 'bg-[#81b64c]/10 border-[#81b64c]/40 text-[#81b64c]'
+                    ? 'bg-[#57b06a]/10 border-[#57b06a]/40 text-[#57b06a]'
                     : 'bg-white/5 border-white/10'
                 }`}>
                 <span className="text-xl">{b.icon}</span>
@@ -189,7 +189,7 @@ export default function PublicProfilePage() {
                 return (
                   <tr key={g.id} className="border-b border-white/5 hover:bg-white/5">
                     <td className="px-4 py-2">
-                      <span className={`font-semibold ${isDraw ? 'text-yellow-400' : won ? 'text-[#81b64c]' : 'text-red-400'}`}>
+                      <span className={`font-semibold ${isDraw ? 'text-yellow-400' : won ? 'text-[#57b06a]' : 'text-red-400'}`}>
                         {isDraw ? 'Draw' : won ? 'Won' : 'Lost'}
                       </span>
                     </td>
@@ -222,7 +222,7 @@ export default function PublicProfilePage() {
                       onClick={() => setSelectedBet(tier)}
                       className={`rounded-xl p-3 border-2 text-center transition-all ${
                         selectedBet === tier
-                          ? 'border-[#81b64c] bg-[#81b64c]/20'
+                          ? 'border-[#57b06a] bg-[#57b06a]/20'
                           : 'border-white/10 hover:border-white/30'
                       }`}
                     >

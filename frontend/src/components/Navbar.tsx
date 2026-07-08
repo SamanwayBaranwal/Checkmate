@@ -134,50 +134,24 @@ export default function Navbar() {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
-  const navLinks = [
-    { href: '/', label: 'Home', auth: false },
-    { href: '/leaderboard', label: 'Leaderboard', auth: false },
-    { href: '/tournaments', label: 'Tournaments', auth: false },
-    { href: '/puzzle', label: '♟ Puzzle', auth: false },
-    { href: '/learn', label: 'Learn', auth: false },
-    { href: '/missions', label: 'Missions', auth: true },
-    { href: '/wallet', label: 'Wallet', auth: true },
-    { href: '/friends', label: 'Friends', auth: true },
-    { href: '/profile', label: 'Profile', auth: true },
-    { href: '/settings', label: 'Settings', auth: true },
-  ].filter((l) => !l.auth || authenticated);
 
   return (
     <>
       <nav
-        className="border-b border-white/[0.06] px-4 py-2.5 flex items-center justify-between sticky top-0 z-50"
-        style={{ background: 'rgba(28, 27, 24, 0.72)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)' }}
+        className="border-b border-white/[0.06] px-4 py-2.5 flex items-center justify-between sticky top-0 z-30 md:pl-64"
+        style={{ background: 'rgba(11, 13, 12, 0.8)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)' }}
       >
         <div className="flex items-center gap-5">
-          <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <span className="w-8 h-8 rounded-md bg-[#81b64c] flex items-center justify-center text-[#21201d] text-lg font-black leading-none">♟</span>
-            <span className="text-lg font-bold tracking-tight text-white hidden sm:inline">Checkmate</span>
+          {/* Logo — mobile only (desktop has the sidebar) */}
+          <Link href="/" className="flex items-center gap-2 shrink-0 md:hidden">
+            <span className="w-8 h-8 rounded-lg bg-[#57b06a] flex items-center justify-center text-[#0b0d0c] text-lg font-black leading-none">♟</span>
+            <span className="text-lg font-extrabold tracking-tight text-white">ELO</span>
           </Link>
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((l) => {
-              const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
-              return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className={`text-sm px-3 py-1.5 rounded-md transition-colors ${active ? 'text-white bg-white/[0.08] font-semibold' : 'text-white/60 hover:text-white hover:bg-white/[0.05]'}`}
-                >
-                  {l.label}
-                </Link>
-              );
-            })}
-          </div>
         </div>
 
         <div className="flex items-center gap-3">
           {authenticated && balance !== null && (
-            <span className="text-sm text-[#81b64c] font-bold bg-[#81b64c]/10 border border-[#81b64c]/20 px-2.5 py-1 rounded-md hidden sm:inline">
+            <span className="text-sm text-[#57b06a] font-bold bg-[#57b06a]/10 border border-[#57b06a]/20 px-2.5 py-1 rounded-md hidden sm:inline">
               ${balance.toFixed(2)}
             </span>
           )}
@@ -229,7 +203,7 @@ export default function Navbar() {
                             <p className="text-xs text-white/30 mt-0.5">{timeAgo(n.created_at)}</p>
                           </div>
                           {!n.read && (
-                            <div className="w-2 h-2 bg-[#81b64c] rounded-full shrink-0 mt-1.5 ml-auto" />
+                            <div className="w-2 h-2 bg-[#57b06a] rounded-full shrink-0 mt-1.5 ml-auto" />
                           )}
                         </button>
                       ))

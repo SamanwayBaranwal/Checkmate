@@ -51,7 +51,7 @@ export default function CapturedPieces({ fen, side }: { fen: string; side: 'whit
         ))}
       </div>
       {advantage > 0 && (
-        <span className="text-xs font-bold text-[#81b64c]">+{advantage}</span>
+        <span className="text-xs font-bold text-[#57b06a]">+{advantage}</span>
       )}
     </div>
   );

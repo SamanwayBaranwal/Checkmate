@@ -83,7 +83,7 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
                   disabled={balance < tier}
                   className={`rounded-xl p-4 border-2 transition-all ${
                     selectedTier === tier
-                      ? 'border-[#81b64c] bg-[#81b64c]/20'
+                      ? 'border-[#57b06a] bg-[#57b06a]/20'
                       : 'border-white/10 hover:border-white/30'
                   } disabled:opacity-40 disabled:cursor-not-allowed`}
                 >

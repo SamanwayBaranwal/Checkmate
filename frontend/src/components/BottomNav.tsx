@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useState } from 'react';
 
-const stroke = (active: boolean) => (active ? '#81b64c' : 'currentColor');
+const stroke = (active: boolean) => (active ? '#57b06a' : 'currentColor');
 
 function Icon({ name, active }: { name: string; active: boolean }) {
   const c = stroke(active);
@@ -69,10 +69,10 @@ export default function BottomNav() {
                 <button
                   key={l.href}
                   onClick={() => go(l.href)}
-                  className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl transition-colors ${isActive(l.href) ? 'bg-[#81b64c]/12' : 'bg-white/[0.04] hover:bg-white/[0.08]'}`}
+                  className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl transition-colors ${isActive(l.href) ? 'bg-[#57b06a]/12' : 'bg-white/[0.04] hover:bg-white/[0.08]'}`}
                 >
                   <span className="text-2xl">{l.emoji}</span>
-                  <span className={`text-xs font-medium ${isActive(l.href) ? 'text-[#81b64c]' : 'text-white/70'}`}>{l.label}</span>
+                  <span className={`text-xs font-medium ${isActive(l.href) ? 'text-[#57b06a]' : 'text-white/70'}`}>{l.label}</span>
                 </button>
               ))}
             </div>
@@ -99,26 +99,26 @@ export default function BottomNav() {
             return (
               <Link key={tab.href} href={tab.href} className="flex flex-col items-center gap-1 py-1 flex-1">
                 <Icon name={tab.icon} active={active} />
-                <span className={`text-[10px] font-medium ${active ? 'text-[#81b64c]' : 'text-white/45'}`}>{tab.label}</span>
+                <span className={`text-[10px] font-medium ${active ? 'text-[#57b06a]' : 'text-white/45'}`}>{tab.label}</span>
               </Link>
             );
           })}
 
           {/* Center prominent Play button */}
           <Link href="/" className="flex-1 flex justify-center">
-            <span className="w-14 h-14 -mt-6 rounded-2xl bg-[#81b64c] flex items-center justify-center text-[#21201d] text-2xl shadow-lg border-4 border-[#1c1b18]">
+            <span className="w-14 h-14 -mt-6 rounded-2xl bg-[#57b06a] flex items-center justify-center text-[#21201d] text-2xl shadow-lg border-4 border-[#1c1b18]">
               ♟
             </span>
           </Link>
 
           <Link href="/wallet" className="flex flex-col items-center gap-1 py-1 flex-1">
             <Icon name="wallet" active={isActive('/wallet')} />
-            <span className={`text-[10px] font-medium ${isActive('/wallet') ? 'text-[#81b64c]' : 'text-white/45'}`}>Wallet</span>
+            <span className={`text-[10px] font-medium ${isActive('/wallet') ? 'text-[#57b06a]' : 'text-white/45'}`}>Wallet</span>
           </Link>
 
           <button onClick={() => setSheetOpen(true)} className="flex flex-col items-center gap-1 py-1 flex-1">
             <Icon name="more" active={sheetOpen} />
-            <span className={`text-[10px] font-medium ${sheetOpen ? 'text-[#81b64c]' : 'text-white/45'}`}>More</span>
+            <span className={`text-[10px] font-medium ${sheetOpen ? 'text-[#57b06a]' : 'text-white/45'}`}>More</span>
           </button>
         </div>
       </nav>

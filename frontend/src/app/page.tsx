@@ -34,7 +34,7 @@ function PlayerCard({ player, token, onChallengeSent }: { player: any; token: st
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 rounded-lg transition-colors">
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-[#81b64c]/20 border border-[#81b64c]/30 flex items-center justify-center text-sm font-bold text-[#81b64c]">
+        <div className="w-8 h-8 rounded-full bg-[#57b06a]/20 border border-[#57b06a]/30 flex items-center justify-center text-sm font-bold text-[#57b06a]">
           {(player.username || player.wallet || '?')[0].toUpperCase()}
         </div>
         <div>
@@ -164,64 +164,86 @@ export default function LobbyPage() {
       )}
 
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] mb-10">
-        {/* Ambient board pattern backdrop */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] mb-8">
         <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
             backgroundImage: 'conic-gradient(#fff 90deg, transparent 90deg 180deg, #fff 180deg 270deg, transparent 270deg)',
-            backgroundSize: '48px 48px',
+            backgroundSize: '52px 52px',
           }}
         />
         <div
-          className="absolute -top-24 -right-16 w-80 h-80 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(129,182,76,0.16) 0%, transparent 70%)' }}
+          className="absolute -bottom-32 -right-10 w-[420px] h-[420px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(87,176,106,0.14) 0%, transparent 68%)' }}
         />
 
-        <div className="relative px-6 sm:px-10 py-12 sm:py-16">
-          <div className="pill mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#81b64c] animate-pulse-dot" />
-            {activeGames.length} live {activeGames.length === 1 ? 'game' : 'games'} now
-          </div>
+        <div className="relative px-6 sm:px-10 py-10 sm:py-14 flex items-center justify-between gap-6">
+          <div className="min-w-0">
+            <div className="pill pill-green mb-5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#57b06a] animate-pulse-dot" />
+              {activeGames.length} live {activeGames.length === 1 ? 'game' : 'games'} now
+            </div>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold leading-[1.05] mb-4 max-w-2xl">
-            Play chess.<br />
-            <span className="text-[#81b64c]">Win real money.</span>
-          </h1>
-          <p className="text-white/55 text-base sm:text-lg mb-8 max-w-lg">
-            Wager, outplay your opponent, and climb the global leaderboard. Fast, fair, and skill-based.
-          </p>
+            <h1 className="text-4xl sm:text-6xl font-extrabold leading-[1.02] mb-3">
+              EVERY MOVE.<br />
+              EVERY <span className="text-[#57b06a]">RISE.</span>
+            </h1>
+            <p className="text-white/50 text-sm sm:text-base font-semibold tracking-wide mb-8">
+              PLAY. IMPROVE. EARN.
+            </p>
 
-          {ready && !authenticated && (
-            <button onClick={login} className="btn-primary text-base px-8 py-3.5">
-              Get started — it&apos;s free
-            </button>
-          )}
-
-          {authenticated && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <button
-                onClick={() => setShowMatchmaking(true)}
-                disabled={balance === 0}
-                className="btn-primary text-base px-8 py-3.5 flex items-center justify-center gap-2"
-              >
-                <span className="text-lg">♟</span> Find a Match
+            {ready && !authenticated && (
+              <button onClick={login} className="btn-primary text-base px-8 py-3.5">
+                Get started — it&apos;s free
               </button>
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-white/[0.04] border border-white/[0.07] px-4 py-2">
-                  <div className="text-lg font-bold text-[#81b64c] leading-none font-display">${balance.toFixed(2)}</div>
-                  <div className="text-[11px] text-white/45 mt-1">Balance</div>
-                </div>
+            )}
+
+            {authenticated && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <button
+                  onClick={() => setShowMatchmaking(true)}
+                  disabled={balance === 0}
+                  className="btn-primary text-base px-8 py-3.5 flex items-center justify-center gap-2"
+                >
+                  ▶ Play Now
+                </button>
                 {balance === 0 && (
                   <Link href="/wallet" className="btn-gold text-sm px-4 py-2.5">
                     Claim free credits
                   </Link>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Mascot */}
+          <div className="hidden sm:block shrink-0 relative">
+            <div className="absolute inset-0 rounded-full blur-2xl" style={{ background: 'radial-gradient(circle, rgba(87,176,106,0.22) 0%, transparent 70%)' }} />
+            <img
+              src="/brand/el-victory.png"
+              alt="ELO mascot"
+              className="relative w-40 lg:w-52 rounded-2xl select-none pointer-events-none"
+            />
+          </div>
         </div>
       </div>
+
+      {/* Stat row (signed-in) */}
+      {authenticated && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+          {[
+            { label: 'Balance', value: `$${balance.toFixed(2)}`, accent: true },
+            { label: 'Live games', value: activeGames.length },
+            { label: 'Play', value: 'Ready', cta: true },
+            { label: 'Rank', value: 'Climb' },
+          ].map((s, i) => (
+            <div key={i} className="card">
+              <div className="text-xs text-white/40 mb-1">{s.label}</div>
+              <div className={`text-2xl font-bold font-display ${s.accent ? 'text-[#57b06a]' : 'text-white'}`}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Live Games */}
       <div>
@@ -296,7 +318,7 @@ export default function LobbyPage() {
       )}
 
       {challengeSentNotice && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#262421] border border-[#81b64c]/40 rounded-xl px-5 py-3 text-sm text-[#81b64c] shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#262421] border border-[#57b06a]/40 rounded-xl px-5 py-3 text-sm text-[#57b06a] shadow-2xl">
           ⚔️ {challengeSentNotice}
         </div>
       )}

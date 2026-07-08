@@ -8,6 +8,7 @@ import { PrivyProvider } from '@privy-io/react-auth';
 import { privyConfig, PRIVY_APP_ID } from '@/lib/privy';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
+import Sidebar from '@/components/Sidebar';
 import MainShell from '@/components/MainShell';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
@@ -17,13 +18,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
       <head>
-        <title>Checkmate — Bet Chess</title>
-        <meta name="description" content="Play chess for real USDC. Wager, win, withdraw instantly." />
-        <meta name="theme-color" content="#262421" />
+        <title>ELO — Every Move. Every Rise.</title>
+        <meta name="description" content="Play chess, climb the leaderboard, and earn. Every move counts." />
+        <meta name="theme-color" content="#0b0d0c" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Checkmate" />
+        <meta name="apple-mobile-web-app-title" content="ELO" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <PrivyProvider appId={PRIVY_APP_ID} config={privyConfig}>
+          <Sidebar />
           <Navbar />
           <MainShell>{children}</MainShell>
           <BottomNav />

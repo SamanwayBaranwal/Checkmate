@@ -33,7 +33,7 @@ function Toggle({ value, onChange, label, desc }: { value: boolean; onChange: (v
       </div>
       <button
         onClick={() => onChange(!value)}
-        className={`relative w-12 h-6 rounded-full transition-colors ${value ? 'bg-[#81b64c]' : 'bg-white/20'}`}
+        className={`relative w-12 h-6 rounded-full transition-colors ${value ? 'bg-[#57b06a]' : 'bg-white/20'}`}
       >
         <span
           className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-0.5'}`}
@@ -150,7 +150,7 @@ export default function SettingsPage() {
             onKeyDown={(e) => { if (e.key === 'Enter') handleUsernameChange(); }}
             placeholder="Enter username..."
             maxLength={20}
-            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#81b64c]"
+            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#57b06a]"
           />
           <button
             onClick={handleUsernameChange}
@@ -161,7 +161,7 @@ export default function SettingsPage() {
           </button>
         </div>
         {usernameStatus === 'error' && <p className="text-red-400 text-xs mt-2">{usernameError}</p>}
-        {usernameStatus === 'saved' && <p className="text-[#81b64c] text-xs mt-2">Username updated!</p>}
+        {usernameStatus === 'saved' && <p className="text-[#57b06a] text-xs mt-2">Username updated!</p>}
       </div>
 
       {/* Board theme */}
@@ -174,7 +174,7 @@ export default function SettingsPage() {
               onClick={() => setBoardTheme(i)}
               title={t.name}
               className={`flex flex-col items-center gap-2 p-2 rounded-lg border-2 transition ${
-                i === boardTheme ? 'border-[#81b64c]' : 'border-transparent hover:border-white/20'
+                i === boardTheme ? 'border-[#57b06a]' : 'border-transparent hover:border-white/20'
               }`}
             >
               <div
@@ -199,11 +199,11 @@ export default function SettingsPage() {
               key={t.key}
               onClick={() => setPieceTheme(t.key)}
               className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition ${
-                t.key === pieceTheme ? 'border-[#81b64c]' : 'border-transparent hover:border-white/20'
+                t.key === pieceTheme ? 'border-[#57b06a]' : 'border-transparent hover:border-white/20'
               }`}
             >
-              <div className={`text-3xl select-none ${t.key === 'neon' ? 'text-[#81b64c]' : ''}`}
-                style={t.key === 'neon' ? { filter: 'drop-shadow(0 0 5px #81b64c)' } : undefined}>
+              <div className={`text-3xl select-none ${t.key === 'neon' ? 'text-[#57b06a]' : ''}`}
+                style={t.key === 'neon' ? { filter: 'drop-shadow(0 0 5px #57b06a)' } : undefined}>
                 {t.key === 'minimal' ? (
                   <span style={{ fontWeight: 900, fontFamily: 'system-ui', fontSize: '1.5rem' }}>Q</span>
                 ) : (
@@ -286,7 +286,7 @@ export default function SettingsPage() {
                 </div>
               </div>
               {method.linked ? (
-                <span className="text-xs text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/30 px-2 py-0.5 rounded-full">✓ Linked</span>
+                <span className="text-xs text-[#57b06a] bg-[#57b06a]/10 border border-[#57b06a]/30 px-2 py-0.5 rounded-full">✓ Linked</span>
               ) : (
                 <button onClick={method.onLink} className="text-xs btn-secondary py-1 px-3">Link</button>
               )}

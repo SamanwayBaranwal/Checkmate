@@ -196,7 +196,7 @@ export default function LearnPage() {
           <p className="text-white/50 text-sm mt-1">Master the fundamentals before you bet.</p>
         </div>
         <div className="card text-center px-4 py-2">
-          <div className="text-xl font-bold text-[#81b64c]">{doneCount}/{totalLessons}</div>
+          <div className="text-xl font-bold text-[#57b06a]">{doneCount}/{totalLessons}</div>
           <div className="text-xs text-white/40">Lessons done</div>
         </div>
       </div>
@@ -204,7 +204,7 @@ export default function LearnPage() {
       {/* Progress bar */}
       <div className="h-1.5 bg-white/10 rounded-full mb-6 overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-[#81b64c] to-[#f0b232] rounded-full transition-all"
+          className="h-full bg-gradient-to-r from-[#57b06a] to-[#f0b232] rounded-full transition-all"
           style={{ width: `${totalLessons > 0 ? (doneCount / totalLessons) * 100 : 0}%` }}
         />
       </div>
@@ -288,7 +288,7 @@ export default function LearnPage() {
                   }`}
                 >
                   {done ? (
-                    <span className="text-[#81b64c] shrink-0">✓</span>
+                    <span className="text-[#57b06a] shrink-0">✓</span>
                   ) : (
                     <span className="w-4 h-4 rounded-full border border-white/20 shrink-0 inline-block" />
                   )}
@@ -308,7 +308,7 @@ export default function LearnPage() {
                 <div className="flex items-center gap-3 flex-wrap">
                   <h2 className="text-xl font-bold">{item.name}</h2>
                   {done && (
-                    <span className="text-xs text-[#81b64c] bg-[#81b64c]/10 border border-[#81b64c]/30 px-2 py-0.5 rounded-full">
+                    <span className="text-xs text-[#57b06a] bg-[#57b06a]/10 border border-[#57b06a]/30 px-2 py-0.5 rounded-full">
                       ✓ Completed
                     </span>
                   )}
