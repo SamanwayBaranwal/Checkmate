@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { Icon } from '@/components/Icons';
 import Link from 'next/link';
 
 interface ChartPoint { day: string; income: number; expenses: number; }
@@ -170,7 +171,7 @@ export default function WalletPage() {
 
       {/* Free Credits */}
       <div className="card border border-[#46a883]/20">
-        <h2 className="text-lg font-bold mb-1">🎁 Free Credits</h2>
+        <h2 className="text-lg font-bold mb-1 flex items-center gap-2"><span className="text-[#46a883]"><Icon name="gift" size={18} /></span> Free Credits</h2>
         <p className="text-sm text-white/50 mb-4">
           Claim free credits to start playing. No payment needed — just play and have fun!
         </p>

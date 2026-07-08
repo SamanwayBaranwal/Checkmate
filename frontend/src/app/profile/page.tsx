@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { Icon, type IconName } from '@/components/Icons';
 import Link from 'next/link';
 
 function shortAddr(addr: string) {
@@ -34,17 +35,17 @@ const NOTIF_TYPES = [
   { key: 'tournament_start', label: 'Tournament starting' },
 ];
 
-function computeBadges(profile: any): { icon: string; label: string; desc: string }[] {
-  const badges = [];
+function computeBadges(profile: any): { icon: IconName; label: string; desc: string }[] {
+  const badges: { icon: IconName; label: string; desc: string }[] = [];
   const winRate = profile.gamesPlayed ? (profile.gamesWon / profile.gamesPlayed) * 100 : 0;
-  if (profile.gamesWon >= 1) badges.push({ icon: '🏆', label: 'First Win', desc: 'Won your first game' });
-  if (profile.gamesPlayed >= 10) badges.push({ icon: '⚡', label: 'Veteran', desc: 'Played 10+ games' });
-  if (profile.gamesPlayed >= 50) badges.push({ icon: '💎', label: 'Grinder', desc: 'Played 50+ games' });
-  if (profile.currentStreak >= 3) badges.push({ icon: '🔥', label: 'On Fire', desc: `${profile.currentStreak} win streak` });
-  if (winRate >= 60 && profile.gamesPlayed >= 10) badges.push({ icon: '🎯', label: 'Sharp', desc: '60%+ win rate' });
-  if (profile.elo >= 1400) badges.push({ icon: '🌙', label: 'Rising Star', desc: '1400+ ELO' });
-  if (profile.elo >= 1600) badges.push({ icon: '👑', label: 'Elite', desc: '1600+ ELO' });
-  if (profile.totalEarnings >= 10) badges.push({ icon: '💰', label: 'Earner', desc: '$10+ in winnings' });
+  if (profile.gamesWon >= 1) badges.push({ icon: 'trophy', label: 'First Win', desc: 'Won your first game' });
+  if (profile.gamesPlayed >= 10) badges.push({ icon: 'bolt', label: 'Veteran', desc: 'Played 10+ games' });
+  if (profile.gamesPlayed >= 50) badges.push({ icon: 'gem', label: 'Grinder', desc: 'Played 50+ games' });
+  if (profile.currentStreak >= 3) badges.push({ icon: 'fire', label: 'On Fire', desc: `${profile.currentStreak} win streak` });
+  if (winRate >= 60 && profile.gamesPlayed >= 10) badges.push({ icon: 'target', label: 'Sharp', desc: '60%+ win rate' });
+  if (profile.elo >= 1400) badges.push({ icon: 'star', label: 'Rising Star', desc: '1400+ ELO' });
+  if (profile.elo >= 1600) badges.push({ icon: 'crown', label: 'Elite', desc: '1600+ ELO' });
+  if (profile.totalEarnings >= 10) badges.push({ icon: 'coin', label: 'Earner', desc: '$10+ in winnings' });
   return badges;
 }
 
@@ -204,7 +205,7 @@ export default function ProfilePage() {
                 title={b.desc}
                 className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2"
               >
-                <span className="text-xl">{b.icon}</span>
+                <span className="text-[#46a883]"><Icon name={b.icon} size={18} /></span>
                 <span className="text-sm font-semibold">{b.label}</span>
               </div>
             ))}

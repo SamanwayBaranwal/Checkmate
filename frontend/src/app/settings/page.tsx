@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePrivy, useLinkAccount } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { Icon } from '@/components/Icons';
 import { PIECE_THEMES, type PieceTheme } from '@/lib/pieceThemes';
 
 const NOTIF_PREFS = [
@@ -281,28 +282,28 @@ export default function SettingsPage() {
             {
               type: 'email',
               label: 'Email',
-              icon: '✉️',
+              icon: 'mail' as const,
               linked: user?.linkedAccounts?.some((a: any) => a.type === 'email'),
               onLink: () => linkEmail(),
             },
             {
               type: 'phone',
               label: 'Phone (SMS)',
-              icon: '📱',
+              icon: 'phone' as const,
               linked: user?.linkedAccounts?.some((a: any) => a.type === 'phone'),
               onLink: () => linkPhone(),
             },
             {
               type: 'google_oauth',
               label: 'Google',
-              icon: '🔵',
+              icon: 'google' as const,
               linked: user?.linkedAccounts?.some((a: any) => a.type === 'google_oauth'),
               onLink: () => linkGoogle(),
             },
           ].map((method) => (
             <div key={method.type} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
               <div className="flex items-center gap-3">
-                <span className="text-lg">{method.icon}</span>
+                <span className="text-white/60"><Icon name={method.icon} size={18} /></span>
                 <div>
                   <p className="text-sm font-semibold">{method.label}</p>
                   <p className="text-xs text-white/40">{method.linked ? 'Linked' : 'Not linked'}</p>

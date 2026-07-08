@@ -5,6 +5,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
 import MatchmakingModal from '@/components/MatchmakingModal';
 import AuthLanding from '@/components/AuthLanding';
+import { Icon } from '@/components/Icons';
 import { getSocket } from '@/lib/socket';
 import Link from 'next/link';
 
@@ -232,7 +233,7 @@ export default function LobbyPage() {
                   disabled={balance === 0}
                   className="btn-primary text-base px-8 py-3.5 flex items-center justify-center gap-2"
                 >
-                  ▶ Play Now
+                  <Icon name="play" size={16} /> Play Now
                 </button>
                 {balance === 0 && (
                   <Link href="/wallet" className="btn-gold text-sm px-4 py-2.5">
@@ -263,16 +264,16 @@ export default function LobbyPage() {
             const gw = me?.gamesWon ?? me?.games_won ?? 0;
             const wr = gp ? Math.round((gw / gp) * 100) : 0;
             const stats = [
-              { label: 'ELO Rating', value: me?.elo ?? '—', icon: '♟', accent: true },
-              { label: 'Games Played', value: gp, icon: '🎮' },
-              { label: 'Win Rate', value: `${wr}%`, icon: '📈' },
-              { label: 'Global Rank', value: rank ? `#${rank}` : '—', icon: '🏆' },
+              { label: 'ELO Rating', value: me?.elo ?? '—', icon: 'rating' as const, accent: true },
+              { label: 'Games Played', value: gp, icon: 'games' as const },
+              { label: 'Win Rate', value: `${wr}%`, icon: 'winrate' as const },
+              { label: 'Global Rank', value: rank ? `#${rank}` : '—', icon: 'trophy' as const },
             ];
             return stats.map((s, i) => (
               <div key={i} className="card">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-white/40">{s.label}</span>
-                  <span className="text-sm opacity-60">{s.icon}</span>
+                  <span className="text-white/35"><Icon name={s.icon} size={16} /></span>
                 </div>
                 <div className={`text-2xl font-bold font-display ${s.accent ? 'text-[#46a883]' : 'text-white'}`}>{s.value}</div>
               </div>

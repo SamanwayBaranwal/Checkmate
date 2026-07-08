@@ -2,11 +2,12 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import { Logo } from './Logo';
+import { Icon, type IconName } from './Icons';
 
-const FEATURES = [
-  { icon: '♟', title: 'Play', desc: 'Real-time chess matches, any skill level' },
-  { icon: '📈', title: 'Improve', desc: 'Climb the ELO ladder and track progress' },
-  { icon: '🏆', title: 'Earn', desc: 'Win games, tournaments, and daily rewards' },
+const FEATURES: { icon: IconName; title: string; desc: string }[] = [
+  { icon: 'pawn', title: 'Play', desc: 'Real-time chess matches, any skill level' },
+  { icon: 'winrate', title: 'Improve', desc: 'Climb the ELO ladder and track progress' },
+  { icon: 'trophy', title: 'Earn', desc: 'Win games, tournaments, and daily rewards' },
 ];
 
 export default function AuthLanding() {
@@ -35,7 +36,7 @@ export default function AuthLanding() {
             <div className="space-y-2.5">
               {FEATURES.map((f) => (
                 <div key={f.title} className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-lg bg-[#46a883]/12 flex items-center justify-center text-sm">{f.icon}</span>
+                  <span className="w-8 h-8 rounded-lg bg-[#46a883]/12 flex items-center justify-center text-[#46a883]"><Icon name={f.icon} size={16} /></span>
                   <div>
                     <div className="text-sm font-semibold leading-none">{f.title}</div>
                     <div className="text-xs text-white/40 mt-0.5">{f.desc}</div>
@@ -57,15 +58,15 @@ export default function AuthLanding() {
               Sign in / Sign up
             </button>
             <button onClick={login} className="btn-secondary w-full py-3 flex items-center justify-center gap-2">
-              <span>🔵</span> Continue with Google
+              <Icon name="google" size={16} /> Continue with Google
             </button>
             <button onClick={login} className="btn-secondary w-full py-3 flex items-center justify-center gap-2">
-              <span>👛</span> Continue with Wallet
+              <Icon name="wallet-connect" size={16} /> Continue with Wallet
             </button>
           </div>
 
           <div className="mt-6 rounded-lg bg-[#46a883]/8 border border-[#46a883]/20 px-4 py-3 text-center">
-            <p className="text-sm text-[#46a883] font-semibold">🎁 New players get $10 free credits</p>
+            <p className="text-sm text-[#46a883] font-semibold flex items-center justify-center gap-1.5"><Icon name="gift" size={15} /> New players get $10 free credits</p>
             <p className="text-xs text-white/40 mt-0.5">Start playing instantly — no payment needed.</p>
           </div>
 

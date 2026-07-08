@@ -16,7 +16,6 @@ function winRate(won: number, played: number) {
   return `${Math.round((won / played) * 100)}%`;
 }
 
-const MEDAL = ['🥇', '🥈', '🥉'];
 
 const TAB_CONFIG: Record<Tab, { label: string; valueKey: string; valueLabel: string; format: (v: number) => string }> = {
   elo: { label: 'By Rating', valueKey: 'elo', valueLabel: 'ELO', format: (v) => String(v) },
@@ -69,7 +68,7 @@ export default function LeaderboardPage() {
         }`}
       >
         <span className="w-8 text-center shrink-0">
-          {i < 3 ? <span className="text-lg">{MEDAL[i]}</span> : <span className="text-white/40 text-sm font-semibold">{i + 1}</span>}
+          <span className={`text-sm font-bold ${i === 0 ? 'text-[#f0b232]' : i === 1 ? 'text-white/80' : i === 2 ? 'text-[#cd7f32]' : 'text-white/40'}`}>{i + 1}</span>
         </span>
         <Avatar p={player} i={i} />
         <Link href={`/profile/${player.id}`} className="flex-1 min-w-0 group">
