@@ -47,21 +47,68 @@ export default function LeaderboardPage() {
   }, [tab]);
 
   const cfg = TAB_CONFIG[tab];
-
   const myRank = myId ? players.findIndex((p) => p.id === myId) : -1;
+  const mePlayer = myRank >= 0 ? players[myRank] : null;
+
+  const Avatar = ({ p, i }: { p: any; i: number }) => (
+    <span
+      className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+        i === 0 ? 'bg-[#f0b232]/20 text-[#f0b232]' : i === 1 ? 'bg-white/15 text-white' : i === 2 ? 'bg-[#cd7f32]/20 text-[#cd7f32]' : 'bg-[#46a883]/15 text-[#46a883]'
+      }`}
+    >
+      {(p.username || p.wallet || '?')[0].toUpperCase()}
+    </span>
+  );
+
+  const Row = ({ player, i, sticky }: { player: any; i: number; sticky?: boolean }) => {
+    const isMe = player.id === myId;
+    return (
+      <div
+        className={`flex items-center gap-3 px-4 py-3 border-b border-white/[0.05] transition-colors ${
+          sticky ? 'bg-[#46a883]/12 rounded-lg border-transparent' : isMe ? 'bg-[#46a883]/8' : 'hover:bg-white/[0.03]'
+        }`}
+      >
+        <span className="w-8 text-center shrink-0">
+          {i < 3 ? <span className="text-lg">{MEDAL[i]}</span> : <span className="text-white/40 text-sm font-semibold">{i + 1}</span>}
+        </span>
+        <Avatar p={player} i={i} />
+        <Link href={`/profile/${player.id}`} className="flex-1 min-w-0 group">
+          <div className="font-semibold text-sm truncate group-hover:text-[#46a883] transition-colors">
+            {player.username || shortAddr(player.wallet)}
+            {isMe && <span className="text-xs text-[#46a883] font-normal ml-1.5">you</span>}
+          </div>
+          <div className="text-xs text-white/35">{player.elo} ELO</div>
+        </Link>
+        <div className="text-right shrink-0 w-20">
+          <div className={`font-bold text-sm ${tab === 'elo' ? 'text-white' : 'text-[#46a883]'}`}>{cfg.format(player[cfg.valueKey] ?? 0)}</div>
+          <div className="text-[11px] text-white/30">{cfg.valueLabel}</div>
+        </div>
+        <div className="text-right shrink-0 w-14 hidden sm:block">
+          <div className="font-semibold text-sm text-white/80">
+            {tab === 'referrals' ? (player.referred_count ?? 0) : winRate(player.games_won, player.games_played)}
+          </div>
+          <div className="text-[11px] text-white/30">{tab === 'referrals' ? 'Refs' : 'Win'}</div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Leaderboard</h1>
+      <div className="flex items-center gap-2 mb-1">
+        <h1 className="text-2xl font-bold">Leaderboard</h1>
+        <span className="text-lg">🏆</span>
+      </div>
+      <p className="text-sm text-white/45 mb-6">Top players ranked by performance.</p>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      {/* Tabs — underline style */}
+      <div className="flex gap-1 mb-5 border-b border-white/[0.06] overflow-x-auto no-scrollbar">
         {(Object.keys(TAB_CONFIG) as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-              tab === t ? 'bg-[#f0b232] text-black' : 'btn-secondary'
+            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
+              tab === t ? 'border-[#46a883] text-[#46a883]' : 'border-transparent text-white/45 hover:text-white'
             }`}
           >
             {TAB_CONFIG[t].label}
@@ -69,77 +116,27 @@ export default function LeaderboardPage() {
         ))}
       </div>
 
-      {/* Your rank banner */}
-      {myRank >= 0 && (
-        <div className="mb-4 px-4 py-2 rounded-lg bg-[#46a883]/10 border border-[#46a883]/30 text-sm text-[#46a883]">
-          Your rank: <strong>#{myRank + 1}</strong>{' '}
-          {myRank < 3 && <span>— you're on the podium! 🏆</span>}
-        </div>
-      )}
-
       {loading ? (
-        <div className="text-center py-12 text-white/40">Loading...</div>
-      ) : (
-        <div className="card overflow-hidden p-0">
-          {tab === 'weekly' && players.length === 0 && (
-            <p className="text-center py-12 text-white/40 text-sm">No earnings recorded this week yet.</p>
-          )}
-          {players.length > 0 && (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/10 text-white/40 text-xs uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left">Rank</th>
-                  <th className="px-4 py-3 text-left">Player</th>
-                  <th className="px-4 py-3 text-right">{cfg.valueLabel}</th>
-                  <th className="px-4 py-3 text-right hidden sm:table-cell">{tab === 'referrals' ? 'Referred' : 'Games'}</th>
-                  <th className="px-4 py-3 text-right hidden sm:table-cell">{tab === 'referrals' ? '' : 'Win %'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.map((player, i) => {
-                  const isMe = player.id === myId;
-                  const isTop3 = i < 3;
-                  return (
-                    <tr
-                      key={player.id}
-                      className={`border-b border-white/5 transition-colors ${
-                        isMe ? 'bg-[#46a883]/10 border-[#46a883]/20' : 'hover:bg-white/5'
-                      }`}
-                    >
-                      <td className="px-4 py-3 text-lg">
-                        {isTop3 ? MEDAL[i] : <span className="text-white/40 text-sm">#{i + 1}</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link href={`/profile/${player.id}`} className="hover:text-[#f0b232] transition-colors">
-                          <div className="font-semibold flex items-center gap-2">
-                            {player.username || shortAddr(player.wallet)}
-                            {isMe && <span className="text-xs text-[#46a883] font-normal">(you)</span>}
-                          </div>
-                          {player.username && (
-                            <div className="text-xs text-white/40 font-mono">{shortAddr(player.wallet)}</div>
-                          )}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`font-bold ${tab === 'elo' ? 'text-[#f0b232]' : 'text-[#46a883]'}`}>
-                          {cfg.format(player[cfg.valueKey] ?? 0)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-white/60 hidden sm:table-cell">
-                        {tab === 'referrals' ? (player.referred_count ?? 0) : player.games_played}
-                      </td>
-                      <td className="px-4 py-3 text-right text-[#46a883] hidden sm:table-cell">
-                        {tab === 'referrals' ? (
-                          <span className="text-white/40 text-xs">{player.elo} ELO</span>
-                        ) : winRate(player.games_won, player.games_played)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+        <div className="space-y-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-16 rounded-lg bg-white/[0.03] animate-pulse" />
+          ))}
         </div>
+      ) : players.length === 0 ? (
+        <div className="card text-center py-12 text-white/40 text-sm">No players ranked yet.</div>
+      ) : (
+        <>
+          <div className="card p-0 overflow-hidden">
+            {players.map((player, i) => <Row key={player.id} player={player} i={i} />)}
+          </div>
+          {/* Sticky your-rank row (like mockup) */}
+          {mePlayer && myRank >= 8 && (
+            <div className="mt-2 card p-1">
+              <Row player={mePlayer} i={myRank} sticky />
+            </div>
+          )}
+          <p className="text-center text-xs text-white/25 mt-4">Leaderboard updates in real time.</p>
+        </>
       )}
     </div>
   );

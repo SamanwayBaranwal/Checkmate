@@ -5,6 +5,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
 import LiveGameCard from '@/components/LiveGameCard';
 import MatchmakingModal from '@/components/MatchmakingModal';
+import AuthLanding from '@/components/AuthLanding';
 import { getSocket } from '@/lib/socket';
 import Link from 'next/link';
 
@@ -155,6 +156,11 @@ export default function LobbyPage() {
     const interval = setInterval(loadGames, 5000);
     return () => clearInterval(interval);
   }, [loadGames]);
+
+  // Logged-out: show the branded sign-in landing
+  if (ready && !authenticated) {
+    return <AuthLanding />;
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
