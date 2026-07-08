@@ -63,6 +63,7 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting' | 'error'>('idle');
   const [deleteError, setDeleteError] = useState('');
+  const [tab, setTab] = useState<'account' | 'appearance' | 'notifications' | 'security'>('account');
 
   useEffect(() => {
     if (ready && !authenticated) { router.push('/'); return; }
@@ -133,12 +134,34 @@ export default function SettingsPage() {
 
   if (loading) return <div className="text-center py-20 text-white/40">Loading...</div>;
 
+  const TABS = [
+    { key: 'account', label: 'Account' },
+    { key: 'appearance', label: 'Appearance' },
+    { key: 'notifications', label: 'Notifications' },
+    { key: 'security', label: 'Security' },
+  ] as const;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-3xl font-bold">Settings</h1>
+      <h1 className="text-2xl font-bold">Settings</h1>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-white/[0.06] overflow-x-auto no-scrollbar">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
+              tab === t.key ? 'border-[#46a883] text-[#46a883]' : 'border-transparent text-white/45 hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {/* Username */}
-      <div className="card">
+      <div className={`card ${tab === 'account' ? '' : 'hidden'}`}>
         <h2 className="text-lg font-bold mb-4">Username</h2>
         <p className="text-sm text-white/50 mb-3">
           3–20 characters, letters/numbers/underscores only. Your username is shown on the leaderboard and profile.
@@ -165,7 +188,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Board theme */}
-      <div className="card">
+      <div className={`card ${tab === 'appearance' ? '' : 'hidden'}`}>
         <h2 className="text-lg font-bold mb-4">Board Theme</h2>
         <div className="grid grid-cols-5 gap-3">
           {BOARD_THEMES.map((t, i) => (
@@ -191,7 +214,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Piece theme */}
-      <div className="card">
+      <div className={`card ${tab === 'appearance' ? '' : 'hidden'}`}>
         <h2 className="text-lg font-bold mb-4">Piece Style</h2>
         <div className="grid grid-cols-4 gap-3">
           {PIECE_THEMES.map((t) => (
@@ -217,7 +240,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Game preferences */}
-      <div className="card">
+      <div className={`card ${tab === 'appearance' ? '' : 'hidden'}`}>
         <h2 className="text-lg font-bold mb-2">Game Preferences</h2>
         <Toggle
           value={autoQueen}
@@ -234,7 +257,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Notification preferences */}
-      <div className="card">
+      <div className={`card ${tab === 'notifications' ? '' : 'hidden'}`}>
         <h2 className="text-lg font-bold mb-2">Notifications</h2>
         {NOTIF_PREFS.map((pref) => (
           <Toggle
@@ -248,7 +271,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Security — linked login methods */}
-      <div className="card">
+      <div className={`card ${tab === 'security' ? '' : 'hidden'}`}>
         <h2 className="text-lg font-bold mb-1">Security</h2>
         <p className="text-xs text-white/40 mb-4">
           Link additional login methods so you can always access your account.
@@ -298,13 +321,13 @@ export default function SettingsPage() {
       {/* Save button */}
       <button
         onClick={handleSave}
-        className="btn-primary w-full"
+        className={`btn-primary w-full ${tab === 'appearance' || tab === 'notifications' ? '' : 'hidden'}`}
       >
         {saved ? '✓ Saved!' : 'Save Settings'}
       </button>
 
       {/* Danger zone */}
-      <div className="card border border-red-500/20">
+      <div className={`card border border-red-500/20 ${tab === 'security' ? '' : 'hidden'}`}>
         <h2 className="text-lg font-bold text-red-400 mb-1">Danger Zone</h2>
         <p className="text-xs text-white/40 mb-4">
           Permanently delete your account. Your game history is anonymized but preserved. Withdraw your balance first.

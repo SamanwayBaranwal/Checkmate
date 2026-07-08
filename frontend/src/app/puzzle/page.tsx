@@ -181,9 +181,12 @@ export default function PuzzlePage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Daily Puzzle</h1>
-          <p className="text-white/50 text-sm mt-1">One puzzle per day · Resets at midnight UTC</p>
+        <div className="flex items-center gap-3">
+          <img src="/brand/el-puzzle-time.png" alt="" className="w-14 h-14 rounded-xl shrink-0 select-none pointer-events-none hidden sm:block" />
+          <div>
+            <h1 className="text-2xl font-bold">Daily Puzzle</h1>
+            <p className="text-white/50 text-sm mt-1">One puzzle per day · Resets at midnight UTC</p>
+          </div>
         </div>
         {/* Streak stats */}
         {stats && (

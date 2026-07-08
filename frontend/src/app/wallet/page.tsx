@@ -152,17 +152,20 @@ export default function WalletPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <h1 className="text-3xl font-bold">Wallet</h1>
 
-      {/* Balance */}
-      <div className="card">
-        <p className="text-sm text-white/50 mb-1">Available Balance</p>
-        <p className="text-4xl font-bold text-[#46a883]">${balance.toFixed(2)}</p>
-        <p className="text-sm text-white/40 mt-1">Game credits</p>
-        {bonusBalance > 0 && (
-          <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
-            <span className="text-xs text-white/40">Lifetime bonus earned</span>
-            <span className="text-xs font-semibold text-[#f0b232]">+${bonusBalance.toFixed(2)}</span>
+      {/* Balance — green banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-[#46a883]/25">
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, rgba(70,168,131,0.20) 0%, rgba(70,168,131,0.04) 50%, transparent 78%)' }} />
+        <div className="relative p-5 sm:p-6 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-white/50 mb-1">Available Balance</p>
+            <p className="text-4xl font-bold text-white font-display">${balance.toFixed(2)}</p>
+            <p className="text-xs text-white/40 mt-1">Game credits</p>
+            {bonusBalance > 0 && (
+              <p className="text-xs font-semibold text-[#f0b232] mt-2">+${bonusBalance.toFixed(2)} lifetime bonus</p>
+            )}
           </div>
-        )}
+          <img src="/brand/el-deposit.png" alt="" className="hidden sm:block w-24 rounded-2xl shrink-0 select-none pointer-events-none" />
+        </div>
       </div>
 
       {/* Free Credits */}

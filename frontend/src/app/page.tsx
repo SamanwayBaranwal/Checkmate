@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { api } from '@/lib/api';
-import LiveGameCard from '@/components/LiveGameCard';
 import MatchmakingModal from '@/components/MatchmakingModal';
 import AuthLanding from '@/components/AuthLanding';
 import { getSocket } from '@/lib/socket';
@@ -294,15 +293,43 @@ export default function LobbyPage() {
 
         {activeGames.length === 0 ? (
           <div className="card text-center py-14 text-white/40">
-            <div className="text-5xl mb-3 opacity-60">♟</div>
+            <img src="/brand/el-relaxed.png" alt="" className="w-24 h-24 mx-auto rounded-2xl mb-3 opacity-80" />
             <p className="font-medium">No live games right now</p>
             <p className="text-sm text-white/30 mt-1">Be the first to play!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {activeGames.map((game) => (
-              <LiveGameCard key={game.id} game={game} />
-            ))}
+          <div className="card p-0 overflow-hidden">
+            {/* header row (desktop) */}
+            <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-2.5 border-b border-white/[0.06] text-[11px] font-semibold uppercase tracking-wide text-white/35">
+              <span>Players</span>
+              <span className="text-center w-16">Status</span>
+              <span className="text-right w-20">Pot</span>
+              <span className="text-right w-16">Action</span>
+            </div>
+            {activeGames.map((game) => {
+              const white = game.white_username || shortAddr(game.white_wallet);
+              const black = game.black_username || shortAddr(game.black_wallet);
+              return (
+                <Link
+                  key={game.id}
+                  href={`/game/${game.id}`}
+                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-4 py-3 border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-7 h-7 rounded-full bg-white text-[#0b0d0c] text-xs font-bold flex items-center justify-center shrink-0">{white[0]?.toUpperCase()}</span>
+                    <span className="text-sm font-semibold truncate max-w-[80px]">{white}</span>
+                    <span className="text-white/25 text-xs px-1">vs</span>
+                    <span className="w-7 h-7 rounded-full bg-[#2b2f2c] border border-white/10 text-white text-xs font-bold flex items-center justify-center shrink-0">{black[0]?.toUpperCase()}</span>
+                    <span className="text-sm font-semibold truncate max-w-[80px]">{black}</span>
+                  </div>
+                  <span className="hidden sm:flex items-center justify-center gap-1.5 w-16 text-[11px] font-bold text-red-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse-dot" /> LIVE
+                  </span>
+                  <span className="hidden sm:block text-right w-20 text-sm font-bold text-[#f0b232]">${game.bet_amount * 2}</span>
+                  <span className="text-right sm:w-16 text-xs font-semibold text-[#46a883] group-hover:underline">Watch →</span>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
