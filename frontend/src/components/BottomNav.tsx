@@ -25,12 +25,9 @@ function Icon({ name, active }: { name: string; active: boolean }) {
 }
 
 const MORE_LINKS = [
-  { href: '/friends', label: 'Friends', emoji: '👥', auth: true },
-  { href: '/tournaments', label: 'Tournaments', emoji: '🏆', auth: false },
-  { href: '/missions', label: 'Missions', emoji: '🎯', auth: true },
-  { href: '/learn', label: 'Learn', emoji: '📚', auth: false },
-  { href: '/puzzle', label: 'Daily Puzzle', emoji: '🧩', auth: false },
-  { href: '/settings', label: 'Settings', emoji: '⚙️', auth: true },
+  { href: '/friends', label: 'Friends', auth: true },
+  { href: '/profile', label: 'Profile', auth: true },
+  { href: '/settings', label: 'Settings', auth: true },
 ];
 
 export default function BottomNav() {
@@ -64,15 +61,15 @@ export default function BottomNav() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
               {moreLinks.map((l) => (
                 <button
                   key={l.href}
                   onClick={() => go(l.href)}
-                  className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl transition-colors ${isActive(l.href) ? 'bg-[#46a883]/12' : 'bg-white/[0.04] hover:bg-white/[0.08]'}`}
+                  className={`flex items-center justify-between w-full px-4 py-3 rounded-xl transition-colors ${isActive(l.href) ? 'bg-[#46a883]/12 text-[#46a883]' : 'bg-white/[0.04] hover:bg-white/[0.08] text-white/80'}`}
                 >
-                  <span className="text-2xl">{l.emoji}</span>
-                  <span className={`text-xs font-medium ${isActive(l.href) ? 'text-[#46a883]' : 'text-white/70'}`}>{l.label}</span>
+                  <span className="text-sm font-medium">{l.label}</span>
+                  <span className="text-white/30">›</span>
                 </button>
               ))}
             </div>

@@ -11,9 +11,7 @@ const NOTIF_PREFS = [
   { key: 'challenge_received', label: 'Incoming challenges', desc: 'When a player sends you a challenge' },
   { key: 'friend_request',     label: 'Friend requests',     desc: 'When someone adds you as a friend' },
   { key: 'friend_accepted',    label: 'Friend accepted',     desc: 'When someone accepts your friend request' },
-  { key: 'tournament_start',   label: 'Tournament started',  desc: 'When a tournament you joined begins' },
   { key: 'streak_bonus',       label: 'Win streak bonuses',  desc: 'When you earn a streak bonus reward' },
-  { key: 'mission_complete',   label: 'Mission completed',   desc: 'When you complete a weekly mission' },
   { key: 'weekly_summary',     label: 'Weekly summary',      desc: "Monday recap of your week's results" },
 ];
 

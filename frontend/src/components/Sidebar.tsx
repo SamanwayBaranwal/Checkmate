@@ -28,12 +28,8 @@ const ICONS: Record<string, string> = {
 };
 
 const NAV = [
-  { href: '/', label: 'Dashboard', icon: 'dashboard', auth: false },
+  { href: '/', label: 'Home', icon: 'dashboard', auth: false },
   { href: '/leaderboard', label: 'Leaderboard', icon: 'leaderboard', auth: false },
-  { href: '/tournaments', label: 'Tournaments', icon: 'tournaments', auth: false },
-  { href: '/puzzle', label: 'Puzzle', icon: 'puzzle', auth: false },
-  { href: '/learn', label: 'Learn', icon: 'learn', auth: false },
-  { href: '/missions', label: 'Rewards', icon: 'rewards', auth: true },
   { href: '/friends', label: 'Friends', icon: 'friends', auth: true },
   { href: '/wallet', label: 'Wallet', icon: 'wallet', auth: true },
   { href: '/profile', label: 'Profile', icon: 'profile', auth: true },
