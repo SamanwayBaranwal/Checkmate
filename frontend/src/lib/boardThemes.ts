@@ -1,6 +1,7 @@
 // One list of board colours for the game, replay and settings pages (stored by index in checkmate_board_theme).
 export const BOARD_THEMES = [
-  { name: 'ELO', light: '#E9E4F5', dark: '#8F7CCB' },
+  { name: 'Stone', light: '#EAEAE7', dark: '#9C9C98' },
+  { name: 'Lilac', light: '#E9E4F5', dark: '#8F7CCB' },
   { name: 'Walnut', light: '#ECE3D0', dark: '#A38867' },
   { name: 'Slate', light: '#DDE1E5', dark: '#7D8A97' },
   { name: 'Moss', light: '#E6E9D8', dark: '#7E9468' },

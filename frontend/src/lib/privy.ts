@@ -7,7 +7,7 @@ export const privyConfig = {
   supportedChains: [base],
   appearance: {
     theme: 'dark' as const,
-    accentColor: '#D4AF69' as `#${string}`,
+    accentColor: '#F6F6F7' as `#${string}`,
     logo: '/brand/logo-white.png',
   },
   embeddedWallets: {

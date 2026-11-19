@@ -4,8 +4,8 @@
   "description": "Play rated chess for real stakes. Fair play checked on every game.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1A1922",
-  "theme_color": "#1A1922",
+  "background_color": "#111112",
+  "theme_color": "#111112",
   "orientation": "portrait-primary",
   "categories": [
     "games",

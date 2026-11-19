@@ -57,7 +57,8 @@ export function GearGlyph({ size = 22, className = '' }: { size?: number; classN
 }
 
 // Player avatar: their own piece on their own colour, stable per player (no generic letter circles).
-const AVATAR_COLORS = ['#7C5CFF', '#FF7A59', '#20B2A6', '#F2B33D', '#4C8DFF', '#E2559B', '#56B95E', '#9B6BDF'];
+const AVATAR_COLORS = ['#F2F2F3', '#3A3A3E', '#9A9AA0', '#26262A', '#D6D6D9', '#5A5A60'];
+const LIGHT_TILES = new Set(['#F2F2F3', '#D6D6D9', '#9A9AA0']);
 const AVATAR_PIECES: Piece[] = ['N', 'K', 'Q', 'R', 'B', 'P'];
 
 function hash(s: string) {
@@ -73,7 +74,7 @@ export function PieceAvatar({ seed, size = 40, className = '' }: { seed: string;
   return (
     <span className={`inline-flex items-center justify-center shrink-0 rounded-[30%] ${className}`}
       style={{ width: size, height: size, background: bg, boxShadow: `inset 0 -${Math.max(2, Math.round(size / 14))}px 0 rgb(0 0 0 / .18)` }}>
-      <PieceImg piece={piece} size={Math.round(size * 0.78)} />
+      <PieceImg piece={piece} side={LIGHT_TILES.has(bg) ? 'b' : 'w'} size={Math.round(size * 0.78)} />
     </span>
   );
 }

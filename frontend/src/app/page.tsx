@@ -102,14 +102,14 @@ export default function HomePage() {
           <div>
             {balance <= 0 ? (
               <Link href="/wallet" className="play-tile play-tile-primary">
-                <span className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
-                <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-white/80 font-medium">$10 to start playing</span></span>
+                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
+                <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-black/55 font-semibold">$10 to start playing</span></span>
                 <Icon name="chevron-right" size={20} />
               </Link>
             ) : (
               <button onClick={() => setPlayOpen(true)} className="play-tile play-tile-primary">
-                <span className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
-                <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-white/80 font-medium">Matched with someone near your rating</span></span>
+                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
+                <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-black/55 font-semibold">Matched with someone near your rating</span></span>
                 <Icon name="chevron-right" size={20} />
               </button>
             )}
