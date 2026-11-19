@@ -8,7 +8,7 @@ export const privyConfig = {
   appearance: {
     theme: 'dark' as const,
     accentColor: '#F6F6F7' as `#${string}`,
-    logo: '/brand/logo-white.png',
+    logo: '/brand/elo-logo.png',
   },
   embeddedWallets: {
     createOnLogin: 'users-without-wallets' as const,

@@ -71,7 +71,8 @@ export default function HomePage() {
     }).catch(() => {});
   }, [token, me]);
 
-  if (!ready) return <div className="min-h-[60vh]" />;
+  // Server HTML (and crawlers) get the landing page; returning players hide it before first paint (see layout.tsx).
+  if (!ready) return <div className="guest-only min-h-[60vh]"><AuthLanding /></div>;
   if (!authenticated) return <AuthLanding />;
 
   const gp = me?.gamesPlayed ?? me?.games_played ?? 0;
