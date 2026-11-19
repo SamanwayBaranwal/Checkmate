@@ -21,6 +21,7 @@ import missionsRouter from './routes/missions';
 import reportsRouter from './routes/reports';
 import puzzlesRouter from './routes/puzzles';
 import adminRouter from './routes/admin';
+import { apiLimiter, authLimiter, sensitiveLimiter, adminLimiter, socketThrottle } from './middleware/rateLimit';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
@@ -77,6 +78,11 @@ app.use(helmet());
 app.use(cors({ origin: originFn, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
+app.use(['/api/dev', '/api/reports', '/api/wallet/withdraw', '/api/users/me/daily-bonus'], (req, res, next) =>
+  (req.method === 'GET' ? next() : sensitiveLimiter(req, res, next)));
+app.use('/api/admin', adminLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/wallet', walletRouter);
 app.use('/api/games', gamesRouter);
@@ -140,7 +146,9 @@ const ID_FIELDS = ['gameId', 'challengeId', 'targetId', 'tournamentId'];
 io.on('connection', async (socket) => {
   const userId = (socket as any).userId as string | undefined;
 
+  const allowEvent = socketThrottle();
   socket.use(([event, payload], next) => {
+    if (!allowEvent()) return next(new Error('Too many requests'));
     if (event === 'leave_queue' && payload === undefined) return next();
     if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return next(new Error('Invalid payload'));
     for (const f of ID_FIELDS) {

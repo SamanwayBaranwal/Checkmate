@@ -17,7 +17,7 @@ for (const p of ['id', 'userId', 'gameId']) {
 
 function requireAdmin(req: Request, res: Response): boolean {
   const secret = process.env.ADMIN_SECRET;
-  const raw = req.headers['x-admin-secret'] || req.query.secret;
+  const raw = req.headers['x-admin-secret']; // header only: a ?secret= query string ends up in proxy and access logs
   const provided = typeof raw === 'string' ? raw : '';
   // constant-time compare (a plain !== leaks the secret's prefix through response timing)
   const a = Buffer.from(provided), b = Buffer.from(secret || '');
