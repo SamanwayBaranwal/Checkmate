@@ -26,7 +26,7 @@ import { apiLimiter, authLimiter, sensitiveLimiter, adminLimiter, socketThrottle
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
 import { setupSpectator } from './socket/spectator';
-import { setupChallenge, setUserSocket, removeUserSocket } from './socket/challenge';
+import { setupChallenge } from './socket/challenge';
 import { setupTournament } from './socket/tournament';
 import { startDepositWatcher } from './services/deposit';
 import { startCronJobs } from './services/cron';
@@ -163,7 +163,6 @@ io.on('connection', async (socket) => {
     const user = await db('users').where({ id: userId }).select('elo', 'wallet').first();
     if (user) {
       registerUser(socket.id, { userId, wallet: user.wallet, elo: user.elo });
-      setUserSocket(userId, socket.id);
       (socket as any).userId = userId;
       addOnlineSocket(userId, socket.id);
       socket.join(`user:${userId}`);
@@ -181,7 +180,6 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', () => {
     unregisterUser(socket.id);
     if (userId) {
-      removeUserSocket(userId);
       removeOnlineSocket(userId, socket.id);
     }
   });

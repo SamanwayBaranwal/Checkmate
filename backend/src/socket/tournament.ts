@@ -3,7 +3,7 @@ import { db } from '../db/client';
 import { reserveBet } from '../services/balance';
 import { redis } from '../db/redis';
 import { registerGamePlayer } from './gameRoom';
-import { userSocketMap } from './challenge';
+import { pickUserSocket } from './challenge';
 import { createNotification } from '../services/notifications';
 
 export function setupTournament(io: Server, socket: Socket) {
@@ -137,8 +137,8 @@ export async function pairRound(
     }).returning('*');
 
     // Register in gamePlayerMap (so gameRoom.ts can handle moves)
-    const p1SocketId = userSocketMap.get(p1Id);
-    const p2SocketId = userSocketMap.get(p2Id);
+    const p1SocketId = pickUserSocket(io, p1Id);
+    const p2SocketId = pickUserSocket(io, p2Id);
 
     if (p1SocketId && p2SocketId) {
       registerGamePlayer(
