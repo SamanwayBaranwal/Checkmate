@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db/client';
+import { confirmCheater, clearPlayer, queueGameAnalysis, isEngineReady } from '../services/fairplay/service';
 
 const router = Router();
 
@@ -169,6 +170,87 @@ router.get('/stats', async (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed' });
   }
+});
+
+// ───────────────────────────── Fair play (anti-cheat) ─────────────────────────────
+
+// GET /api/admin/fairplay?status=review|watch|all  → players to look at, worst first
+router.get('/fairplay', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const status = (req.query.status as string) || 'review';
+  let q = db('users')
+    .select('id', 'username', 'wallet', 'elo', 'games_played', 'usdc_balance', 'banned_at',
+      'fairplay_status', 'fairplay_score', 'fairplay_flagged_games', 'fairplay_reasons', 'fairplay_updated_at')
+    .orderBy([{ column: 'fairplay_score', order: 'desc' }, { column: 'fairplay_flagged_games', order: 'desc' }])
+    .limit(200);
+  if (status === 'all') q = q.whereIn('fairplay_status', ['review', 'watch']);
+  else q = q.where({ fairplay_status: status });
+  if (status !== 'banned') q = q.whereNull('banned_at');
+  const players = await q;
+  const pending = await db('games').where({ analysis_status: 'pending' }).count('* as c').first();
+  res.json({
+    engineReady: isEngineReady(),
+    pendingAnalysis: parseInt((pending as any)?.c || '0', 10),
+    players: players.map((u: any) => ({ ...u, usdc_balance: parseFloat(u.usdc_balance) })),
+  });
+});
+
+// GET /api/admin/fairplay/:userId → evidence: every analysed game, newest first
+router.get('/fairplay/:userId', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const userId = req.params.userId;
+  const user = await db('users').where({ id: userId })
+    .select('id', 'username', 'wallet', 'elo', 'games_played', 'games_won', 'usdc_balance', 'created_at', 'banned_at',
+      'fairplay_status', 'fairplay_score', 'fairplay_flagged_games', 'fairplay_reasons', 'fairplay_cleared_at').first();
+  if (!user) { res.status(404).json({ error: 'Not found' }); return; }
+  const games = await db('game_analysis as a')
+    .join('games as g', 'a.game_id', 'g.id')
+    .leftJoin('users as o', function () {
+      this.on('o.id', '=', db.raw('CASE WHEN g.player_white = a.user_id THEN g.player_black ELSE g.player_white END'));
+    })
+    .where('a.user_id', userId)
+    .orderBy('g.completed_at', 'desc')
+    .limit(50)
+    .select('a.*', 'g.result', 'g.winner', 'g.bet_amount', 'g.completed_at',
+      'o.id as opponent_id', 'o.username as opponent_username', 'o.wallet as opponent_wallet', 'o.elo as opponent_elo');
+  const reports = await db('reports').where({ reported_id: userId }).orderBy('created_at', 'desc').limit(20)
+    .select('id', 'reason', 'details', 'status', 'game_id', 'created_at');
+  const actions = await db('fairplay_actions').where({ user_id: userId }).orderBy('created_at', 'desc').limit(20);
+  res.json({
+    user: { ...user, usdc_balance: parseFloat(user.usdc_balance) },
+    games: games.map((g: any) => ({
+      ...g,
+      won: g.winner === userId,
+      bet_amount: parseFloat(g.bet_amount),
+      acpl: parseFloat(g.acpl), engine_match: parseFloat(g.engine_match), accuracy: parseFloat(g.accuracy),
+      blur_rate: parseFloat(g.blur_rate), move_time_cv: g.move_time_cv === null ? null : parseFloat(g.move_time_cv),
+    })),
+    reports,
+    actions,
+  });
+});
+
+// POST /api/admin/fairplay/:userId/confirm { days?, notes? } → ban, refund victims, claw back winnings
+router.post('/fairplay/:userId/confirm', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const { days, notes } = req.body as { days?: number; notes?: string };
+  const summary = await confirmCheater(req.params.userId, Math.min(Math.max(days || 30, 1), 365), notes || '');
+  res.json({ ok: true, summary });
+});
+
+// POST /api/admin/fairplay/:userId/clear { notes? } → reviewed and fine
+router.post('/fairplay/:userId/clear', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  await clearPlayer(req.params.userId, (req.body?.notes as string) || '');
+  res.json({ ok: true });
+});
+
+// POST /api/admin/fairplay/reanalyse/:gameId → run Stockfish on one game again
+router.post('/fairplay/reanalyse/:gameId', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  await db('games').where({ id: req.params.gameId }).update({ analysis_status: 'pending' });
+  queueGameAnalysis(req.params.gameId);
+  res.json({ ok: true });
 });
 
 export default router;

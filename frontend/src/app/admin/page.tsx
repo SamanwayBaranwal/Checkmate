@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import FairPlayTab from './FairPlayTab';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -42,7 +43,7 @@ function timeAgo(iso: string) {
 export default function AdminPage() {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<'reports' | 'banned' | 'users'>('reports');
+  const [tab, setTab] = useState<'reports' | 'fairplay' | 'banned' | 'users'>('reports');
 
   const [stats, setStats] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
@@ -168,14 +169,16 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-2">
-        {(['reports', 'banned', 'users'] as const).map((t) => (
+        {(['reports', 'fairplay', 'banned', 'users'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition capitalize ${tab === t ? 'bg-[#f0b232] text-black' : 'btn-secondary'}`}>
             {t === 'reports' ? `Open Reports${stats?.openReports > 0 ? ` (${stats.openReports})` : ''}` :
-             t === 'banned' ? `Banned Users` : 'User Search'}
+             t === 'fairplay' ? 'Fair Play' : t === 'banned' ? `Banned Users` : 'User Search'}
           </button>
         ))}
       </div>
+
+      {tab === 'fairplay' && <FairPlayTab secret={secret} adminFetch={adminFetch} />}
 
       {/* Reports tab */}
       {tab === 'reports' && (

@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
+// Express 4 ignores errors thrown in async route handlers, which left requests hanging forever
+// (e.g. GET /api/users/<not-a-uuid>). This forwards them to the error handler below.
+import 'express-async-errors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -29,6 +32,7 @@ import { startCronJobs } from './services/cron';
 import { addOnlineSocket, removeOnlineSocket } from './services/onlineUsers';
 import { setIo } from './services/notifications';
 import { db } from './db/client';
+import { ensureFairplaySchema, resumePendingAnalysis } from './services/fairplay/service';
 
 const app = express();
 const httpServer = createServer(app);
@@ -68,6 +72,14 @@ app.use('/api/puzzles', puzzlesRouter);
 app.use('/api/admin', adminRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Last-resort error handler: every request gets an answer, never a hang.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (res.headersSent) return;
+  if (err?.code === '22P02') { res.status(404).json({ error: 'Not found' }); return; } // invalid uuid etc.
+  console.error('Unhandled route error:', err);
+  res.status(500).json({ error: 'Server error' });
+});
 
 // Socket.io auth middleware
 io.use((socket, next) => {
@@ -129,7 +141,7 @@ db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES u
 db.raw(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code) WHERE referral_code IS NOT NULL`).catch(() => {});
 // Widen balance_ledger type constraint to include bonus and referral types
 db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral'))`).catch(() => {});
+db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus','fairplay_refund','clawback'))`).catch(() => {});
 db.raw(`
   CREATE TABLE IF NOT EXISTS friends (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -253,7 +265,7 @@ db.raw(`
   )
 `).catch(() => {});
 db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus'))`).catch(() => {});
+db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus','fairplay_refund','clawback'))`).catch(() => {});
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ`).catch(() => {});
 db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
 db.raw(`ALTER TABLE reports ADD COLUMN IF NOT EXISTS admin_notes TEXT`).catch(() => {});
@@ -269,4 +281,8 @@ process.on('uncaughtException', (err) => {
 const PORT = parseInt(process.env.PORT || '4000', 10);
 httpServer.listen(PORT, () => {
   console.log(`Checkmate backend running on port ${PORT}`);
+  // Fair play: create tables/columns, then re-queue games that finished but were never analysed
+  ensureFairplaySchema()
+    .then(resumePendingAnalysis)
+    .catch((err) => console.error('Fair play setup failed:', err));
 });

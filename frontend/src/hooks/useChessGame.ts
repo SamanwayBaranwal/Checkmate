@@ -46,6 +46,21 @@ export function useChessGame(gameId: string, token?: string) {
   const tickRef = useRef<NodeJS.Timeout | null>(null);
   // Snapshot of confirmed state to revert to if an optimistic move is rejected
   const confirmedRef = useRef<{ fen: string; turn: 'white' | 'black'; clocks: ClockState; moves: string[] } | null>(null);
+  // Fair play: did the player leave this tab/window while it was their turn? Sent with each move.
+  const blurredRef = useRef(false);
+  const myTurnRef = useRef(false);
+  myTurnRef.current = !!state && state.status === 'playing' && state.turn === state.color;
+
+  useEffect(() => {
+    const onBlur = () => { if (myTurnRef.current) blurredRef.current = true; };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') onBlur(); };
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   // Live clock tick
   useEffect(() => {
@@ -227,7 +242,9 @@ export function useChessGame(gameId: string, token?: string) {
         return prev;
       }
     });
-    socket.emit('move', { gameId, from, to, promotion });
+    const blurred = blurredRef.current;
+    blurredRef.current = false;
+    socket.emit('move', { gameId, from, to, promotion, blurred });
   }, [gameId, token]);
 
   const resign = useCallback(() => {

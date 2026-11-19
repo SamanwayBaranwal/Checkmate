@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { withdrawalCheck } from '../services/fairplay/service';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { db } from '../db/client';
 import { createWalletClient, http, parseUnits, parseAbi } from 'viem';
@@ -53,6 +54,13 @@ router.post('/withdraw', requireAuth, async (req: AuthenticatedRequest, res: Res
 
   if (!amount || amount <= 0 || !toAddress) {
     res.status(400).json({ error: 'amount and toAddress required' });
+    return;
+  }
+
+  // Fair play: no withdrawals while under review, for new accounts, or before recent games are checked
+  const fp = await withdrawalCheck(req.userId!);
+  if (!fp.ok) {
+    res.status(403).json({ error: fp.reason });
     return;
   }
 

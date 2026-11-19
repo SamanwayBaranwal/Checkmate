@@ -5,6 +5,7 @@ import { applyMove } from '../services/chess';
 import { settleGame, refundBet, reserveBet } from '../services/balance';
 import { Chess } from 'chess.js';
 import { onTournamentGameOver } from './tournament';
+import { queueGameAnalysis, MoveMeta } from '../services/fairplay/service';
 
 interface ClockState {
   white: number;
@@ -20,11 +21,23 @@ interface GamePlayer {
 
 // gameId → players map for quick lookup
 const gamePlayerMap = new Map<string, { white: GamePlayer; black: GamePlayer }>();
-const pgnMap = new Map<string, string>(); // gameId → ongoing PGN
+const moveMetaMap = new Map<string, MoveMeta[]>(); // gameId → per-move think time + tab-switch flag (fair play)
 
 export function registerGamePlayer(gameId: string, white: GamePlayer, black: GamePlayer) {
   gamePlayerMap.set(gameId, { white, black });
-  pgnMap.set(gameId, '');
+  moveMetaMap.set(gameId, []);
+}
+
+/** Which colour (if any) this socket plays in this game. Spectators get null. */
+function colorOfSocket(gameId: string, socket: Socket): 'white' | 'black' | null {
+  const players = gamePlayerMap.get(gameId);
+  if (!players) return null;
+  if (players.white.socketId === socket.id) return 'white';
+  if (players.black.socketId === socket.id) return 'black';
+  const userId = (socket as any).userId as string | undefined;
+  if (userId && players.white.userId === userId) return 'white';
+  if (userId && players.black.userId === userId) return 'black';
+  return null;
 }
 
 function tickClock(clocks: ClockState, turn: 'white' | 'black'): ClockState {
@@ -64,7 +77,7 @@ export function setupGameRoom(io: Server, socket: Socket) {
       const whitePlayer: GamePlayer = { userId: game.player_white, color: 'white', socketId: isWhite ? socket.id : '' };
       const blackPlayer: GamePlayer = { userId: game.player_black, color: 'black', socketId: isBlack ? socket.id : '' };
       gamePlayerMap.set(gameId, { white: whitePlayer, black: blackPlayer });
-      pgnMap.set(gameId, '');
+      if (!moveMetaMap.has(gameId)) moveMetaMap.set(gameId, []);
     }
 
     const [fen, turn, clocksRaw] = await Promise.all([
@@ -92,11 +105,12 @@ export function setupGameRoom(io: Server, socket: Socket) {
     });
   });
 
-  socket.on('move', async ({ gameId, from, to, promotion }: {
+  socket.on('move', async ({ gameId, from, to, promotion, blurred }: {
     gameId: string;
     from: string;
     to: string;
     promotion?: string;
+    blurred?: boolean;
   }) => {
     // Hot path: only read from Redis (fast) — no Postgres round trip per move
     const [fen, turnRaw, clocksRaw] = await Promise.all([
@@ -135,6 +149,11 @@ export function setupGameRoom(io: Server, socket: Socket) {
 
     const nextTurn: 'white' | 'black' = turn === 'white' ? 'black' : 'white';
 
+    // Fair play: server-measured think time for this move + whether the player left the tab
+    const meta = moveMetaMap.get(gameId) ?? [];
+    meta.push({ thinkMs: Math.max(0, clocks[turn] - updatedClocks[turn]), blurred: blurred === true });
+    moveMetaMap.set(gameId, meta);
+
     // Broadcast the move IMMEDIATELY — this is what the players are waiting for
     io.to(gameId).emit('move_made', {
       fen: result.fen,
@@ -145,12 +164,11 @@ export function setupGameRoom(io: Server, socket: Socket) {
       clocks: { white: updatedClocks.white, black: updatedClocks.black },
     });
 
-    // Persist state AFTER broadcasting (doesn't block the move reaching players)
-    const chess = new Chess(fen);
-    chess.move({ from, to, promotion: promotion as any });
-    pgnMap.set(gameId, chess.pgn());
-
+    // Persist state AFTER broadcasting (doesn't block the move reaching players).
+    // Full move list lives in Redis so the saved PGN has EVERY move (before: a Chess built from the
+    // current FEN was saved, so the PGN only ever contained the last move, which broke replays).
     Promise.all([
+      redis.rpush(`game:${gameId}:moves`, result.san!),
       redis.set(`game:${gameId}:fen`, result.fen!),
       redis.set(`game:${gameId}:turn`, result.isGameOver ? 'over' : nextTurn),
       redis.set(`game:${gameId}:clocks`, JSON.stringify(updatedClocks)),
@@ -167,18 +185,29 @@ export function setupGameRoom(io: Server, socket: Socket) {
     const game = await db('games').where({ id: gameId, status: 'active' }).first();
     if (!game) return;
 
-    const players = gamePlayerMap.get(gameId);
-    const resigningColor = players?.white.socketId === socket.id ? 'white' : 'black';
+    // Only a player of this game can resign (before: any socket in the room, e.g. a spectator, resigned for black)
+    const resigningColor = colorOfSocket(gameId, socket);
+    if (!resigningColor) return;
     const winnerColor: 'white' | 'black' = resigningColor === 'white' ? 'black' : 'white';
 
     await handleGameEnd(io, gameId, game, winnerColor, 'resignation');
   });
 
-  socket.on('offer_draw', ({ gameId }: { gameId: string }) => {
+  socket.on('offer_draw', async ({ gameId }: { gameId: string }) => {
+    const color = colorOfSocket(gameId, socket);
+    if (!color) return;
+    await redis.set(`game:${gameId}:drawOfferBy`, color, 'EX', 120);
     socket.to(gameId).emit('draw_offered');
   });
 
+  // A draw ends the game and refunds both bets, so it must be a real offer from the OTHER player.
+  // (Before: a losing player could send accept_draw on their own and get their bet back.)
   socket.on('accept_draw', async ({ gameId }: { gameId: string }) => {
+    const color = colorOfSocket(gameId, socket);
+    if (!color) return;
+    const offeredBy = await redis.get(`game:${gameId}:drawOfferBy`);
+    if (!offeredBy || offeredBy === color) return;
+    await redis.del(`game:${gameId}:drawOfferBy`);
     const game = await db('games').where({ id: gameId, status: 'active' }).first();
     if (!game) return;
     await handleGameEnd(io, gameId, game, null, 'draw');
@@ -294,17 +323,30 @@ async function handleGameEnd(
   const players = gamePlayerMap.get(gameId);
   if (!players) return;
 
+  // Rebuild the full PGN from every move played
+  const sans = await redis.lrange(`game:${gameId}:moves`, 0, -1);
+  const full = new Chess();
+  for (const san of sans) { try { full.move(san); } catch { break; } }
+  const pgn = sans.length ? full.pgn() : '';
+
   // Clean up Redis
   await Promise.all([
+    redis.del(`game:${gameId}:moves`),
     redis.del(`game:${gameId}:fen`),
     redis.del(`game:${gameId}:turn`),
     redis.del(`game:${gameId}:clocks`),
     redis.del(`game:${gameId}:spectators`),
   ]);
 
-  const pgn = pgnMap.get(gameId) || '';
-  pgnMap.delete(gameId);
+  const moveMeta = moveMetaMap.get(gameId) || [];
+  moveMetaMap.delete(gameId);
   gamePlayerMap.delete(gameId);
+  await redis.del(`game:${gameId}:drawOfferBy`);
+  // Fair play: every finished game is analysed in the background by Stockfish
+  const queueAnalysis = async () => {
+    await db('games').where({ id: gameId }).update({ move_meta: JSON.stringify(moveMeta), analysis_status: 'pending' });
+    queueGameAnalysis(gameId);
+  };
 
   if (result === 'draw') {
     // Refund both players for draws
@@ -315,6 +357,7 @@ async function handleGameEnd(
     await db('games').where({ id: gameId }).update({ status: 'completed', result: 'draw', pgn, completed_at: new Date() });
 
     io.to(gameId).emit('game_over', { result: 'draw', winner: null, eloChange: 0 });
+    await queueAnalysis();
     return;
   }
 
@@ -356,6 +399,8 @@ async function handleGameEnd(
       [loserId]: loserUser.elo,
     },
   });
+
+  await queueAnalysis();
 
   // If this game belongs to a tournament, advance the bracket
   const tGame = await db('tournament_games').where({ game_id: gameId }).first();

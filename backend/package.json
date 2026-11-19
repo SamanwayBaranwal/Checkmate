@@ -21,8 +21,10 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-async-errors": "^3.1.1",
     "helmet": "^7.1.0",
     "ioredis": "^5.4.1",
+    "jose": "^4.15.9",
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.1.0",
     "node-cron": "^4.5.0",
@@ -33,7 +35,6 @@
     "uuid": "^10.0.0",
     "viem": "^2.17.0"
   },
-  "devDependencies": {},
   "allowScripts": {
     "bufferutil@4.1.0": true,
     "esbuild@0.28.1": true,

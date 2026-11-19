@@ -91,7 +91,7 @@ export default function LobbyPage() {
         const privyAccessToken = await getAccessToken();
         const wallet = user.wallet?.address || (user.linkedAccounts?.find((a: any) => a.type === 'wallet') as any)?.address;
 
-        if (!wallet) return;
+        if (!wallet || !privyAccessToken) return;
 
         // Pick up referral code from URL or localStorage
         const urlRef = typeof window !== 'undefined'
@@ -101,7 +101,7 @@ export default function LobbyPage() {
         const storedRef = typeof window !== 'undefined' ? localStorage.getItem('checkmate_ref') ?? undefined : undefined;
         const referralCode = urlRef || storedRef;
 
-        const { token: sessionToken, user: userData } = await api.auth.verify(user.id, wallet, referralCode);
+        const { token: sessionToken, user: userData } = await api.auth.verify(privyAccessToken, wallet, referralCode);
         if (referralCode && typeof window !== 'undefined') localStorage.removeItem('checkmate_ref');
         localStorage.setItem('checkmate_token', sessionToken);
         setToken(sessionToken);

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/client';
+import { verifyPrivyAccessToken, devBypassEnabled } from '../services/privyAuth';
 
 const router = Router();
 
@@ -21,14 +22,28 @@ async function makeReferralCode(): Promise<string> {
 }
 
 router.post('/verify', async (req: Request, res: Response) => {
-  const { privyUserId, wallet, referralCode } = req.body as {
+  const { accessToken, privyUserId: claimedId, wallet, referralCode } = req.body as {
+    accessToken?: string;
     privyUserId?: string;
     wallet?: string;
     referralCode?: string;
   };
 
-  if (!privyUserId || !wallet) {
-    res.status(400).json({ error: 'privyUserId and wallet required' });
+  // The user id must come from a Privy-signed token, never from the request body.
+  let privyUserId: string;
+  try {
+    if (devBypassEnabled && !accessToken && claimedId) {
+      privyUserId = claimedId; // local development only
+    } else {
+      privyUserId = await verifyPrivyAccessToken(accessToken);
+    }
+  } catch (err: any) {
+    res.status(401).json({ error: 'Login could not be verified. Please sign in again.' });
+    return;
+  }
+
+  if (!wallet || !/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
+    res.status(400).json({ error: 'A valid wallet address is required' });
     return;
   }
 

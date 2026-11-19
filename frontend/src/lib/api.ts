@@ -21,10 +21,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
-    verify: (privyUserId: string, wallet: string, referralCode?: string) =>
+    // The backend takes the user id from the Privy-signed access token, not from the body.
+    verify: (accessToken: string, wallet: string, referralCode?: string) =>
       request<{ token: string; user: any }>('/api/auth/verify', {
         method: 'POST',
-        body: JSON.stringify({ privyUserId, wallet, ...(referralCode ? { referralCode } : {}) }),
+        body: JSON.stringify({ accessToken, wallet, ...(referralCode ? { referralCode } : {}) }),
       }),
   },
   wallet: {
