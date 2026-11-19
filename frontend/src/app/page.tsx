@@ -9,7 +9,7 @@ import MatchmakingModal from '@/components/MatchmakingModal';
 import AuthLanding from '@/components/AuthLanding';
 import { Icon } from '@/components/Icons';
 import BoardPreview from '@/components/BoardPreview';
-import { PieceAvatar, PieceImg } from '@/components/GameIcons';
+import { PieceAvatar, PieceImg, SECTION } from '@/components/GameIcons';
 
 const CHALLENGE_BETS = [1, 5, 10, 25];
 const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—');
@@ -102,24 +102,24 @@ export default function HomePage() {
           <div>
             {balance <= 0 ? (
               <Link href="/wallet" className="play-tile play-tile-primary">
-                <span className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
-                <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-white/85 font-semibold">$10 to start playing</span></span>
+                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
+                <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-black/55 font-semibold">$10 to start playing</span></span>
                 <Icon name="chevron-right" size={20} />
               </Link>
             ) : (
               <button onClick={() => setPlayOpen(true)} className="play-tile play-tile-primary">
-                <span className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
-                <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-white/85 font-semibold">Matched with someone near your rating</span></span>
+                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
+                <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-black/55 font-semibold">Matched with someone near your rating</span></span>
                 <Icon name="chevron-right" size={20} />
               </button>
             )}
             <Link href="/friends" className="play-tile mt-3">
-              <span className="w-14 h-14 rounded-2xl bg-surface-3 flex items-center justify-center -space-x-3"><PieceImg piece="P" size={34} /><PieceImg piece="P" side="b" size={34} /></span>
+              <span className="w-14 h-14 rounded-2xl flex items-center justify-center -space-x-3" style={{ background: `${SECTION.friends}2E` }}><PieceImg piece="P" size={34} /><PieceImg piece="P" side="b" size={34} /></span>
               <span className="flex-1"><span className="block text-lg font-extrabold">Play a friend</span><span className="block text-sm text-muted font-medium">Send a challenge</span></span>
               <Icon name="chevron-right" size={20} className="text-faint" />
             </Link>
             <Link href="/leaderboard" className="play-tile mt-3">
-              <span className="w-14 h-14 rounded-2xl bg-surface-3 flex items-center justify-center"><PieceImg piece="K" side="b" size={44} /></span>
+              <span className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: `${SECTION.ranks}33` }}><PieceImg piece="K" side="b" size={44} /></span>
               <span className="flex-1"><span className="block text-lg font-extrabold">Leaderboard</span><span className="block text-sm text-muted font-medium">{rank ? `You are #${rank}` : 'See the top players'}</span></span>
               <Icon name="chevron-right" size={20} className="text-faint" />
             </Link>

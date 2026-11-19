@@ -18,6 +18,7 @@ const config: Config = {
         muted: rgb('--c-muted'),
         faint: rgb('--c-faint'),
         accent: rgb('--c-accent'),
+        brand: rgb('--c-brand'),
         'accent-ink': rgb('--c-accent-ink'),
         positive: rgb('--c-positive'),
         negative: rgb('--c-negative'),

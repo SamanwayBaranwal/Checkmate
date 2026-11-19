@@ -5,15 +5,15 @@ import { usePathname } from 'next/navigation';
 import { useSession } from '@/lib/session';
 import { Logo } from './Logo';
 import { Icon } from './Icons';
-import { PieceGlyph, CoinGlyph, GearGlyph, PieceAvatar } from './GameIcons';
+import { PieceGlyph, CoinGlyph, GearGlyph, PieceAvatar, SECTION } from './GameIcons';
 
 const NAV = [
-  { href: '/', label: 'Play', auth: false, icon: (c: string) => <PieceGlyph piece="N" size={22} className={c} /> },
-  { href: '/leaderboard', label: 'Leaderboard', auth: false, icon: (c: string) => <PieceGlyph piece="K" size={22} className={c} /> },
-  { href: '/friends', label: 'Friends', auth: true, icon: (c: string) => <PieceGlyph piece="P" size={22} className={c} /> },
-  { href: '/wallet', label: 'Wallet', auth: true, icon: (c: string) => <CoinGlyph size={22} className={c} /> },
-  { href: '/profile', label: 'Profile', auth: true, icon: (c: string) => <PieceGlyph piece="Q" size={22} className={c} /> },
-  { href: '/settings', label: 'Settings', auth: true, icon: (c: string) => <GearGlyph size={22} className={c} /> },
+  { href: '/', label: 'Play', color: SECTION.play, auth: false, icon: (c: string) => <PieceGlyph piece="N" size={22} className={c} /> },
+  { href: '/leaderboard', label: 'Leaderboard', color: SECTION.ranks, auth: false, icon: (c: string) => <PieceGlyph piece="K" size={22} className={c} /> },
+  { href: '/friends', label: 'Friends', color: SECTION.friends, auth: true, icon: (c: string) => <PieceGlyph piece="P" size={22} className={c} /> },
+  { href: '/wallet', label: 'Wallet', color: SECTION.wallet, auth: true, icon: (c: string) => <CoinGlyph size={22} className={c} /> },
+  { href: '/profile', label: 'Profile', color: SECTION.profile, auth: true, icon: (c: string) => <PieceGlyph piece="Q" size={22} className={c} /> },
+  { href: '/settings', label: 'Settings', color: SECTION.settings, auth: true, icon: (c: string) => <GearGlyph size={22} className={c} /> },
 ];
 
 const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '');
@@ -38,9 +38,9 @@ export default function Sidebar() {
           return (
             <Link key={n.href} href={n.href}
               className={`flex items-center gap-3 h-11 px-3 rounded-xl text-[15px] font-extrabold transition-colors ${
-                active ? 'bg-accent/15 text-ink' : 'text-muted hover:text-ink hover:bg-surface'
+                active ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink hover:bg-surface'
               }`}>
-              {n.icon(active ? 'text-accent' : 'text-faint')}
+              <span style={{ color: n.color }} className={active ? '' : 'opacity-80'}>{n.icon('')}</span>
               {n.label}
             </Link>
           );

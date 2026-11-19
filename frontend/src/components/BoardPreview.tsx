@@ -1,7 +1,7 @@
 // Static board with the real piece set: hero visual on the landing and home screens (no chess engine, no JS).
 const START_FEN = 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R';
 
-export const BRAND_BOARD = { light: '#EEEDD3', dark: '#74A052' };
+export const BRAND_BOARD = { light: '#EAEAE7', dark: '#9C9C98' };
 
 export default function BoardPreview({ fen = START_FEN, className = '', light = BRAND_BOARD.light, dark = BRAND_BOARD.dark }:
   { fen?: string; className?: string; light?: string; dark?: string }) {
@@ -21,7 +21,7 @@ export default function BoardPreview({ fen = START_FEN, className = '', light = 
   });
   return (
     <div className={`grid grid-cols-8 aspect-square w-full rounded-xl overflow-hidden select-none ${className}`}
-      style={{ boxShadow: '0 6px 0 rgb(12 11 10)' }}>
+      style={{ boxShadow: '0 6px 0 rgb(8 8 9)' }}>
       {squares.map((s) => (
         <div key={s.key} style={{ background: s.light ? light : dark }} className="relative">
           {s.piece && (

@@ -97,7 +97,7 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
               {authenticated && (
                 <Link href="/wallet" className="h-9 px-3 rounded-[10px] bg-surface border border-line/[0.08] flex items-center gap-2 hover:bg-surface-2 transition-colors">
-                  <CoinGlyph size={18} className="text-accent" />
+                  <CoinGlyph size={18} className="text-[#F2C94C]" />
                   <span className="text-sm font-semibold num">${balance.toFixed(2)}</span>
                 </Link>
               )}
@@ -107,7 +107,7 @@ export default function Navbar() {
                   <button onClick={() => setOpen((o) => !o)} aria-label="Notifications"
                     className="relative w-9 h-9 rounded-[10px] flex items-center justify-center text-muted hover:text-ink hover:bg-surface transition-colors">
                     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.5a6.5 6.5 0 0 0-6.5 6.5v3.6L3.8 15.4c-.5.8.1 1.8 1 1.8h14.4c.9 0 1.5-1 1-1.8l-1.7-2.8V9A6.5 6.5 0 0 0 12 2.5Zm-2.6 16.1a2.7 2.7 0 0 0 5.2 0z"/></svg>
-                    {unread > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent ring-2 ring-canvas" />}
+                    {unread > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-brand ring-2 ring-canvas" />}
                   </button>
                   {open && (
                     <div className="absolute right-0 top-11 w-[min(340px,calc(100vw-32px))] card p-0 shadow-pop overflow-hidden z-[200] animate-in">
@@ -128,7 +128,7 @@ export default function Navbar() {
                               <span className={`block text-sm leading-snug ${n.read ? 'text-muted' : 'text-ink'}`}>{n.message}</span>
                               <span className="block text-xs text-faint mt-0.5">{timeAgo(n.created_at)}</span>
                             </span>
-                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-accent mt-2 shrink-0" />}
+                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-brand mt-2 shrink-0" />}
                           </button>
                         ))}
                       </div>
@@ -163,7 +163,7 @@ export default function Navbar() {
       {/* Daily bonus + small toasts */}
       {bonus && (
         <div className="fixed z-[100] top-[72px] left-1/2 -translate-x-1/2 card py-3 px-4 shadow-pop flex items-center gap-3 animate-in">
-          <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center"><Icon name="gift" size={16} /></span>
+          <span className="w-8 h-8 rounded-full bg-brand/15 text-brand flex items-center justify-center"><Icon name="gift" size={16} /></span>
           <div>
             <p className="text-sm font-semibold">Daily bonus <span className="text-positive num">+${bonus.amount.toFixed(2)}</span></p>
             <p className="text-xs text-muted">Day {bonus.streak} streak</p>

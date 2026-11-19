@@ -3,6 +3,16 @@
 
 type Piece = 'K' | 'Q' | 'R' | 'B' | 'N' | 'P';
 
+/** One colour per section (nav icons, tiles). Everything else stays black / white / gray. */
+export const SECTION = {
+  play: '#9B82FF',     // logo purple, lifted for dark backgrounds
+  ranks: '#F2A93B',
+  friends: '#4C9BFF',
+  wallet: '#F2C94C',
+  profile: '#EE6E9F',
+  settings: '#A8A8AE',
+} as const;
+
 export function PieceGlyph({ piece, size = 22, className = '' }: { piece: Piece; size?: number; className?: string }) {
   const url = `url(/pieces/chessnut/b${piece}.svg)`;
   return (
@@ -57,7 +67,7 @@ export function GearGlyph({ size = 22, className = '' }: { size?: number; classN
 }
 
 // Player avatar: their own piece on their own colour, stable per player (no generic letter circles).
-const AVATAR_COLORS = ['#5DB43C', '#E8833A', '#3D8FD6', '#D9534F', '#2EA597', '#C9A227', '#8A63D2', '#D2558F'];
+const AVATAR_COLORS = ['#7C5CFF', '#E8833A', '#3D8FD6', '#D9534F', '#2EA597', '#C9A227', '#D2558F', '#5A6B8C'];
 const LIGHT_TILES = new Set<string>();
 const AVATAR_PIECES: Piece[] = ['N', 'K', 'Q', 'R', 'B', 'P'];
 
