@@ -8,6 +8,7 @@ import { getSocket } from '@/lib/socket';
 import { useSession } from '@/lib/session';
 import { Icon, type IconName } from '@/components/Icons';
 import { Logo } from './Logo';
+import { CoinGlyph } from './GameIcons';
 
 interface IncomingChallenge {
   challengeId: string;
@@ -96,7 +97,7 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
               {authenticated && (
                 <Link href="/wallet" className="h-9 px-3 rounded-[10px] bg-surface border border-line/[0.08] flex items-center gap-2 hover:bg-surface-2 transition-colors">
-                  <Icon name="wallet" size={15} className="text-faint" />
+                  <CoinGlyph size={18} className="text-accent" />
                   <span className="text-sm font-semibold num">${balance.toFixed(2)}</span>
                 </Link>
               )}
@@ -105,7 +106,7 @@ export default function Navbar() {
                 <div className="relative" ref={ref}>
                   <button onClick={() => setOpen((o) => !o)} aria-label="Notifications"
                     className="relative w-9 h-9 rounded-[10px] flex items-center justify-center text-muted hover:text-ink hover:bg-surface transition-colors">
-                    <Icon name="bell" size={18} />
+                    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.5a6.5 6.5 0 0 0-6.5 6.5v3.6L3.8 15.4c-.5.8.1 1.8 1 1.8h14.4c.9 0 1.5-1 1-1.8l-1.7-2.8V9A6.5 6.5 0 0 0 12 2.5Zm-2.6 16.1a2.7 2.7 0 0 0 5.2 0z"/></svg>
                     {unread > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent ring-2 ring-canvas" />}
                   </button>
                   {open && (

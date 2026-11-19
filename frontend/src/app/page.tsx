@@ -9,6 +9,7 @@ import MatchmakingModal from '@/components/MatchmakingModal';
 import AuthLanding from '@/components/AuthLanding';
 import { Icon } from '@/components/Icons';
 import BoardPreview from '@/components/BoardPreview';
+import { PieceAvatar, PieceImg } from '@/components/GameIcons';
 
 const CHALLENGE_BETS = [1, 5, 10, 25];
 const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—');
@@ -29,7 +30,7 @@ function PlayerRow({ player, token, onSent }: { player: any; token: string; onSe
   };
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <Link href={`/profile/${player.id}`} className="avatar w-9 h-9 text-sm">{name[0]?.toUpperCase()}</Link>
+      <Link href={`/profile/${player.id}`}><PieceAvatar seed={player.id} size={38} /></Link>
       <Link href={`/profile/${player.id}`} className="min-w-0 flex-1">
         <div className="text-sm font-medium truncate">{name}</div>
         <div className="text-xs text-faint num">{player.elo} · {wr}% wins</div>
@@ -87,10 +88,10 @@ export default function HomePage() {
         {/* Play panel */}
         <div className="space-y-5">
           <div className="flex items-center gap-3">
-            <span className="avatar w-12 h-12 text-lg !bg-accent !text-white">{(me?.username || me?.wallet || '?')[0]?.toUpperCase()}</span>
+            <PieceAvatar seed={me?.id || 'me'} size={52} />
             <div className="min-w-0">
-              <p className="text-sm text-muted font-semibold">{greeting()}</p>
-              <h1 className="text-2xl font-extrabold truncate">{me?.username || 'Player'}</h1>
+              <p className="text-sm text-muted font-bold">{greeting()}</p>
+              <h1 className="text-2xl font-black truncate">{me?.username || 'Player'}</h1>
             </div>
             <div className="ml-auto text-right">
               <div className="text-[11px] font-extrabold uppercase tracking-wider text-faint">Rating</div>
@@ -101,24 +102,24 @@ export default function HomePage() {
           <div>
             {balance <= 0 ? (
               <Link href="/wallet" className="play-tile play-tile-primary">
-                <span className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center"><Icon name="gift" size={24} /></span>
+                <span className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
                 <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-white/80 font-medium">$10 to start playing</span></span>
                 <Icon name="chevron-right" size={20} />
               </Link>
             ) : (
               <button onClick={() => setPlayOpen(true)} className="play-tile play-tile-primary">
-                <span className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center"><Icon name="bolt" size={24} /></span>
+                <span className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
                 <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-white/80 font-medium">Matched with someone near your rating</span></span>
                 <Icon name="chevron-right" size={20} />
               </button>
             )}
             <Link href="/friends" className="play-tile mt-3">
-              <span className="w-12 h-12 rounded-xl bg-surface-3 flex items-center justify-center text-accent"><Icon name="users" size={22} /></span>
+              <span className="w-14 h-14 rounded-2xl bg-surface-3 flex items-center justify-center -space-x-3"><PieceImg piece="P" size={34} /><PieceImg piece="P" side="b" size={34} /></span>
               <span className="flex-1"><span className="block text-lg font-extrabold">Play a friend</span><span className="block text-sm text-muted font-medium">Send a challenge</span></span>
               <Icon name="chevron-right" size={20} className="text-faint" />
             </Link>
             <Link href="/leaderboard" className="play-tile mt-3">
-              <span className="w-12 h-12 rounded-xl bg-surface-3 flex items-center justify-center text-accent"><Icon name="trophy" size={22} /></span>
+              <span className="w-14 h-14 rounded-2xl bg-surface-3 flex items-center justify-center"><PieceImg piece="K" side="b" size={44} /></span>
               <span className="flex-1"><span className="block text-lg font-extrabold">Leaderboard</span><span className="block text-sm text-muted font-medium">{rank ? `You are #${rank}` : 'See the top players'}</span></span>
               <Icon name="chevron-right" size={20} className="text-faint" />
             </Link>
