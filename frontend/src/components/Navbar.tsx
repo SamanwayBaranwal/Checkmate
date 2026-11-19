@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePrivy } from '@privy-io/react-auth';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
+import { useSession } from '@/lib/session';
 import { Icon, type IconName } from '@/components/Icons';
+import { Logo } from './Logo';
 
 interface IncomingChallenge {
   challengeId: string;
@@ -25,230 +26,152 @@ const NOTIF_ICONS: Record<string, IconName> = {
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
 }
 
 export default function Navbar() {
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { ready, authenticated, token, balance, login, bonus, dismissBonus } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const [balance, setBalance] = useState<number | null>(null);
-  const [incomingChallenge, setIncomingChallenge] = useState<IncomingChallenge | null>(null);
-  const [declinedNotice, setDeclinedNotice] = useState('');
-
-  // Notifications
+  const [incoming, setIncoming] = useState<IncomingChallenge | null>(null);
+  const [toast, setToast] = useState('');
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const unread = notifications.filter((n) => !n.read).length;
+  const inGame = pathname.startsWith('/game/');
 
-  const loadNotifications = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!authenticated) return;
-    try {
-      const data = await api.notifications.list();
-      setNotifications(data);
-    } catch {}
+    try { setNotifications(await api.notifications.list()); } catch {}
   }, [authenticated]);
 
-  useEffect(() => {
-    if (!authenticated) { setBalance(null); setNotifications([]); return; }
-    api.wallet.balance().then((r) => setBalance(r.balance)).catch(() => {});
-    loadNotifications();
-  }, [authenticated, loadNotifications]);
+  useEffect(() => { if (authenticated) load(); else setNotifications([]); }, [authenticated, load]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Socket listeners for challenges + notifications
+  // Live: incoming challenges, match found, notifications
   useEffect(() => {
-    if (!authenticated) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('checkmate_token') ?? undefined : undefined;
     if (!token) return;
-
     const socket = getSocket(token);
-
-    const onChallengeReceived = (data: IncomingChallenge) => {
-      setIncomingChallenge(data);
-    };
-
-    const onMatchFound = (data: { gameId: string }) => {
-      if (!pathname.startsWith('/game/')) {
-        router.push(`/game/${data.gameId}`);
-      }
-    };
-
-    const onChallengeDeclined = () => {
-      setDeclinedNotice('Challenge was declined');
-      setTimeout(() => setDeclinedNotice(''), 3000);
-    };
-
-    const onNotification = (notif: any) => {
-      setNotifications((prev) => [notif, ...prev].slice(0, 30));
-    };
-
-    socket.on('challenge_received', onChallengeReceived);
-    socket.on('match_found', onMatchFound);
-    socket.on('challenge_declined', onChallengeDeclined);
-    socket.on('notification', onNotification);
-
+    const onChallenge = (d: IncomingChallenge) => setIncoming(d);
+    const onMatch = (d: { gameId: string }) => { if (!window.location.pathname.startsWith('/game/')) router.push(`/game/${d.gameId}`); };
+    const onDeclined = () => { setToast('Challenge declined'); setTimeout(() => setToast(''), 3000); };
+    const onNotif = (n: any) => setNotifications((p) => [n, ...p].slice(0, 30));
+    socket.on('challenge_received', onChallenge);
+    socket.on('match_found', onMatch);
+    socket.on('challenge_declined', onDeclined);
+    socket.on('notification', onNotif);
     return () => {
-      socket.off('challenge_received', onChallengeReceived);
-      socket.off('match_found', onMatchFound);
-      socket.off('challenge_declined', onChallengeDeclined);
-      socket.off('notification', onNotification);
+      socket.off('challenge_received', onChallenge);
+      socket.off('match_found', onMatch);
+      socket.off('challenge_declined', onDeclined);
+      socket.off('notification', onNotif);
     };
-  }, [authenticated, pathname, router]);
+  }, [token, router]);
 
-  const acceptChallenge = () => {
-    if (!incomingChallenge) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('checkmate_token') ?? undefined : undefined;
-    const socket = getSocket(token);
-    socket.emit('accept_challenge', { challengeId: incomingChallenge.challengeId });
-    setIncomingChallenge(null);
+  const respond = (accept: boolean) => {
+    if (!incoming) return;
+    getSocket(token).emit(accept ? 'accept_challenge' : 'decline_challenge', { challengeId: incoming.challengeId });
+    setIncoming(null);
   };
 
-  const declineChallenge = () => {
-    if (!incomingChallenge) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('checkmate_token') ?? undefined : undefined;
-    const socket = getSocket(token);
-    socket.emit('decline_challenge', { challengeId: incomingChallenge.challengeId });
-    setIncomingChallenge(null);
-  };
-
-  const markAllRead = async () => {
-    await api.notifications.readAll().catch(() => {});
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const markRead = async (id: string) => {
-    await api.notifications.read(id).catch(() => {});
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  };
-
+  const markAll = async () => { await api.notifications.readAll().catch(() => {}); setNotifications((p) => p.map((n) => ({ ...n, read: true }))); };
+  const markOne = async (id: string) => { await api.notifications.read(id).catch(() => {}); setNotifications((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n))); };
 
   return (
     <>
-      <nav
-        className="border-b border-white/[0.06] px-4 py-2.5 flex items-center justify-between sticky top-0 z-30 md:pl-64"
-        style={{ background: 'rgba(11, 13, 12, 0.8)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)' }}
-      >
-        <div className="flex items-center gap-5">
-          {/* Logo — mobile only (desktop has the sidebar) */}
-          <Link href="/" className="flex items-center gap-2 shrink-0 md:hidden">
-            <span className="w-8 h-8 rounded-lg bg-[#46a883] flex items-center justify-center text-[#0b0d0c] text-lg font-black leading-none">♟</span>
-            <span className="text-lg font-extrabold tracking-tight text-white">ELO</span>
-          </Link>
-        </div>
+      {!inGame && (
+        <header className="sticky top-0 z-30 h-14 md:h-16 bg-canvas/90 backdrop-blur border-b border-line/[0.08] md:pl-60 pt-safe">
+          <div className="h-full max-w-5xl mx-auto px-4 md:px-8 flex items-center justify-between">
+            <Link href="/" className="md:hidden" aria-label="Home"><Logo size={28} /></Link>
+            <div className="hidden md:block" />
 
-        <div className="flex items-center gap-3">
-          {authenticated && balance !== null && (
-            <span className="text-sm text-[#46a883] font-bold bg-[#46a883]/10 border border-[#46a883]/20 px-2.5 py-1 rounded-md hidden sm:inline">
-              ${balance.toFixed(2)}
-            </span>
-          )}
+            <div className="flex items-center gap-2">
+              {authenticated && (
+                <Link href="/wallet" className="h-9 px-3 rounded-[10px] bg-surface border border-line/[0.08] flex items-center gap-2 hover:bg-surface-2 transition-colors">
+                  <Icon name="wallet" size={15} className="text-faint" />
+                  <span className="text-sm font-semibold num">${balance.toFixed(2)}</span>
+                </Link>
+              )}
 
-          {/* Notification bell */}
-          {authenticated && (
-            <div className="relative" ref={notifRef}>
-              <button
-                onClick={() => setNotifOpen((o) => !o)}
-                className="relative p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                aria-label="Notifications"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {notifOpen && (
-                <div className="absolute right-0 top-10 w-80 bg-[#141715] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[200]">
-                  <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                    <span className="font-bold text-sm">Notifications</span>
-                    {unreadCount > 0 && (
-                      <button onClick={markAllRead} className="text-xs text-white/40 hover:text-white transition-colors">
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <p className="text-center text-white/40 text-sm py-6">No notifications yet</p>
-                    ) : (
-                      notifications.map((n) => (
-                        <button
-                          key={n.id}
-                          onClick={() => markRead(n.id)}
-                          className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors flex gap-3 ${
-                            !n.read ? 'bg-white/5' : ''
-                          }`}
-                        >
-                          <span className="text-white/60 shrink-0 mt-0.5"><Icon name={NOTIF_ICONS[n.type] ?? 'bell'} size={18} /></span>
-                          <div className="min-w-0">
-                            <p className="text-sm text-white/90 leading-snug">{n.message}</p>
-                            <p className="text-xs text-white/30 mt-0.5">{timeAgo(n.created_at)}</p>
-                          </div>
-                          {!n.read && (
-                            <div className="w-2 h-2 bg-[#46a883] rounded-full shrink-0 mt-1.5 ml-auto" />
-                          )}
-                        </button>
-                      ))
-                    )}
-                  </div>
+              {authenticated && (
+                <div className="relative" ref={ref}>
+                  <button onClick={() => setOpen((o) => !o)} aria-label="Notifications"
+                    className="relative w-9 h-9 rounded-[10px] flex items-center justify-center text-muted hover:text-ink hover:bg-surface transition-colors">
+                    <Icon name="bell" size={18} />
+                    {unread > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent ring-2 ring-canvas" />}
+                  </button>
+                  {open && (
+                    <div className="absolute right-0 top-11 w-[min(340px,calc(100vw-32px))] card p-0 shadow-pop overflow-hidden z-[200] animate-in">
+                      <div className="h-11 px-4 flex items-center justify-between border-b border-line/[0.08]">
+                        <span className="text-sm font-semibold">Notifications</span>
+                        {unread > 0 && <button onClick={markAll} className="text-xs text-muted hover:text-ink">Mark all read</button>}
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <p className="text-center text-faint text-sm py-10">You&apos;re all caught up</p>
+                        ) : notifications.map((n) => (
+                          <button key={n.id} onClick={() => markOne(n.id)}
+                            className="w-full text-left px-4 py-3 flex gap-3 hover:bg-surface-2 border-b border-line/[0.05] last:border-0">
+                            <span className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center text-muted shrink-0">
+                              <Icon name={NOTIF_ICONS[n.type] ?? 'bell'} size={15} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className={`block text-sm leading-snug ${n.read ? 'text-muted' : 'text-ink'}`}>{n.message}</span>
+                              <span className="block text-xs text-faint mt-0.5">{timeAgo(n.created_at)}</span>
+                            </span>
+                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-accent mt-2 shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {ready && !authenticated && <button onClick={login} className="btn-primary h-9 py-0">Sign in</button>}
             </div>
-          )}
+          </div>
+        </header>
+      )}
 
-          {ready && !authenticated && (
-            <button onClick={login} className="btn-primary text-sm">
-              Sign in
-            </button>
-          )}
-          {authenticated && (
-            <button onClick={logout} className="btn-secondary text-sm hidden md:inline-flex">
-              Sign out
-            </button>
-          )}
-        </div>
-      </nav>
-
-      {/* Incoming challenge notification */}
-      {incomingChallenge && (
-        <div className="fixed bottom-6 right-6 z-[100] card border border-[#f0b232]/40 shadow-2xl w-72">
-          <p className="font-bold text-sm mb-1">Challenge received</p>
-          <p className="text-sm text-white/70 mb-3">
-            <span className="text-white font-semibold">{incomingChallenge.from.username}</span>{' '}
-            ({incomingChallenge.from.elo} ELO) challenges you to a{' '}
-            <span className="text-[#f0b232] font-semibold">${incomingChallenge.betAmount}</span> game
-          </p>
-          <div className="flex gap-2">
-            <button onClick={acceptChallenge} className="btn-primary flex-1 text-sm py-1.5">Accept</button>
-            <button onClick={declineChallenge} className="btn-secondary flex-1 text-sm py-1.5">Decline</button>
+      {/* Incoming challenge */}
+      {incoming && (
+        <div className="fixed z-[100] left-4 right-4 bottom-[calc(76px+env(safe-area-inset-bottom))] md:left-auto md:right-6 md:bottom-6 md:w-80 card shadow-pop animate-in">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="avatar w-10 h-10">{(incoming.from.username || '?')[0]?.toUpperCase()}</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">{incoming.from.username} challenges you</p>
+              <p className="text-xs text-muted num">{incoming.from.elo} rating · ${incoming.betAmount} stake</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => respond(false)} className="btn-secondary">Decline</button>
+            <button onClick={() => respond(true)} className="btn-primary">Accept</button>
           </div>
         </div>
       )}
 
-      {/* Challenge declined notice */}
-      {declinedNotice && (
-        <div className="fixed bottom-6 right-6 z-[100] card border border-red-500/30 text-red-400 text-sm w-64">
-          {declinedNotice}
+      {/* Daily bonus + small toasts */}
+      {bonus && (
+        <div className="fixed z-[100] top-[72px] left-1/2 -translate-x-1/2 card py-3 px-4 shadow-pop flex items-center gap-3 animate-in">
+          <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center"><Icon name="gift" size={16} /></span>
+          <div>
+            <p className="text-sm font-semibold">Daily bonus <span className="text-positive num">+${bonus.amount.toFixed(2)}</span></p>
+            <p className="text-xs text-muted">Day {bonus.streak} streak</p>
+          </div>
+          <button onClick={dismissBonus} className="btn-ghost p-1.5 ml-1" aria-label="Dismiss"><Icon name="x" size={14} /></button>
         </div>
+      )}
+      {toast && (
+        <div className="fixed z-[100] top-[72px] left-1/2 -translate-x-1/2 card py-2.5 px-4 text-sm shadow-pop animate-in">{toast}</div>
       )}
     </>
   );

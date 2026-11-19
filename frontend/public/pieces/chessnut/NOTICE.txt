@@ -1,0 +1,1 @@
+Chessnut piece set by Alexis Luengas (https://github.com/LexLuengas/chessnut-pieces), Apache License 2.0. Unmodified.

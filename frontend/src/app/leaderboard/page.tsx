@@ -1,143 +1,140 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
-import { api } from '@/lib/api';
-import { Icon } from '@/components/Icons';
 import Link from 'next/link';
+import { api } from '@/lib/api';
+import { useSession } from '@/lib/session';
+import { Icon } from '@/components/Icons';
 
 type Tab = 'elo' | 'earnings' | 'weekly' | 'referrals';
 
-function shortAddr(addr: string) {
-  return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '???';
-}
+const shortAddr = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : 'Player');
+const winRate = (won: number, played: number) => (played ? `${Math.round((won / played) * 100)}%` : '0%');
 
-function winRate(won: number, played: number) {
-  if (!played) return '0%';
-  return `${Math.round((won / played) * 100)}%`;
-}
-
-
-const TAB_CONFIG: Record<Tab, { label: string; valueKey: string; valueLabel: string; format: (v: number) => string }> = {
-  elo: { label: 'By Rating', valueKey: 'elo', valueLabel: 'ELO', format: (v) => String(v) },
-  earnings: { label: 'By Earnings', valueKey: 'total_earnings', valueLabel: 'Earned', format: (v) => `$${v.toFixed(2)}` },
-  weekly: { label: 'This Week', valueKey: 'weekly_earnings', valueLabel: 'This Week', format: (v) => `$${v.toFixed(2)}` },
-  referrals: { label: 'Referrals', valueKey: 'referral_earnings', valueLabel: 'Ref. Earned', format: (v) => `$${v.toFixed(2)}` },
+const TAB_CONFIG: Record<Tab, { label: string; valueKey: string; valueLabel: string; money: boolean; format: (v: number) => string }> = {
+  elo: { label: 'Rating', valueKey: 'elo', valueLabel: 'Rating', money: false, format: (v) => String(v) },
+  earnings: { label: 'Earnings', valueKey: 'total_earnings', valueLabel: 'Earned', money: true, format: (v) => `$${Number(v).toFixed(2)}` },
+  weekly: { label: 'This week', valueKey: 'weekly_earnings', valueLabel: 'This week', money: true, format: (v) => `$${Number(v).toFixed(2)}` },
+  referrals: { label: 'Referrals', valueKey: 'referral_earnings', valueLabel: 'Referral earnings', money: true, format: (v) => `$${Number(v).toFixed(2)}` },
 };
 
 export default function LeaderboardPage() {
-  const { authenticated, user } = usePrivy();
+  const { me } = useSession();
+  const myId = me?.id ?? null;
   const [tab, setTab] = useState<Tab>('elo');
   const [players, setPlayers] = useState<any[]>([]);
-  const [myId, setMyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authenticated) {
-      api.users.me().then((u) => setMyId(u.id)).catch(() => {});
-    }
-  }, [authenticated]);
-
-  useEffect(() => {
+    let alive = true;
     setLoading(true);
-    api.users.leaderboard(tab).then((p) => {
-      setPlayers(p);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    api.users.leaderboard(tab)
+      .then((p) => { if (alive) { setPlayers(p); setLoading(false); } })
+      .catch(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, [tab]);
 
   const cfg = TAB_CONFIG[tab];
   const myRank = myId ? players.findIndex((p) => p.id === myId) : -1;
   const mePlayer = myRank >= 0 ? players[myRank] : null;
 
-  const Avatar = ({ p, i }: { p: any; i: number }) => (
-    <span
-      className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-        i === 0 ? 'bg-[#f0b232]/20 text-[#f0b232]' : i === 1 ? 'bg-white/15 text-white' : i === 2 ? 'bg-[#cd7f32]/20 text-[#cd7f32]' : 'bg-[#46a883]/15 text-[#46a883]'
-      }`}
-    >
-      {(p.username || p.wallet || '?')[0].toUpperCase()}
-    </span>
-  );
-
-  const Row = ({ player, i, sticky }: { player: any; i: number; sticky?: boolean }) => {
+  const Row = ({ player, i }: { player: any; i: number }) => {
     const isMe = player.id === myId;
+    const name = player.username || shortAddr(player.wallet);
+    const value = Number(player[cfg.valueKey] ?? 0);
+    const sub = tab === 'referrals'
+      ? `${player.referred_count ?? 0} invited`
+      : tab === 'elo'
+        ? `${player.games_played ?? 0} ${player.games_played === 1 ? 'game' : 'games'} · ${winRate(player.games_won, player.games_played)} wins`
+        : `${player.elo} rating · ${winRate(player.games_won, player.games_played)} wins`;
     return (
-      <div
-        className={`flex items-center gap-3 px-4 py-3 border-b border-white/[0.05] transition-colors ${
-          sticky ? 'bg-[#46a883]/12 rounded-lg border-transparent' : isMe ? 'bg-[#46a883]/8' : 'hover:bg-white/[0.03]'
-        }`}
+      <Link
+        href={`/profile/${player.id}`}
+        className={`flex items-center gap-3 px-4 py-3 transition-colors ${isMe ? 'bg-surface-2' : 'hover:bg-surface-2'}`}
       >
-        <span className="w-8 text-center shrink-0">
-          <span className={`text-sm font-bold ${i === 0 ? 'text-[#f0b232]' : i === 1 ? 'text-white/80' : i === 2 ? 'text-[#cd7f32]' : 'text-white/40'}`}>{i + 1}</span>
+        <span className={`w-7 shrink-0 text-center text-sm font-semibold num ${i < 3 ? 'text-accent' : 'text-faint'}`}>{i + 1}</span>
+        <span className={`avatar w-9 h-9 text-sm ${i < 3 ? 'ring-1 ring-accent/40' : ''}`}>
+          {player.username ? player.username[0].toUpperCase() : <Icon name="user" size={15} className="text-muted" />}
         </span>
-        <Avatar p={player} i={i} />
-        <Link href={`/profile/${player.id}`} className="flex-1 min-w-0 group">
-          <div className="font-semibold text-sm truncate group-hover:text-[#46a883] transition-colors">
-            {player.username || shortAddr(player.wallet)}
-            {isMe && <span className="text-xs text-[#46a883] font-normal ml-1.5">you</span>}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium truncate flex items-center gap-2">
+            <span className="truncate">{name}</span>
+            {isMe && <span className="pill-accent pill py-0 px-2 text-[11px] shrink-0">You</span>}
           </div>
-          <div className="text-xs text-white/35">{player.elo} ELO</div>
-        </Link>
-        <div className="text-right shrink-0 w-20">
-          <div className={`font-bold text-sm ${tab === 'elo' ? 'text-white' : 'text-[#46a883]'}`}>{cfg.format(player[cfg.valueKey] ?? 0)}</div>
-          <div className="text-[11px] text-white/30">{cfg.valueLabel}</div>
+          <div className="text-xs text-faint num mt-0.5 truncate">{sub}</div>
         </div>
-        <div className="text-right shrink-0 w-14 hidden sm:block">
-          <div className="font-semibold text-sm text-white/80">
-            {tab === 'referrals' ? (player.referred_count ?? 0) : winRate(player.games_won, player.games_played)}
-          </div>
-          <div className="text-[11px] text-white/30">{tab === 'referrals' ? 'Refs' : 'Win'}</div>
+        <div className={`text-sm font-semibold num shrink-0 ${cfg.money && value > 0 ? 'text-positive' : 'text-ink'}`}>
+          {cfg.format(value)}
         </div>
-      </div>
+      </Link>
     );
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-[#f0b232]"><Icon name="trophy" size={22} /></span>
-        <h1 className="text-2xl font-bold">Leaderboard</h1>
-      </div>
-      <p className="text-sm text-white/45 mb-6">Top players ranked by performance.</p>
-
-      {/* Tabs — underline style */}
-      <div className="flex gap-1 mb-5 border-b border-white/[0.06] overflow-x-auto no-scrollbar">
-        {(Object.keys(TAB_CONFIG) as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
-              tab === t ? 'border-[#46a883] text-[#46a883]' : 'border-transparent text-white/45 hover:text-white'
-            }`}
-          >
-            {TAB_CONFIG[t].label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-16 rounded-lg bg-white/[0.03] animate-pulse" />
-          ))}
+    <div className="max-w-5xl mx-auto px-4 md:px-8 pt-5 md:pt-8 pb-10 space-y-6">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-semibold">Leaderboard</h1>
+          <p className="text-sm text-muted mt-1">Top players, updated in real time.</p>
         </div>
-      ) : players.length === 0 ? (
-        <div className="card text-center py-12 text-white/40 text-sm">No players ranked yet.</div>
-      ) : (
-        <>
-          <div className="card p-0 overflow-hidden">
+        <div className="overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="segmented" role="tablist">
+            {(Object.keys(TAB_CONFIG) as Tab[]).map((t) => (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={tab === t}
+                data-active={tab === t}
+                onClick={() => setTab(t)}
+                className="whitespace-nowrap h-9"
+              >
+                {TAB_CONFIG[t].label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {mePlayer && (
+        <div className="card py-3.5 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-xs text-faint">Your rank</div>
+            <div className="text-xl font-semibold num mt-1">#{myRank + 1} <span className="text-sm font-normal text-faint">of {players.length}</span></div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-faint">{cfg.valueLabel}</div>
+            <div className="text-xl font-semibold num mt-1">{cfg.format(Number(mePlayer[cfg.valueKey] ?? 0))}</div>
+          </div>
+        </div>
+      )}
+
+      <section>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <span className="eyebrow">Player</span>
+          <span className="eyebrow">{cfg.valueLabel}</span>
+        </div>
+        {loading ? (
+          <div className="card p-0 divide-y divide-line/[0.06] overflow-hidden">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="w-7 h-3 rounded bg-surface-2 animate-pulse" />
+                <div className="w-9 h-9 rounded-full bg-surface-2 animate-pulse" />
+                <div className="flex-1 space-y-1.5"><div className="h-3 w-28 rounded bg-surface-2 animate-pulse" /><div className="h-2.5 w-20 rounded bg-surface-2 animate-pulse" /></div>
+                <div className="h-3 w-12 rounded bg-surface-2 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : players.length === 0 ? (
+          <div className="card text-center py-10">
+            <p className="text-sm font-medium">No players ranked yet</p>
+            <p className="text-sm text-muted mt-1">Play a game to get on the board.</p>
+          </div>
+        ) : (
+          <div className="card p-0 divide-y divide-line/[0.06] overflow-hidden">
             {players.map((player, i) => <Row key={player.id} player={player} i={i} />)}
           </div>
-          {/* Sticky your-rank row (like mockup) */}
-          {mePlayer && myRank >= 8 && (
-            <div className="mt-2 card p-1">
-              <Row player={mePlayer} i={myRank} sticky />
-            </div>
-          )}
-          <p className="text-center text-xs text-white/25 mt-4">Leaderboard updates in real time.</p>
-        </>
-      )}
+        )}
+      </section>
     </div>
   );
 }

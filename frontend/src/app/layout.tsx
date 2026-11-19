@@ -1,42 +1,32 @@
-'use client';
-
-export const dynamic = 'force-dynamic';
-
 import './globals.css';
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
-import { PrivyProvider } from '@privy-io/react-auth';
-import { privyConfig, PRIVY_APP_ID } from '@/lib/privy';
-import Navbar from '@/components/Navbar';
-import BottomNav from '@/components/BottomNav';
-import Sidebar from '@/components/Sidebar';
-import MainShell from '@/components/MainShell';
+import type { Metadata, Viewport } from 'next';
+import { Figtree } from 'next/font/google';
+import Providers from '@/components/Providers';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['500', '600', '700', '800'], variable: '--font-display', display: 'swap' });
+// Server component: the page shell renders immediately; only the interactive parts are client code.
+const figtree = Figtree({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800', '900'], variable: '--font-sans', display: 'swap' });
+
+export const metadata: Metadata = {
+  title: 'ELO: real-time chess for real stakes',
+  description: 'Play rated chess, climb the leaderboard and win. Fair play checked on every game.',
+  manifest: '/manifest.json',
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  appleWebApp: { capable: true, title: 'ELO', statusBarStyle: 'black-translucent' },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#1A1922',
+  viewportFit: 'cover',
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
-      <head>
-        <title>ELO — Every Move. Every Rise.</title>
-        <meta name="description" content="Play chess, climb the leaderboard, and earn. Every move counts." />
-        <meta name="theme-color" content="#0b0d0c" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="ELO" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
-      </head>
+    <html lang="en" className={figtree.variable}>
       <body>
-        <PrivyProvider appId={PRIVY_APP_ID} config={privyConfig}>
-          <Sidebar />
-          <Navbar />
-          <MainShell>{children}</MainShell>
-          <BottomNav />
-        </PrivyProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

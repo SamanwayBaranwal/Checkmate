@@ -1,4 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" fill="#1a1a2e"/>
-  <text x="256" y="370" font-size="300" text-anchor="middle" fill="#4caf50">♟</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 104 104"><rect width="104" height="104" fill="#7C5CFF"/><g transform="translate(10.4 10.4) scale(.8)"><rect x="24" y="16" width="22" height="22" rx="5" fill="#fff"/><rect x="24" y="41" width="22" height="22" rx="5" fill="#fff" fill-opacity=".72"/><rect x="24" y="66" width="22" height="22" rx="5" fill="#fff" fill-opacity=".72"/><rect x="49" y="66" width="22" height="22" rx="5" fill="#fff"/><circle cx="60" cy="77" r="4.5" fill="#7C5CFF"/></g></svg>

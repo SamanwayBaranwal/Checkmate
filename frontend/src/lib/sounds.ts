@@ -1,73 +1,76 @@
-// Generates chess sounds using Web Audio API — no external files needed
+// Real recorded wooden piece sounds (Kenney "Impact Sounds", CC0: public/sounds/LICENSE-kenney-impact-sounds.txt).
+// Decoded once into Web Audio buffers so they play instantly with no lag, even on low-end phones.
+
+const FILES = {
+  move: ['/sounds/move0.mp3', '/sounds/move1.mp3', '/sounds/move2.mp3', '/sounds/move3.mp3', '/sounds/move4.mp3'],
+  capture: ['/sounds/capture.mp3'],
+  check: ['/sounds/check.mp3'],
+  end: ['/sounds/end.mp3'],
+  tick: ['/sounds/tick.mp3'],
+};
+type Kind = keyof typeof FILES;
 
 let ctx: AudioContext | null = null;
+const buffers: Partial<Record<Kind, AudioBuffer[]>> = {};
+let loading: Promise<void> | null = null;
 
-function getCtx(): AudioContext {
-  if (!ctx) ctx = new AudioContext();
+function ac(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!ctx) {
+    const C = window.AudioContext || (window as any).webkitAudioContext;
+    if (!C) return null;
+    ctx = new C();
+  }
   return ctx;
 }
 
-function playTone(
-  frequency: number,
-  duration: number,
-  type: OscillatorType = 'sine',
-  volume = 0.15,
-  decay = 0.8
-) {
-  if (typeof window === 'undefined') return;
-  try {
-    const ac = getCtx();
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.connect(gain);
-    gain.connect(ac.destination);
-    osc.type = type;
-    osc.frequency.setValueAtTime(frequency, ac.currentTime);
-    gain.gain.setValueAtTime(volume, ac.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
-    osc.start(ac.currentTime);
-    osc.stop(ac.currentTime + duration);
-  } catch {}
+function load(): Promise<void> {
+  if (loading) return loading;
+  const c = ac();
+  if (!c) return Promise.resolve();
+  loading = Promise.all(
+    (Object.keys(FILES) as Kind[]).map(async (k) => {
+      buffers[k] = await Promise.all(FILES[k].map(async (url) => {
+        const res = await fetch(url);
+        return c.decodeAudioData(await res.arrayBuffer());
+      }));
+    }),
+  ).then(() => undefined).catch(() => { loading = null; });
+  return loading;
 }
 
-function haptic(pattern: number | number[]) {
-  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    try { navigator.vibrate(pattern); } catch {}
-  }
+// Start decoding early (first user gesture unlocks audio on iOS)
+if (typeof window !== 'undefined') {
+  const unlock = () => { ac()?.resume(); load(); window.removeEventListener('pointerdown', unlock); };
+  window.addEventListener('pointerdown', unlock, { passive: true });
+  setTimeout(load, 1500);
+}
+
+function play(kind: Kind, volume = 0.8, rate = 1) {
+  const c = ac();
+  if (!c) return;
+  if (c.state === 'suspended') c.resume();
+  const list = buffers[kind];
+  if (!list || !list.length) { load(); return; }
+  const src = c.createBufferSource();
+  src.buffer = list[Math.floor(Math.random() * list.length)];
+  src.playbackRate.value = rate;
+  const g = c.createGain();
+  g.gain.value = volume;
+  src.connect(g).connect(c.destination);
+  src.start();
+}
+
+function haptic(ms: number | number[]) {
+  try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(ms); } catch {}
 }
 
 export const sounds = {
-  move() {
-    playTone(440, 0.08, 'square', 0.08);
-  },
-  capture() {
-    playTone(280, 0.15, 'sawtooth', 0.12);
-    setTimeout(() => playTone(220, 0.1, 'sawtooth', 0.08), 60);
-    haptic(15);
-  },
-  check() {
-    playTone(660, 0.1, 'sine', 0.15);
-    setTimeout(() => playTone(880, 0.15, 'sine', 0.12), 80);
-    haptic([0, 20, 40, 20]);
-  },
-  win() {
-    [523, 659, 784, 1047].forEach((f, i) => {
-      setTimeout(() => playTone(f, 0.3, 'sine', 0.15), i * 120);
-    });
-    haptic([0, 40, 60, 40, 60, 80]);
-  },
-  lose() {
-    [523, 440, 349, 262].forEach((f, i) => {
-      setTimeout(() => playTone(f, 0.3, 'sine', 0.12), i * 120);
-    });
-    haptic(120);
-  },
-  draw() {
-    [440, 440].forEach((f, i) => {
-      setTimeout(() => playTone(f, 0.2, 'sine', 0.1), i * 200);
-    });
-  },
-  clockLow() {
-    playTone(330, 0.05, 'square', 0.06);
-  },
+  move: () => play('move', 0.75),
+  capture: () => { play('capture', 0.9); haptic(15); },
+  check: () => { play('check', 0.85); haptic(25); },
+  win: () => { play('end', 0.7); haptic([30, 40, 30]); },
+  lose: () => { play('end', 0.55, 0.85); haptic(40); },
+  draw: () => { play('end', 0.55, 0.92); },
+  clockLow: () => play('tick', 0.5),
 };

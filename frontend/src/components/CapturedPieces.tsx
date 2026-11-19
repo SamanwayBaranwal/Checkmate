@@ -45,13 +45,13 @@ export default function CapturedPieces({ fen, side }: { fen: string; side: 'whit
     <div className="flex items-center gap-1.5 h-5">
       <div className="flex items-center -space-x-1">
         {captured.map((p, i) => (
-          <span key={i} className="text-base leading-none text-white/70" style={{ textShadow: '0 1px 1px rgba(0,0,0,0.4)' }}>
+          <span key={i} className="text-[15px] leading-none text-muted">
             {GLYPH[p]}
           </span>
         ))}
       </div>
       {advantage > 0 && (
-        <span className="text-xs font-bold text-[#46a883]">+{advantage}</span>
+        <span className="text-xs font-semibold text-muted num">+{advantage}</span>
       )}
     </div>
   );

@@ -33,6 +33,7 @@ export interface GameState {
   streak?: number;
   drawOffered?: boolean;
   spectatorCount: number;
+  timeControl?: string;
   moves: string[];
   lastMove?: { from: string; to: string };
   chatMessages: ChatMessage[];
@@ -108,6 +109,7 @@ export function useChessGame(gameId: string, token?: string) {
         spectatorCount: 0,
         drawOffered: false,
         moves: data.moves || [],
+        timeControl: data.timeControl,
         chatMessages: [],
       });
     });
@@ -144,7 +146,7 @@ export function useChessGame(gameId: string, token?: string) {
         status: 'spectating',
         spectatorCount: 0,
         drawOffered: false,
-        moves: [],
+        moves: data.moves || [],
         chatMessages: [],
       } as GameState));
     });

@@ -99,6 +99,8 @@ export function setupGameRoom(io: Server, socket: Socket) {
       turn: turn || 'white',
       clocks: clocksRaw ? JSON.parse(clocksRaw) : { white: 300000, black: 300000 },
       betAmount: parseFloat(game.bet_amount),
+      timeControl: game.time_control,
+      moves: await redis.lrange(`game:${gameId}:moves`, 0, -1), // so a page refresh shows the full move list
       opponent: {
         username: opponent?.username || opponent?.wallet?.slice(0, 8) || 'Opponent',
         elo: opponent?.elo || 1200,
