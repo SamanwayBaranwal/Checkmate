@@ -19,14 +19,20 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-function PlayerRow({ player, token, onSent }: { player: any; token: string; onSent: (name: string) => void }) {
+function PlayerRow({ player, token, onNotice }: { player: any; token: string; onNotice: (msg: string) => void }) {
   const [open, setOpen] = useState(false);
   const name = player.username || short(player.wallet);
   const wr = player.games_played ? Math.round((player.games_won / player.games_played) * 100) : 0;
   const send = (bet: number) => {
-    getSocket(token).emit('challenge_user', { targetId: player.id, betAmount: bet });
+    const socket = getSocket(token);
+    // Only say "sent" once the server confirms; otherwise show its reason (offline, balance, stake limit...)
+    const done = () => { socket.off('challenge_sent', ok); socket.off('challenge_error', fail); };
+    const ok = () => { done(); onNotice(`Challenge sent to ${name}`); };
+    const fail = ({ reason }: { reason: string }) => { done(); onNotice(reason || 'Could not send the challenge'); };
+    socket.on('challenge_sent', ok);
+    socket.on('challenge_error', fail);
+    socket.emit('challenge_user', { targetId: player.id, betAmount: bet });
     setOpen(false);
-    onSent(name);
   };
   return (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -78,7 +84,7 @@ export default function HomePage() {
   const gp = me?.gamesPlayed ?? me?.games_played ?? 0;
   const gw = me?.gamesWon ?? me?.games_won ?? 0;
   const wr = gp ? Math.round((gw / gp) * 100) : 0;
-  const sent = (n: string) => { setNotice(`Challenge sent to ${n}`); setTimeout(() => setNotice(''), 2500); };
+  const sent = (msg: string) => { setNotice(msg); setTimeout(() => setNotice(''), 3000); };
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 pt-5 md:pt-8 space-y-8">
@@ -101,7 +107,8 @@ export default function HomePage() {
           </div>
 
           <div>
-            {balance <= 0 ? (
+            {/* Under the $1 minimum stake (e.g. a new account with only the $0.10 daily bonus) */}
+            {balance < 1 ? (
               <Link href="/wallet" className="play-tile play-tile-primary">
                 <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
                 <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-black/55 font-semibold">$10 to start playing</span></span>
@@ -186,7 +193,7 @@ export default function HomePage() {
               <div key={s.title} className="card p-0 overflow-hidden">
                 <div className="px-4 h-11 flex items-center border-b border-line/[0.06]"><span className="eyebrow">{s.title}</span></div>
                 <div className="divide-y divide-line/[0.05]">
-                  {s.list.map((p) => <PlayerRow key={p.id} player={p} token={token} onSent={sent} />)}
+                  {s.list.map((p) => <PlayerRow key={p.id} player={p} token={token} onNotice={sent} />)}
                 </div>
               </div>
             ))}

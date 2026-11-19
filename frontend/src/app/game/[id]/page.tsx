@@ -49,9 +49,10 @@ function ToolButton({ icon, label, onClick, active, tone }: { icon: IconName; la
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { token, me } = useSession();
-  const { state, error, makeMove, resign, offerDraw, acceptDraw, offerRematch, acceptRematch, rematchState, rematchGameId, sendChat } =
-    useChessGame(id, token || undefined);
+  const { ready, token, me } = useSession();
+  // null while the session loads, so the game socket opens once with the right identity
+  const { state, error, unavailable, makeMove, resign, offerDraw, acceptDraw, offerRematch, acceptRematch, rematchState, rematchGameId, sendChat } =
+    useChessGame(id, ready ? token || undefined : null);
 
   useEffect(() => { if (rematchGameId) router.push(`/game/${rematchGameId}`); }, [rematchGameId, router]);
 
@@ -61,7 +62,8 @@ export default function GamePage() {
   const [panel, setPanel] = useState<'none' | 'chat' | 'themes' | 'report' | 'resign'>('none');
   const [reportReason, setReportReason] = useState('cheating');
   const [reportDetails, setReportDetails] = useState('');
-  const [reportState, setReportState] = useState<'idle' | 'sending' | 'done'>('idle');
+  const [reportState, setReportState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [reportError, setReportError] = useState('');
   const [drawDismissed, setDrawDismissed] = useState(false);
   const [drawSent, setDrawSent] = useState(false);
   const [themeIndex, setThemeIndex] = useState(() => {
@@ -102,7 +104,9 @@ export default function GamePage() {
   // Chat: autoscroll + unread badge on mobile
   useEffect(() => {
     const n = state?.chatMessages.length ?? 0;
-    if (n > prevChat.current && panel !== 'chat') setUnreadChat((u) => u + (n - prevChat.current));
+    // Compute the delta now: the updater runs later, after prevChat.current has moved to n
+    const added = n - prevChat.current;
+    if (added > 0 && panel !== 'chat') setUnreadChat((u) => u + added);
     prevChat.current = n;
     chatEnd.current?.scrollIntoView({ block: 'nearest' });
   }, [state?.chatMessages.length, panel]);
@@ -138,7 +142,7 @@ export default function GamePage() {
     if (mine < 10000 && mine > 0 && state.turn === state.color) sounds.clockLow();
   }, [state?.clocks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { if (state?.drawOffered) setDrawDismissed(false); }, [state?.drawOffered]);
+  useEffect(() => { if (state?.drawOffered) setDrawDismissed(false); }, [state?.drawOffered, state?.drawOfferAt]);
   useEffect(() => { setSelected(null); setDrawSent(false); }, [state?.turn]);
 
   const isPromotion = (pieceType: string | undefined, to: string) =>
@@ -185,28 +189,49 @@ export default function GamePage() {
   const submitReport = useCallback(async () => {
     if (!state) return;
     setReportState('sending');
+    setReportError('');
     try {
       const game = await api.games.get(id);
       const reportedId = state.color === 'white' ? game.player_black : game.player_white;
       await api.reports.submit({ reportedId, gameId: id, reason: reportReason, details: reportDetails });
       setReportState('done');
       setTimeout(() => { setPanel('none'); setReportState('idle'); }, 1800);
-    } catch { setReportState('idle'); }
+    } catch (err: any) {
+      let msg = 'Could not send the report. Try again.';
+      try { const p = JSON.parse(err?.message || ''); if (p.error) msg = p.error; } catch {}
+      setReportError(msg);
+      setReportState('error');
+    }
   }, [state, id, reportReason, reportDetails]);
 
   const sendChatMsg = () => { if (chatInput.trim()) { sendChat(chatInput.trim()); setChatInput(''); } };
 
   if (!state) {
+    if (unavailable) {
+      return (
+        <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-4">
+          <div className="card w-full max-w-sm text-center p-6">
+            <h1 className="text-lg font-semibold">{unavailable === 'ended' ? 'This game has ended' : 'Game not found'}</h1>
+            <p className="text-sm text-muted mt-1">{unavailable === 'ended' ? 'You can still replay every move.' : 'The link may be wrong or the game was removed.'}</p>
+            {unavailable === 'ended' && <Link href={`/replay/${id}`} className="btn-primary w-full h-12 mt-5">Watch replay</Link>}
+            <Link href="/" className={`btn-secondary w-full h-12 ${unavailable === 'ended' ? 'mt-2' : 'mt-5'}`}>Back to home</Link>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4">
         <div className="w-10 h-10 rounded-full border-2 border-surface-3 border-t-accent animate-spin" />
         <p className="text-sm text-muted">Connecting to game…</p>
+        <Link href="/" className="text-xs text-faint hover:text-ink mt-2">Back to home</Link>
       </div>
     );
   }
 
   const playing = state.status === 'playing';
   const spectating = state.status === 'spectating';
+  // Watching someone else's game: stays true after it ends (no "You won" modal, no report link)
+  const watcher = spectating || !!state.spectator;
   const myTurn = playing && state.turn === state.color;
   const base = state.color === 'black' ? 'black' : 'white';
   const orientation: 'white' | 'black' = flipped ? (base === 'white' ? 'black' : 'white') : base;
@@ -216,7 +241,9 @@ export default function GamePage() {
     ? { [preMove.from]: { backgroundColor: 'rgba(120,150,220,0.45)' }, [preMove.to]: { backgroundColor: 'rgba(120,150,220,0.55)' } } : {};
   const lastSquares: Record<string, React.CSSProperties> = state.lastMove
     ? { [state.lastMove.from]: { backgroundColor: 'rgba(212,175,105,0.32)' }, [state.lastMove.to]: { backgroundColor: 'rgba(212,175,105,0.42)' } } : {};
-  const myName = spectating ? 'Player' : me?.username || 'You';
+  const myName = watcher ? state.players?.white.name ?? 'White' : me?.username || 'You';
+  const oppName = watcher ? state.players?.black.name ?? 'Black' : state.opponent.username;
+  const oppSub = watcher ? (state.players ? String(state.players.black.elo) : 'Black') : `${state.opponent.elo}`;
   const tcName = (state.timeControl && TC_NAME[state.timeControl]) || 'Rated game';
 
   const PlayerRow = ({ name, sub, side, ms, active }: { name: string; sub: string; side: 'white' | 'black'; ms: number; active: boolean }) => (
@@ -242,11 +269,12 @@ export default function GamePage() {
           ))}
         <div ref={chatEnd} />
       </div>
-      <div className="p-2 flex gap-2 border-t border-line/[0.06]">
+      {/* Signed-out viewers can't chat (the server drops their messages) */}
+      {token && <div className="p-2 flex gap-2 border-t border-line/[0.06]">
         <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChatMsg(); }}
           placeholder="Message" maxLength={200} className="input h-10 py-0" />
         <button onClick={sendChatMsg} className="btn-secondary h-10 px-3" aria-label="Send"><Icon name="arrow-up-right" size={16} /></button>
-      </div>
+      </div>}
     </div>
   );
 
@@ -273,7 +301,7 @@ export default function GamePage() {
       <div className="flex-1 w-full max-w-6xl mx-auto px-2 lg:px-6 py-2 lg:py-6 flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start justify-start lg:justify-center">
         {/* Board column */}
         <div style={{ width: boardSize }} className="shrink-0">
-          <PlayerRow name={state.opponent.username} sub={`${state.opponent.elo}`} side={state.color === 'white' ? 'black' : 'white'}
+          <PlayerRow name={oppName} sub={oppSub} side={state.color === 'white' ? 'black' : 'white'}
             ms={oppClock} active={playing && state.turn !== state.color} />
           <div className="rounded-lg overflow-hidden my-1">
             <Chessboard
@@ -291,7 +319,7 @@ export default function GamePage() {
               customPieces={customPieces}
             />
           </div>
-          <PlayerRow name={myName} sub={spectating ? '' : state.color === 'white' ? 'White' : 'Black'} side={state.color}
+          <PlayerRow name={myName} sub={watcher ? (state.players ? String(state.players.white.elo) : 'White') : state.color === 'white' ? 'White' : 'Black'} side={state.color}
             ms={myClock} active={myTurn} />
 
           {/* Mobile: moves strip */}
@@ -356,13 +384,13 @@ export default function GamePage() {
             <div className="h-11 px-3 flex items-center border-b border-line/[0.06]"><span className="eyebrow">Chat</span></div>
             <div className="flex-1 min-h-0">{ChatBox}</div>
           </div>
-          {!spectating && (
+          {!watcher && (
             <button onClick={() => setPanel('report')} className="text-xs text-faint hover:text-negative transition-colors">Report opponent</button>
           )}
         </aside>
       </div>
 
-      {!spectating && (
+      {!watcher && (
         <div className="lg:hidden text-center pb-4">
           <button onClick={() => setPanel('report')} className="text-xs text-faint hover:text-negative">Report opponent</button>
         </div>
@@ -402,6 +430,7 @@ export default function GamePage() {
                 </div>
                 <textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="Details (optional)"
                   maxLength={500} rows={3} className="input resize-none mb-4" />
+                {reportState === 'error' && <p className="text-sm text-negative -mt-2 mb-3">{reportError}</p>}
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => setPanel('none')} className="btn-secondary h-11">Cancel</button>
                   <button onClick={submitReport} disabled={reportState === 'sending'} className="btn-danger h-11">
@@ -431,6 +460,9 @@ export default function GamePage() {
       {state.status === 'over' && state.result && (
         <GameOverModal
           result={state.result}
+          reason={state.reason}
+          spectator={watcher}
+          note={error}
           winner={state.winner ?? null}
           playerColor={state.color}
           eloChange={state.eloChange ?? 0}
@@ -439,9 +471,9 @@ export default function GamePage() {
           streakBonus={state.streakBonus}
           streak={state.streak}
           gameId={id}
-          onRematch={offerRematch}
+          onRematch={watcher ? undefined : offerRematch}
           rematchState={rematchState}
-          onAcceptRematch={acceptRematch}
+          onAcceptRematch={watcher ? undefined : acceptRematch}
         />
       )}
     </div>

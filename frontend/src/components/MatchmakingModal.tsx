@@ -37,22 +37,30 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
     return () => clearInterval(t);
   }, [searching]);
 
+  // Listeners of the current search; removed on match/error/cancel/close so stale ones never fire later
+  const offRef = useRef<() => void>(() => {});
+
   const join = useCallback(() => {
     if (balance < tier) { setError(`You need $${tier} to play this stake.`); return; }
     const socket = getSocket(token);
+    offRef.current();
     setError(''); setSearching(true); searchingRef.current = true;
+    const onMatch = (d: { gameId: string }) => { offRef.current(); searchingRef.current = false; setSearching(false); router.push(`/game/${d.gameId}`); onClose(); };
+    const onErr = (e: { message: string }) => { offRef.current(); searchingRef.current = false; setSearching(false); setError(e.message); };
+    socket.on('match_found', onMatch);
+    socket.on('error', onErr);
+    offRef.current = () => { socket.off('match_found', onMatch); socket.off('error', onErr); };
     socket.emit('join_queue', { tier, timeControl: tc });
-    socket.once('match_found', (d: { gameId: string }) => { searchingRef.current = false; setSearching(false); router.push(`/game/${d.gameId}`); onClose(); });
-    socket.once('error', (e: { message: string }) => { searchingRef.current = false; setSearching(false); setError(e.message); });
   }, [tier, tc, balance, token, router, onClose]);
 
   const cancel = useCallback(() => {
+    offRef.current();
     getSocket(token).emit('leave_queue');
     searchingRef.current = false;
     setSearching(false);
   }, [token]);
 
-  useEffect(() => () => { if (searchingRef.current) getSocket(token).emit('leave_queue'); }, [token]);
+  useEffect(() => () => { offRef.current(); if (searchingRef.current) getSocket(token).emit('leave_queue'); }, [token]);
 
   const close = () => { if (searching) cancel(); onClose(); };
 

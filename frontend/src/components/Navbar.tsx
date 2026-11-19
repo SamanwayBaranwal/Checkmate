@@ -79,7 +79,16 @@ export default function Navbar() {
 
   const respond = (accept: boolean) => {
     if (!incoming) return;
-    getSocket(token).emit(accept ? 'accept_challenge' : 'decline_challenge', { challengeId: incoming.challengeId });
+    const socket = getSocket(token);
+    if (accept) {
+      // Accepting can fail (challenge expired, balance, stake limit): say why instead of doing nothing
+      const done = () => { socket.off('challenge_error', fail); socket.off('match_found', done); };
+      const fail = ({ reason }: { reason: string }) => { done(); setToast(reason || 'Could not start the game'); setTimeout(() => setToast(''), 3500); };
+      socket.on('challenge_error', fail);
+      socket.on('match_found', done);
+      setTimeout(done, 10000);
+    }
+    socket.emit(accept ? 'accept_challenge' : 'decline_challenge', { challengeId: incoming.challengeId });
     setIncoming(null);
   };
 
