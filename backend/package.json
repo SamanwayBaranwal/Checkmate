@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --noCheck",
     "start": "node dist/index.js",
-    "db:migrate": "psql $DATABASE_URL -f src/db/schema.sql"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:migrate:prod": "node dist/db/migrate.js"
   },
   "dependencies": {
     "@privy-io/server-auth": "^1.17.0",

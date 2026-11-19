@@ -35,6 +35,7 @@ import { setIo } from './services/notifications';
 import { db } from './db/client';
 import { redis } from './db/redis';
 import { ensureFairplaySchema, resumePendingAnalysis } from './services/fairplay/service';
+import { runMigrations } from './db/migrate';
 import { startHoldReleaser, recordIdentifiers, clientIp } from './services/fairplay/trust';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
@@ -191,144 +192,6 @@ startTimeoutChecker(io);
 startDepositWatcher();
 startCronJobs();
 
-// Auto-migrate: add new columns and tables if missing
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}'`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_bonus TIMESTAMPTZ`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INTEGER NOT NULL DEFAULT 0`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES users(id)`).catch(() => {});
-db.raw(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code) WHERE referral_code IS NOT NULL`).catch(() => {});
-// Widen balance_ledger type constraint to include bonus and referral types
-db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus','fairplay_refund','clawback'))`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS friends (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    friend_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    status     TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, friend_id)
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_friends_user ON friends(user_id)`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_friends_friend ON friends(friend_id)`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS tournaments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    entry_fee NUMERIC(18,6) NOT NULL,
-    max_players INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open',
-    current_round INTEGER NOT NULL DEFAULT 0,
-    total_rounds INTEGER NOT NULL,
-    prize_pool NUMERIC(18,6) NOT NULL DEFAULT 0,
-    winner_id UUID REFERENCES users(id),
-    created_by UUID NOT NULL REFERENCES users(id),
-    starts_at TIMESTAMPTZ,
-    completed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS tournament_players (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tournament_id UUID NOT NULL REFERENCES tournaments(id),
-    user_id UUID NOT NULL REFERENCES users(id),
-    seed INTEGER,
-    status TEXT NOT NULL DEFAULT 'active',
-    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(tournament_id, user_id)
-  )
-`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS tournament_games (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tournament_id UUID NOT NULL REFERENCES tournaments(id),
-    game_id UUID REFERENCES games(id),
-    round INTEGER NOT NULL,
-    player1 UUID NOT NULL REFERENCES users(id),
-    player2 UUID NOT NULL REFERENCES users(id),
-    winner UUID REFERENCES users(id),
-    status TEXT NOT NULL DEFAULT 'pending'
-  )
-`).catch(() => {});
-
-db.raw(`
-  CREATE TABLE IF NOT EXISTS notifications (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type       TEXT NOT NULL,
-    message    TEXT NOT NULL,
-    read       BOOLEAN NOT NULL DEFAULT false,
-    metadata   JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC)`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS user_weekly_missions (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    week_start  DATE NOT NULL,
-    mission_key TEXT NOT NULL,
-    progress    NUMERIC(18,6) NOT NULL DEFAULT 0,
-    completed   BOOLEAN NOT NULL DEFAULT false,
-    rewarded    BOOLEAN NOT NULL DEFAULT false,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, week_start, mission_key)
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_user_weekly_missions_user ON user_weekly_missions(user_id, week_start)`).catch(() => {});
-db.raw(`ALTER TABLE games ADD COLUMN IF NOT EXISTS time_control TEXT NOT NULL DEFAULT '5+0'`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS reports (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reporter_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    reported_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    game_id      UUID REFERENCES games(id),
-    reason       TEXT NOT NULL,
-    details      TEXT,
-    status       TEXT NOT NULL DEFAULT 'open',
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports(reported_id, created_at DESC)`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC)`).catch(() => {});
-db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_seasonal BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
-db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_name TEXT`).catch(() => {});
-db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_bonus NUMERIC(18,6) NOT NULL DEFAULT 0`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS user_daily_puzzles (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    puzzle_date DATE NOT NULL,
-    puzzle_id   INTEGER NOT NULL,
-    attempts    INTEGER NOT NULL DEFAULT 0,
-    solved      BOOLEAN NOT NULL DEFAULT false,
-    failed      BOOLEAN NOT NULL DEFAULT false,
-    xp_earned   INTEGER NOT NULL DEFAULT 0,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, puzzle_date)
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_user_daily_puzzles_user ON user_daily_puzzles(user_id, puzzle_date DESC)`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS user_puzzle_stats (
-    user_id          UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    current_streak   INTEGER NOT NULL DEFAULT 0,
-    longest_streak   INTEGER NOT NULL DEFAULT 0,
-    total_solved     INTEGER NOT NULL DEFAULT 0,
-    last_solved_date DATE,
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus','fairplay_refund','clawback'))`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
-db.raw(`ALTER TABLE reports ADD COLUMN IF NOT EXISTS admin_notes TEXT`).catch(() => {});
-
 // Safety net: never let one bad async query crash the whole server
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);
@@ -353,11 +216,15 @@ for (const sig of ['SIGTERM', 'SIGINT'] as const) {
 }
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
-httpServer.listen(PORT, () => {
+// Migrate first: the server only accepts traffic once the schema is up to date.
+runMigrations().then(() => httpServer.listen(PORT, () => {
   console.log(`Checkmate backend running on port ${PORT}`);
   // Fair play: create tables/columns, then re-queue games that finished but were never analysed
   ensureFairplaySchema()
     .then(resumePendingAnalysis)
     .then(() => startHoldReleaser())
     .catch((err) => console.error('Fair play setup failed:', err));
+})).catch((err) => {
+  console.error('Database migration failed, not starting:', err);
+  process.exit(1);
 });

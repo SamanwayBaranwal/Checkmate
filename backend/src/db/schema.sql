@@ -1,3 +1,6 @@
+-- OUTDATED: kept for reference only. The real schema lives in src/db/migrations/ and is applied
+-- automatically at server start (or with `npm run db:migrate`).
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS users (
