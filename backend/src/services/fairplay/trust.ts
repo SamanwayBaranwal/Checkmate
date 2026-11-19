@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import type { Knex } from 'knex';
 import { db } from '../../db/client';
 
 /**
@@ -116,8 +117,9 @@ export async function sameOwnerLikely(a: string, b: string): Promise<boolean> {
 }
 
 /** Starter credits: once per device (and not twice from the same IP + browser fingerprint). */
-export async function starterAlreadyClaimedNearby(userId: string): Promise<boolean> {
-  const row = await db('user_identifiers as mine')
+// Pass the open transaction when calling from inside one: a second pool connection there can starve the pool.
+export async function starterAlreadyClaimedNearby(userId: string, trx: Knex = db): Promise<boolean> {
+  const row = await trx('user_identifiers as mine')
     .join('user_identifiers as other', function () {
       this.on('other.kind', '=', 'mine.kind').andOn('other.value', '=', 'mine.value').andOn('other.user_id', '<>', 'mine.user_id');
     })
@@ -167,8 +169,8 @@ export async function holdWinnings(userId: string, gameId: string, amount: numbe
   });
 }
 
-export async function lockedAmount(userId: string): Promise<number> {
-  const r = await db('winnings_holds').where({ user_id: userId }).whereIn('status', ['held', 'needs_approval']).sum('amount as s').first();
+export async function lockedAmount(userId: string, trx: Knex = db): Promise<number> {
+  const r = await trx('winnings_holds').where({ user_id: userId }).whereIn('status', ['held', 'needs_approval']).sum('amount as s').first();
   return parseFloat((r as any)?.s || '0');
 }
 

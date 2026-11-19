@@ -15,8 +15,10 @@ const jwks = APP_ID
   ? createRemoteJWKSet(new URL(`https://auth.privy.io/api/v1/apps/${APP_ID}/jwks.json`))
   : null;
 
+// Also never on Railway, even if NODE_ENV was forgotten there (bypass = anyone can log in as anyone)
 export const devBypassEnabled =
-  process.env.AUTH_DEV_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
+  process.env.AUTH_DEV_BYPASS === 'true' && process.env.NODE_ENV !== 'production' &&
+  !process.env.RAILWAY_ENVIRONMENT_NAME && !process.env.RAILWAY_PROJECT_ID;
 
 export async function verifyPrivyAccessToken(token: string | undefined): Promise<string> {
   if (!token) throw new Error('Missing Privy access token');

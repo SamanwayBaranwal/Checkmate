@@ -32,6 +32,14 @@ router.post('/verify', async (req: Request, res: Response) => {
     fingerprint?: string;  // coarse browser fingerprint
   };
 
+  // Wrong types used to crash later with a 500 (e.g. referralCode.toUpperCase on a number)
+  for (const v of [accessToken, claimedId, wallet, referralCode, deviceId, fingerprint]) {
+    if (v !== undefined && v !== null && (typeof v !== 'string' || v.length > 4096)) {
+      res.status(400).json({ error: 'Invalid request' });
+      return;
+    }
+  }
+
   // The user id must come from a Privy-signed token, never from the request body.
   let privyUserId: string;
   try {
@@ -109,7 +117,11 @@ router.post('/verify', async (req: Request, res: Response) => {
         usdcBalance: parseFloat(user.usdc_balance),
       },
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === '23505') { // users.wallet is UNIQUE
+      res.status(409).json({ error: 'This wallet is already linked to another account' });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }

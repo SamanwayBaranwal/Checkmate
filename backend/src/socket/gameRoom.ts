@@ -2,7 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { redis } from '../db/redis';
 import { db } from '../db/client';
 import { applyMove } from '../services/chess';
-import { settleGame, refundBet, reserveBet } from '../services/balance';
+import { settleGame, reserveBet } from '../services/balance';
 import { Chess } from 'chess.js';
 import { onTournamentGameOver } from './tournament';
 import { queueGameAnalysis, MoveMeta } from '../services/fairplay/service';
@@ -218,7 +218,8 @@ export function setupGameRoom(io: Server, socket: Socket) {
 
   socket.on('chat_message', async ({ gameId, text }: { gameId: string; text: string }) => {
     const userId = (socket as any).userId as string | undefined;
-    if (!userId || !text || !text.trim()) return;
+    if (!userId || typeof text !== 'string' || !text.trim()) return;
+    if (!socket.rooms.has(gameId)) return; // only players/spectators of this game can post into it
     const cleaned = text.trim().slice(0, 200);
     const user = await db('users').where({ id: userId }).select('username', 'wallet').first();
     const sender = user?.username || (user?.wallet ? `${user.wallet.slice(0, 6)}...` : 'Player');
@@ -228,6 +229,10 @@ export function setupGameRoom(io: Server, socket: Socket) {
   socket.on('offer_rematch', async ({ gameId }: { gameId: string }) => {
     const userId = (socket as any).userId as string | undefined;
     if (!userId) return;
+    // Only a player of this (finished) game may offer a rematch. Before: any logged-in user could overwrite
+    // the offer and the real opponent, clicking "accept", got a paid game against a stranger.
+    const g = await db('games').where({ id: gameId, status: 'completed' }).first('player_white', 'player_black');
+    if (!g || (g.player_white !== userId && g.player_black !== userId)) return;
     // TTL 5 minutes
     await redis.set(`rematch:${gameId}:offeredBy`, `${userId}:${socket.id}`, 'EX', 300);
     // Only notify the opponent (socket.to excludes the sender)
@@ -246,6 +251,16 @@ export function setupGameRoom(io: Server, socket: Socket) {
 
     const game = await db('games').where({ id: gameId }).first();
     if (!game) return;
+    const players = [game.player_white, game.player_black];
+    if (!players.includes(userId) || !players.includes(offeredByUserId)) {
+      socket.emit('rematch_error', { reason: 'Not your game' });
+      return;
+    }
+    // Consume the offer atomically: two "accept" clicks (two tabs) must not create two paid games
+    if ((await redis.del(`rematch:${gameId}:offeredBy`)) !== 1) {
+      socket.emit('rematch_error', { reason: 'Rematch offer expired' });
+      return;
+    }
 
     const betAmount = parseFloat(game.bet_amount);
 
@@ -327,63 +342,83 @@ async function handleGameEnd(
   winnerColor: 'white' | 'black' | null,
   result: string
 ) {
-  const players = gamePlayerMap.get(gameId);
-  if (!players) return;
+  // Player ids come from the DB row, not the in-memory map: the map is empty after a restart, which used to
+  // make the timeout checker skip the game forever (both stakes locked).
+  const whiteId: string = game.player_white;
+  const blackId: string = game.player_black;
+  if (!whiteId || !blackId) return;
 
   // Rebuild the full PGN from every move played
   const sans = await redis.lrange(`game:${gameId}:moves`, 0, -1);
   const full = new Chess();
   for (const san of sans) { try { full.move(san); } catch { break; } }
   const pgn = sans.length ? full.pgn() : '';
-
-  // Clean up Redis
-  await Promise.all([
-    redis.del(`game:${gameId}:moves`),
-    redis.del(`game:${gameId}:fen`),
-    redis.del(`game:${gameId}:turn`),
-    redis.del(`game:${gameId}:clocks`),
-    redis.del(`game:${gameId}:spectators`),
-  ]);
-
   const moveMeta = moveMetaMap.get(gameId) || [];
-  moveMetaMap.delete(gameId);
-  gamePlayerMap.delete(gameId);
-  await redis.del(`game:${gameId}:drawOfferBy`);
+
+  const cleanup = async () => {
+    moveMetaMap.delete(gameId);
+    gamePlayerMap.delete(gameId);
+    await Promise.all([
+      redis.del(`game:${gameId}:moves`),
+      redis.del(`game:${gameId}:fen`),
+      redis.del(`game:${gameId}:turn`),
+      redis.del(`game:${gameId}:clocks`),
+      redis.del(`game:${gameId}:spectators`),
+      redis.del(`game:${gameId}:drawOfferBy`),
+    ]);
+  };
   // Fair play: every finished game is analysed in the background by Stockfish
   const queueAnalysis = async () => {
     await db('games').where({ id: gameId }).update({ move_meta: JSON.stringify(moveMeta), analysis_status: 'pending' });
     queueGameAnalysis(gameId);
   };
 
-  if (result === 'draw') {
-    // Refund both players for draws
-    await Promise.all([
-      refundBet(players.white.userId, parseFloat(game.bet_amount)),
-      refundBet(players.black.userId, parseFloat(game.bet_amount)),
-    ]);
-    await db('games').where({ id: gameId }).update({ status: 'completed', result: 'draw', pgn, completed_at: new Date() });
+  // Any game without a winner is a draw: agreed draw, stalemate, insufficient material, repetition, 50 moves.
+  // (Before: only result === 'draw' was treated as a draw, so a stalemate paid black, then failed the
+  // games.result CHECK constraint and left the game stuck 'active' with both stakes gone.)
+  if (winnerColor === null || result === 'draw') {
+    const bet = parseFloat(game.bet_amount);
+    // Claim + refund in one transaction; only the first of several racing callers gets here.
+    const claimed = await db.transaction(async (trx) => {
+      const n = await trx('games').where({ id: gameId, status: 'active' })
+        .update({ status: 'completed', result: 'draw', pgn, completed_at: new Date() });
+      if (!n) return false;
+      if (bet > 0) {
+        for (const uid of [whiteId, blackId]) {
+          await trx('users').where({ id: uid }).increment('usdc_balance', bet);
+          await trx('balance_ledger').insert({ user_id: uid, amount: bet, type: 'refund', game_id: gameId });
+        }
+      }
+      return true;
+    });
+    if (!claimed) return;
+    await cleanup();
 
-    io.to(gameId).emit('game_over', { result: 'draw', winner: null, eloChange: 0 });
+    io.to(gameId).emit('game_over', { result: 'draw', reason: result, winner: null, eloChange: 0 });
     await queueAnalysis();
     return;
   }
 
-  const winnerId = winnerColor === 'white' ? players.white.userId : players.black.userId;
-  const loserId = winnerColor === 'white' ? players.black.userId : players.white.userId;
+  const winnerId = winnerColor === 'white' ? whiteId : blackId;
+  const loserId = winnerColor === 'white' ? blackId : whiteId;
 
-  const { eloChange, payout, streakBonus, streak } = await settleGame(
+  const settled = await settleGame(
     gameId,
     winnerId,
     loserId,
-    winnerColor!,
+    winnerColor,
     parseFloat(game.bet_amount),
     result,
     pgn,
-    players.white.userId,
-    players.black.userId,
+    whiteId,
+    blackId,
     game.white_elo_before,
     game.black_elo_before
   );
+  // Someone else (resign / timeout / last move racing) already finished this game: never pay twice.
+  if (!settled) return;
+  await cleanup();
+  const { eloChange, payout, streakBonus, streak } = settled;
 
   const [winnerUser, loserUser] = await Promise.all([
     db('users').where({ id: winnerId }).select('usdc_balance', 'elo').first(),

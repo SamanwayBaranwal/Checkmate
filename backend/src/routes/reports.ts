@@ -14,8 +14,22 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     details?: string;
   };
 
-  if (!reportedId || !reason || !VALID_REASONS.includes(reason)) {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (typeof reportedId !== 'string' || !UUID_RE.test(reportedId) || typeof reason !== 'string' || !VALID_REASONS.includes(reason)) {
     res.status(400).json({ error: 'reportedId and a valid reason are required' });
+    return;
+  }
+  if ((gameId !== undefined && gameId !== null && (typeof gameId !== 'string' || !UUID_RE.test(gameId))) ||
+      (details !== undefined && details !== null && typeof details !== 'string')) {
+    res.status(400).json({ error: 'Invalid gameId or details' });
+    return;
+  }
+  if (!(await db('users').where({ id: reportedId }).first('id'))) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+  if (gameId && !(await db('games').where({ id: gameId }).first('id'))) {
+    res.status(404).json({ error: 'Game not found' });
     return;
   }
 

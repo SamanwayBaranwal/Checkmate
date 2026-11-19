@@ -36,7 +36,7 @@ export async function settleGame(
   blackId: string,
   whiteEloBefore: number,
   blackEloBefore: number
-): Promise<{ eloChange: number; payout: number; streakBonus: number; streak: number }> {
+): Promise<{ eloChange: number; payout: number; streakBonus: number; streak: number } | null> {
   const totalPot = betAmount * 2;
   const fee = Math.floor((totalPot * PLATFORM_FEE_BPS) / 10000 * 1e6) / 1e6;
   const payout = totalPot - fee;
@@ -44,23 +44,10 @@ export async function settleGame(
   const outcome = result === 'draw' ? 'draw' : winnerColor;
   const { newWhiteElo, newBlackElo, eloChange } = calculateEloChange(whiteEloBefore, blackEloBefore, outcome as any);
 
-  await db.transaction(async (trx) => {
-    // Credit winner
-    await trx('users').where({ id: winnerId }).increment('usdc_balance', payout);
-    await trx('balance_ledger').insert({ user_id: winnerId, amount: payout, type: 'win', game_id: gameId });
-
-    // Log loser ledger entry (balance already deducted at game start)
-    await trx('balance_ledger').insert({ user_id: loserId, amount: -betAmount, type: 'loss', game_id: gameId });
-
-    // Update ELO
-    await trx('users').where({ id: whiteId }).update({ elo: newWhiteElo }).increment('games_played', 1);
-    await trx('users').where({ id: blackId }).update({ elo: newBlackElo }).increment('games_played', 1);
-    if (result !== 'draw') {
-      await trx('users').where({ id: winnerId }).increment('games_won', 1);
-    }
-
-    // Finalize game record
-    await trx('games').where({ id: gameId }).update({
+  const claimed = await db.transaction(async (trx) => {
+    // Claim the game first: only ONE caller can move it from active -> completed, so a game is never paid
+    // twice (resign x5 / resign + timeout used to pay the winner once per call).
+    const n = await trx('games').where({ id: gameId, status: 'active' }).update({
       status: 'completed',
       winner: result === 'draw' ? null : winnerId,
       result,
@@ -68,7 +55,26 @@ export async function settleGame(
       elo_change: eloChange,
       completed_at: new Date(),
     });
+    if (!n) return false;
+
+    if (betAmount > 0) {
+      // Credit winner
+      await trx('users').where({ id: winnerId }).increment('usdc_balance', payout);
+      await trx('balance_ledger').insert({ user_id: winnerId, amount: payout, type: 'win', game_id: gameId });
+
+      // Log loser ledger entry (balance already deducted at game start)
+      await trx('balance_ledger').insert({ user_id: loserId, amount: -betAmount, type: 'loss', game_id: gameId });
+    }
+
+    // Update ELO
+    await trx('users').where({ id: whiteId }).update({ elo: newWhiteElo }).increment('games_played', 1);
+    await trx('users').where({ id: blackId }).update({ elo: newBlackElo }).increment('games_played', 1);
+    if (result !== 'draw') {
+      await trx('users').where({ id: winnerId }).increment('games_won', 1);
+    }
+    return true;
   });
+  if (!claimed) return null;
 
   // Referral bonus: credit each player's referrer 10% of their share of the platform fee
   const referralBonus = parseFloat((betAmount * 0.0025).toFixed(6));
@@ -81,7 +87,7 @@ export async function settleGame(
     loserRow?.referred_by ? loserRow.referred_by : null,
   ].filter(Boolean) as string[];
 
-  for (const referrerId of referralCredits) {
+  for (const referrerId of referralBonus > 0 ? referralCredits : []) {
     await db.transaction(async (trx) => {
       await trx('users').where({ id: referrerId }).increment('usdc_balance', referralBonus);
       await trx('balance_ledger').insert({
@@ -136,7 +142,7 @@ export async function settleGame(
   }
 
   let streakBonus = 0;
-  if (streak >= 5) {
+  if (streak >= 5 && payout > 0) {
     streakBonus = parseFloat(Math.min(payout * 0.10, 5.00).toFixed(6));
     await db.transaction(async (trx) => {
       await trx('users').where({ id: winnerId }).increment('usdc_balance', streakBonus);

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router, Request, Response } from 'express';
 import { db } from '../db/client';
 import { confirmCheater, clearPlayer, queueGameAnalysis, isEngineReady } from '../services/fairplay/service';
@@ -5,12 +6,22 @@ import { linkedAccounts, lockedAmount } from '../services/fairplay/trust';
 
 const router = Router();
 
+// Malformed ids used to reach Postgres and come back as a 500
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+for (const p of ['id', 'userId', 'gameId']) {
+  router.param(p, (_req, res, next, v) => {
+    if (UUID_RE.test(String(v))) next();
+    else res.status(404).json({ error: 'Not found' });
+  });
+}
+
 function requireAdmin(req: Request, res: Response): boolean {
   const secret = process.env.ADMIN_SECRET;
-  const provided =
-    req.headers['x-admin-secret'] as string | undefined ||
-    (req.query.secret as string | undefined);
-  if (!secret || provided !== secret) {
+  const raw = req.headers['x-admin-secret'] || req.query.secret;
+  const provided = typeof raw === 'string' ? raw : '';
+  // constant-time compare (a plain !== leaks the secret's prefix through response timing)
+  const a = Buffer.from(provided), b = Buffer.from(secret || '');
+  if (!secret || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     res.status(403).json({ error: 'Forbidden' });
     return false;
   }
@@ -80,7 +91,7 @@ router.post('/reports/:id/dismiss', async (req: Request, res: Response) => {
 // GET /api/admin/users?q=username_or_wallet
 router.get('/users', async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
-  const q = ((req.query.q as string) || '').trim();
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
 
   try {
     const users = await db('users')
@@ -237,14 +248,17 @@ router.get('/fairplay/:userId', async (req: Request, res: Response) => {
 router.post('/fairplay/:userId/confirm', async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   const { days, notes } = req.body as { days?: number; notes?: string };
-  const summary = await confirmCheater(req.params.userId, Math.min(Math.max(days || 30, 1), 365), notes || '');
+  if (!(await db('users').where({ id: req.params.userId }).first('id'))) { res.status(404).json({ error: 'Not found' }); return; }
+  const d = Number.isFinite(Number(days)) && Number(days) > 0 ? Number(days) : 30;
+  const summary = await confirmCheater(req.params.userId, Math.min(Math.max(d, 1), 365), typeof notes === 'string' ? notes : '');
   res.json({ ok: true, summary });
 });
 
 // POST /api/admin/fairplay/:userId/clear { notes? } → reviewed and fine
 router.post('/fairplay/:userId/clear', async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
-  await clearPlayer(req.params.userId, (req.body?.notes as string) || '');
+  if (!(await db('users').where({ id: req.params.userId }).first('id'))) { res.status(404).json({ error: 'Not found' }); return; }
+  await clearPlayer(req.params.userId, typeof req.body?.notes === 'string' ? req.body.notes : '');
   res.json({ ok: true });
 });
 

@@ -166,7 +166,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) 
 
 router.patch('/me/username', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { username } = req.body as { username?: string };
-  if (!username || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+  if (typeof username !== 'string' || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
     res.status(400).json({ error: 'Username must be 3-20 alphanumeric characters' });
     return;
   }
@@ -216,19 +216,32 @@ router.post('/me/daily-bonus', requireAuth, async (req: AuthenticatedRequest, re
     const isConsecutiveDay = lastBonus && msSinceLast < 48 * 60 * 60 * 1000;
     const newStreak = isConsecutiveDay ? (user.login_streak || 0) + 1 : 1;
 
-    await db.transaction(async (trx) => {
-      await trx('users').where({ id: req.userId }).update({
-        usdc_balance: db.raw('usdc_balance + ?', [BONUS_AMOUNT]),
-        last_login_bonus: now,
-        login_streak: newStreak,
-      });
+    const credited = await db.transaction(async (trx) => {
+      // Conditional on the cooldown still being over at write time, so parallel requests credit once
+      // (before: 10 parallel requests credited 10x).
+      const n = await trx('users')
+        .where({ id: req.userId })
+        .where(function () {
+          this.whereNull('last_login_bonus').orWhere('last_login_bonus', '<=', new Date(now.getTime() - COOLDOWN_MS));
+        })
+        .update({
+          usdc_balance: db.raw('usdc_balance + ?', [BONUS_AMOUNT]),
+          last_login_bonus: now,
+          login_streak: newStreak,
+        });
+      if (!n) return false;
       await trx('balance_ledger').insert({
         user_id: req.userId,
         amount: BONUS_AMOUNT,
         type: 'bonus',
         tx_hash: `daily_bonus_${now.getTime()}`,
       });
+      return true;
     });
+    if (!credited) {
+      res.json({ credited: false, nextInMinutes: Math.ceil(COOLDOWN_MS / 60000) });
+      return;
+    }
 
     const updated = await db('users').where({ id: req.userId }).select('usdc_balance').first();
     res.json({ credited: true, amount: BONUS_AMOUNT, streak: newStreak, balance: parseFloat(updated.usdc_balance) });
@@ -349,11 +362,11 @@ router.get('/me/suggested', requireAuth, async (req: AuthenticatedRequest, res: 
 });
 
 router.get('/search', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const q = ((req.query.q as string) || '').trim();
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   if (!q || q.length < 2) { res.json([]); return; }
   try {
     const users = await db('users')
-      .whereRaw(`LOWER(username) LIKE LOWER(?)`, [`${q}%`])
+      .whereRaw(`LOWER(username) LIKE LOWER(?)`, [`${q.replace(/[\\%_]/g, '\\$&')}%`]) // % and _ are literal
       .whereNot('id', req.userId!)
       .whereNotNull('username')
       .select('id', 'username', 'elo', 'games_played', 'games_won')

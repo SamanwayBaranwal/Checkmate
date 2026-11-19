@@ -48,19 +48,23 @@ export function setupTournament(io: Server, socket: Socket) {
       // Seed by ELO descending
       const seeded = [...players].sort((a, b) => b.elo - a.elo);
 
-      await db.transaction(async (trx) => {
+      const started = await db.transaction(async (trx) => {
+        // Claim: only one start_tournament call may pair round 1 (double click / two tabs)
+        const claimed = await trx('tournaments').where({ id: tournamentId, status: 'open' }).update({
+          status: 'active',
+          current_round: 1,
+          total_rounds: totalRounds,
+        });
+        if (!claimed) return false;
         // Assign seeds
         for (let i = 0; i < seeded.length; i++) {
           await trx('tournament_players')
             .where({ tournament_id: tournamentId, user_id: seeded[i].user_id })
             .update({ seed: i + 1 });
         }
-        await trx('tournaments').where({ id: tournamentId }).update({
-          status: 'active',
-          current_round: 1,
-          total_rounds: totalRounds,
-        });
+        return true;
       });
+      if (!started) return;
 
       // Pair round 1: seed 1 vs seed N, seed 2 vs seed N-1, etc.
       await pairRound(io, tournamentId, 1, seeded.map((p) => p.user_id), tournament.entry_fee);
@@ -107,7 +111,10 @@ export async function pairRound(
     const [game] = await db('games').insert({
       player_white: p1Id,
       player_black: p2Id,
-      bet_amount: entryFee,
+      // Entry fees are already in the prize pool and stakes are NOT reserved for bracket games, so the game
+      // itself must carry no stake. (Before: bet_amount = entryFee, and settleGame paid every bracket-game
+      // winner 2x the fee out of thin air on top of the prize pool.)
+      bet_amount: 0,
       status: 'active',
       white_elo_before: p1.elo,
       black_elo_before: p2.elo,

@@ -3,6 +3,7 @@ import { redis } from '../db/redis';
 import { db } from '../db/client';
 import { reserveBet } from '../services/balance';
 import { getInitialFen } from '../services/chess';
+import { registerGamePlayer } from './gameRoom';
 import { stakeError, sameOwnerLikely } from '../services/fairplay/trust';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -56,14 +57,18 @@ export function setupMatchmaking(io: Server, socket: Socket) {
     let opponent: string | undefined;
     for (const id of waiting) {
       const data = socketToUser.get(id);
-      if (!data || data.userId === userId || id === socket.id) continue;
+      if (!data) { await redis.zrem(queueKey, id); continue; } // disconnected socket: drop it, or 10 stale ids block the tier
+      if (data.userId === userId || id === socket.id) continue;
       if (await sameOwnerLikely(userId, data.userId)) continue;
+      // Claim atomically: two players joining at once must not both get the same opponent
+      // (that created two games and reserved the waiting player's stake twice).
+      if ((await redis.zrem(queueKey, id)) !== 1) continue;
       opponent = id; break;
     }
 
     if (opponent) {
-      await redis.zrem(queueKey, opponent);
-      const opponentData = socketToUser.get(opponent)!;
+      const opponentData = socketToUser.get(opponent);
+      if (!opponentData) { await redis.zadd(queueKey, Date.now(), socket.id); socket.emit('queue_joined', { tier, timeControl: tc, position: 1 }); return; }
 
       // Reserve bets from both players
       const [whiteReserved, blackReserved] = await Promise.all([
@@ -106,6 +111,13 @@ export function setupMatchmaking(io: Server, socket: Socket) {
       await redis.set(
         `game:${gameId}:clocks`,
         JSON.stringify({ white: clockMs, black: clockMs, lastMoveAt: Date.now() })
+      );
+
+      // Register players right away so moves work even before the game page sends rejoin_game
+      registerGamePlayer(
+        gameId,
+        { userId: whiteUser.userId, color: 'white', socketId: whiteSocketId },
+        { userId: blackUser.userId, color: 'black', socketId: blackSocketId }
       );
 
       // Join both sockets to the game room

@@ -91,7 +91,11 @@ export function setupChallenge(io: Server, socket: Socket) {
     const { challengerId, targetId, betAmount, challengerSocketId } = JSON.parse(raw);
     if (accepterId !== targetId) { socket.emit('challenge_error', { reason: 'Not your challenge' }); return; }
 
-    await redis.del(`challenge:${challengeId}`);
+    // Consume the challenge atomically: accepting from two tabs used to start two paid games
+    if ((await redis.del(`challenge:${challengeId}`)) !== 1) {
+      socket.emit('challenge_error', { reason: 'Challenge expired' });
+      return;
+    }
 
     const limitErr = (await stakeError(accepterId, betAmount)) || (await stakeError(challengerId, betAmount));
     if (limitErr) { socket.emit('challenge_error', { reason: limitErr }); return; }
