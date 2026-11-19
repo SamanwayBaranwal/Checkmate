@@ -8,6 +8,8 @@ import { useSession } from '@/lib/session';
 import { Icon, type IconName } from '@/components/Icons';
 import { PIECE_THEMES, DEFAULT_PIECE_THEME, type PieceTheme } from '@/lib/pieceThemes';
 import { BOARD_THEMES } from '@/lib/boardThemes';
+import Link from 'next/link';
+import { REAL_MONEY } from '@/lib/site';
 
 const NOTIF_PREFS = [
   { key: 'challenge_received', label: 'Incoming challenges', desc: 'When a player sends you a challenge' },
@@ -428,6 +430,10 @@ export default function SettingsPage() {
         <button onClick={() => setShowDeleteModal(true)} className="w-full h-11 text-xs text-faint hover:text-negative transition-colors">
           Delete account
         </button>
+        <div className="flex justify-center gap-5 text-xs text-faint font-medium">
+          <Link href="/terms" className="hover:text-ink">Terms of Service</Link>
+          <Link href="/privacy" className="hover:text-ink">Privacy Policy</Link>
+        </div>
       </div>
 
       {/* Username sheet */}
@@ -481,7 +487,7 @@ export default function SettingsPage() {
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-negative">Delete account</h3>
             <p className="text-sm text-muted mt-1">
-              This cannot be undone. Your game history stays but is anonymized. Withdraw any remaining balance first.
+              This cannot be undone. Your game history stays but is anonymized. {REAL_MONEY ? 'Withdraw any remaining balance first.' : 'Any remaining credits are forfeited.'}
             </p>
             <p className="text-xs text-faint mt-4 mb-2">Type <span className="font-mono text-ink">DELETE MY ACCOUNT</span> to confirm</p>
             <input

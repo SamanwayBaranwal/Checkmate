@@ -59,7 +59,7 @@ export default function GameOverModal({
 
         {spectator ? <div className="h-5" /> : <div className="grid grid-cols-2 gap-2 my-5">
           <div className="rounded-xl bg-surface-2 py-3">
-            <div className="text-xs text-faint">Money</div>
+            <div className="text-xs text-faint">Credits</div>
             <div className={`text-lg font-semibold num ${draw ? '' : won ? 'text-positive' : 'text-negative'}`}>
               {draw ? 'Refunded' : won ? `+$${earned.toFixed(2)}` : `−$${betAmount.toFixed(2)}`}
             </div>

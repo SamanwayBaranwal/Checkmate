@@ -3,6 +3,8 @@
 import { useSession } from '@/lib/session';
 import { Icon, type IconName } from './Icons';
 import BoardPreview from './BoardPreview';
+import Link from 'next/link';
+import { REAL_MONEY } from '@/lib/site';
 
 const POINTS: { icon: IconName; color: string; title: string; desc: string }[] = [
   { icon: 'bolt', color: '#F2A93B', title: 'A game in seconds', desc: 'Bullet, blitz or rapid against someone at your level.' },
@@ -17,7 +19,7 @@ export default function AuthLanding() {
       <div className="grid lg:grid-cols-[1fr_minmax(0,520px)] gap-10 lg:gap-14 items-center">
         <div>
           <h1 className="text-[44px] leading-[1.02] md:text-[64px] font-black tracking-tight">
-            Play chess.<br /><span className="text-muted">Win money.</span>
+            Play chess.<br /><span className="text-muted">{REAL_MONEY ? 'Win money.' : 'Win credits.'}</span>
           </h1>
           <p className="text-muted text-lg md:text-xl font-medium mt-4 max-w-md">
             Rated games against real people. The better you play, the more you take home.
@@ -27,6 +29,7 @@ export default function AuthLanding() {
             <button onClick={login} className="btn-secondary h-14 px-6 text-lg">Log in</button>
           </div>
           <p className="text-sm text-faint font-medium mt-3">Email, Google or wallet. Takes 10 seconds.</p>
+          {!REAL_MONEY && <p className="text-xs text-faint mt-1.5">Free to play. Credits have no cash value.</p>}
 
           <div className="lg:hidden mt-10"><BoardPreview /></div>
 
@@ -46,6 +49,12 @@ export default function AuthLanding() {
         </div>
         <div className="hidden lg:block"><BoardPreview /></div>
       </div>
+      <footer className="mt-14 pt-6 border-t border-line/[0.07] flex flex-wrap gap-x-5 gap-y-2 text-sm text-faint font-medium">
+        <span>© {new Date().getFullYear()} ELO</span>
+        <Link href="/terms" className="hover:text-ink">Terms</Link>
+        <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+        <Link href="/leaderboard" className="hover:text-ink">Leaderboard</Link>
+      </footer>
     </div>
   );
 }

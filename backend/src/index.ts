@@ -29,6 +29,7 @@ import { setupSpectator } from './socket/spectator';
 import { setupChallenge } from './socket/challenge';
 import { setupTournament } from './socket/tournament';
 import { startDepositWatcher } from './services/deposit';
+import { REAL_MONEY } from './config';
 import { startCronJobs } from './services/cron';
 import { addOnlineSocket, removeOnlineSocket } from './services/onlineUsers';
 import { setIo } from './services/notifications';
@@ -187,7 +188,8 @@ io.on('connection', async (socket) => {
 
 setIo(io);
 startTimeoutChecker(io);
-startDepositWatcher();
+if (REAL_MONEY) startDepositWatcher();
+else console.log('Free play mode: deposits and withdrawals are off (set REAL_MONEY=true to enable)');
 startCronJobs();
 
 // Safety net: never let one bad async query crash the whole server

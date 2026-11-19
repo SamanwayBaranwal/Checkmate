@@ -6,6 +6,7 @@ import { db } from '../db/client';
 import { createWalletClient, http, parseUnits, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
+import { REAL_MONEY, FREE_PLAY_MESSAGE } from '../config';
 
 const router = Router();
 
@@ -37,6 +38,7 @@ router.get('/balance', requireAuth, async (req: AuthenticatedRequest, res: Respo
 });
 
 router.get('/deposit-address', requireAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  if (!REAL_MONEY) return res.status(403).json({ error: FREE_PLAY_MESSAGE });
   res.json({
     address: PLATFORM_WALLET,
     network: 'Base',
@@ -55,6 +57,7 @@ router.get('/transactions', requireAuth, async (req: AuthenticatedRequest, res: 
 });
 
 router.post('/withdraw', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (!REAL_MONEY) return res.status(403).json({ error: FREE_PLAY_MESSAGE });
   const { amount, toAddress } = req.body as { amount?: number; toAddress?: string };
 
   // amount must be a real number with at most 6 decimals (USDC precision); strings / NaN / 1e308 rejected

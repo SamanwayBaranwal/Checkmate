@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db/client';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { REAL_MONEY } from '../config';
 import { trustLevel, lockedAmount, HOLD_HOURS, MANUAL_APPROVAL_OVER } from '../services/fairplay/trust';
 
 const router = Router();
@@ -282,7 +283,8 @@ router.delete('/me', requireAuth, async (req: AuthenticatedRequest, res: Respons
   }
   const user = await db('users').where({ id: req.userId }).select('usdc_balance').first();
   if (!user) { res.status(404).json({ error: 'Not found' }); return; }
-  if (parseFloat(user.usdc_balance) > 0) {
+  // Free play: credits have no cash value and can't be withdrawn, so they are simply forfeited.
+  if (REAL_MONEY && parseFloat(user.usdc_balance) > 0) {
     res.status(400).json({ error: 'Withdraw your balance before deleting your account' });
     return;
   }
@@ -299,6 +301,8 @@ router.delete('/me', requireAuth, async (req: AuthenticatedRequest, res: Respons
     wallet: `deleted_${req.userId}`,
     username: null,
     usdc_balance: 0,
+    settings: '{}',
+    referral_code: null,
   });
   res.json({ ok: true });
 });

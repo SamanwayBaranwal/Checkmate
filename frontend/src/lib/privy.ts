@@ -10,6 +10,8 @@ export const privyConfig = {
     accentColor: '#F6F6F7' as `#${string}`,
     logo: '/brand/elo-logo.png',
   },
+  // Links shown in the login modal footer
+  legal: { termsAndConditionsUrl: '/terms', privacyPolicyUrl: '/privacy' },
   embeddedWallets: {
     createOnLogin: 'users-without-wallets' as const,
   },

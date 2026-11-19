@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { REAL_MONEY } from '@/lib/site';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -202,6 +203,7 @@ export default function WalletPage() {
           {bonusBalance > 0 && (
             <p className="text-xs text-muted mt-2.5 num">Includes <span className="text-ink">{money(bonusBalance)}</span> in lifetime bonuses</p>
           )}
+          {REAL_MONEY ? (
           <div className="mt-5 pt-4 border-t border-line/[0.06] space-y-3 md:mt-auto">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-muted flex items-center gap-2"><Icon name="check" size={15} className="text-positive" />Withdrawable</span>
@@ -215,6 +217,11 @@ export default function WalletPage() {
               <p className="text-xs text-faint mt-1 pl-[23px]">Winnings unlock after the fair-play check (about 48h).</p>
             </div>
           </div>
+          ) : (
+            <p className="mt-5 pt-4 border-t border-line/[0.06] md:mt-auto text-sm text-muted">
+              Free credits for rated games. They have no cash value and can&apos;t be withdrawn.
+            </p>
+          )}
         </section>
 
         {/* Free credits */}
