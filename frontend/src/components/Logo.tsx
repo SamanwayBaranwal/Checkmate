@@ -1,8 +1,9 @@
 // ELO brand: "Knight's Move". The mark is the knight's L path on board squares (three up, one across),
 // with the landing square marked. In the wordmark the same L is the L of ELO.
-const BRAND = '#7C5CFF'; // signature: only the knight's landing square is purple
-const TILE = '#F6F6F7';
-const MARK = '#111112';
+const BRAND = '#5DB43C';
+const TILE = BRAND;
+const MARK = '#FFFFFF';
+const LAND = '#181715';
 
 export function LogoMark({ size = 32 }: { size?: number }) {
   return (
@@ -11,8 +12,8 @@ export function LogoMark({ size = 32 }: { size?: number }) {
       <rect x="24" y="16" width="22" height="22" rx="5" fill={MARK} />
       <rect x="24" y="41" width="22" height="22" rx="5" fill={MARK} fillOpacity=".72" />
       <rect x="24" y="66" width="22" height="22" rx="5" fill={MARK} fillOpacity=".72" />
-      <rect x="49" y="66" width="22" height="22" rx="5" fill={BRAND} />
-      <circle cx="60" cy="77" r="4.5" fill={TILE} />
+      <rect x="49" y="66" width="22" height="22" rx="5" fill={LAND} />
+      <circle cx="60" cy="77" r="4.5" fill={BRAND} />
     </svg>
   );
 }

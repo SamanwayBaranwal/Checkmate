@@ -16,6 +16,7 @@ import { sounds } from '@/lib/sounds';
 import { api } from '@/lib/api';
 import { getCustomPieces, type PieceTheme } from '@/lib/pieceThemes';
 import { BOARD_THEMES } from '@/lib/boardThemes';
+import { PieceAvatar } from '@/components/GameIcons';
 
 const Chessboard = dynamic(() => import('react-chessboard').then((m) => m.Chessboard), {
   ssr: false,
@@ -220,7 +221,7 @@ export default function GamePage() {
 
   const PlayerRow = ({ name, sub, side, ms, active }: { name: string; sub: string; side: 'white' | 'black'; ms: number; active: boolean }) => (
     <div className="flex items-center gap-3 h-[52px]">
-      <span className={`avatar w-9 h-9 text-sm ${side === 'white' ? '!bg-ink !text-canvas' : ''}`}>{(name || '?')[0]?.toUpperCase()}</span>
+      <PieceAvatar seed={name} size={36} />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold truncate leading-tight">{name}</div>
         <div className="flex items-center gap-2 text-xs text-faint num">

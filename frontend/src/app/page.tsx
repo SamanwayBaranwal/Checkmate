@@ -30,7 +30,7 @@ function PlayerRow({ player, token, onSent }: { player: any; token: string; onSe
   };
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <Link href={`/profile/${player.id}`}><PieceAvatar seed={player.id} size={38} /></Link>
+      <Link href={`/profile/${player.id}`}><PieceAvatar seed={player.username || player.id} size={38} /></Link>
       <Link href={`/profile/${player.id}`} className="min-w-0 flex-1">
         <div className="text-sm font-medium truncate">{name}</div>
         <div className="text-xs text-faint num">{player.elo} · {wr}% wins</div>
@@ -88,7 +88,7 @@ export default function HomePage() {
         {/* Play panel */}
         <div className="space-y-5">
           <div className="flex items-center gap-3">
-            <PieceAvatar seed={me?.id || 'me'} size={52} />
+            <PieceAvatar seed={me?.username || me?.id || 'me'} size={52} />
             <div className="min-w-0">
               <p className="text-sm text-muted font-bold">{greeting()}</p>
               <h1 className="text-2xl font-black truncate">{me?.username || 'Player'}</h1>
@@ -102,14 +102,14 @@ export default function HomePage() {
           <div>
             {balance <= 0 ? (
               <Link href="/wallet" className="play-tile play-tile-primary">
-                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
-                <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-black/55 font-semibold">$10 to start playing</span></span>
+                <span className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
+                <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-white/85 font-semibold">$10 to start playing</span></span>
                 <Icon name="chevron-right" size={20} />
               </Link>
             ) : (
               <button onClick={() => setPlayOpen(true)} className="play-tile play-tile-primary">
-                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
-                <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-black/55 font-semibold">Matched with someone near your rating</span></span>
+                <span className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
+                <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-white/85 font-semibold">Matched with someone near your rating</span></span>
                 <Icon name="chevron-right" size={20} />
               </button>
             )}

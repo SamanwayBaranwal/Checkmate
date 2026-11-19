@@ -17,7 +17,7 @@ export default function AuthLanding() {
       <div className="grid lg:grid-cols-[1fr_minmax(0,520px)] gap-10 lg:gap-14 items-center">
         <div>
           <h1 className="text-[44px] leading-[1.02] md:text-[64px] font-black tracking-tight">
-            Play chess.<br /><span className="text-muted">Win money.</span>
+            Play chess.<br /><span className="text-accent">Win money.</span>
           </h1>
           <p className="text-muted text-lg md:text-xl font-medium mt-4 max-w-md">
             Rated games against real people. The better you play, the more you take home.
@@ -33,7 +33,7 @@ export default function AuthLanding() {
           <div className="mt-10 grid gap-3">
             {POINTS.map((p) => (
               <div key={p.title} className="flex items-center gap-4 rounded-2xl bg-surface border border-line/[0.07] px-4 py-3.5">
-                <span className="w-11 h-11 rounded-xl bg-surface-3 flex items-center justify-center text-ink shrink-0">
+                <span className="w-11 h-11 rounded-xl bg-accent/15 flex items-center justify-center text-accent shrink-0">
                   <Icon name={p.icon} size={20} />
                 </span>
                 <div>

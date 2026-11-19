@@ -57,8 +57,8 @@ export function GearGlyph({ size = 22, className = '' }: { size?: number; classN
 }
 
 // Player avatar: their own piece on their own colour, stable per player (no generic letter circles).
-const AVATAR_COLORS = ['#F2F2F3', '#3A3A3E', '#9A9AA0', '#26262A', '#D6D6D9', '#5A5A60'];
-const LIGHT_TILES = new Set(['#F2F2F3', '#D6D6D9', '#9A9AA0']);
+const AVATAR_COLORS = ['#5DB43C', '#E8833A', '#3D8FD6', '#D9534F', '#2EA597', '#C9A227', '#8A63D2', '#D2558F'];
+const LIGHT_TILES = new Set<string>();
 const AVATAR_PIECES: Piece[] = ['N', 'K', 'Q', 'R', 'B', 'P'];
 
 function hash(s: string) {

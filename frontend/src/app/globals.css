@@ -8,21 +8,21 @@
    No neon, no glows, no gradients. One font (Inter) with tabular numbers.
    ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  /* ELO: monochrome. Neutral charcoal + gray, white is the action colour. Purple appears only in the logo. */
-  --c-base: 17 17 18;          /* #111112 app background */
-  --c-surface: 28 28 30;       /* #1C1C1E cards */
-  --c-surface-2: 40 40 43;     /* #28282B rows, inputs, hovers */
-  --c-surface-3: 56 56 60;     /* #38383C pressed, icon tiles */
+  /* ELO: warm charcoal surfaces + one vivid green for every action. Red only for losses / danger. */
+  --c-base: 24 23 21;          /* #181715 app background (warm, not flat gray) */
+  --c-surface: 35 34 31;       /* #23221F cards */
+  --c-surface-2: 47 45 42;     /* #2F2D2A rows, inputs, hovers */
+  --c-surface-3: 63 61 57;     /* #3F3D39 pressed, icon tiles */
   --c-line: 255 255 255;       /* used at low alpha */
-  --c-ink: 246 246 247;        /* #F6F6F7 primary text */
-  --c-muted: 168 168 174;      /* #A8A8AE secondary text */
-  --c-faint: 112 112 120;      /* #707078 tertiary text */
-  --c-accent: 246 246 247;     /* white: primary actions, active states */
-  --c-accent-ink: 17 17 18;    /* black text on white */
-  --c-positive: 61 200 122;    /* money won */
-  --c-negative: 242 92 92;     /* money lost / danger */
+  --c-ink: 250 249 246;        /* #FAF9F6 primary text */
+  --c-muted: 176 172 165;      /* #B0ACA5 secondary text */
+  --c-faint: 120 116 110;      /* #78746E tertiary text */
+  --c-accent: 93 180 60;       /* #5DB43C green: primary actions, active states */
+  --c-accent-ink: 255 255 255; /* white text on green */
+  --c-positive: 93 180 60;     /* money won */
+  --c-negative: 236 86 74;     /* money lost / danger */
 
-  --accent-edge: 150 150 156;  /* gray edge under white chunky buttons */
+  --accent-edge: 62 125 38;    /* darker green under chunky green buttons */
   --border: rgb(255 255 255 / 0.07);
   --border-strong: rgb(255 255 255 / 0.13);
 }
@@ -85,11 +85,11 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; font-weight: 800; }
   @apply btn;
   background: rgb(var(--c-surface-2));
   color: rgb(var(--c-ink));
-  box-shadow: 0 4px 0 rgb(8 8 9);
+  box-shadow: 0 4px 0 rgb(12 11 10);
   margin-bottom: 4px;
 }
 .btn-secondary:hover:not(:disabled) { background: rgb(var(--c-surface-3)); }
-.btn-secondary:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 rgb(8 8 9); }
+.btn-secondary:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 rgb(12 11 10); }
 
 .btn-ghost {
   @apply btn font-semibold;
@@ -113,12 +113,12 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; font-weight: 800; }
 .play-tile {
   @apply flex items-center gap-4 w-full text-left rounded-2xl px-4 py-4;
   background: rgb(var(--c-surface-2));
-  box-shadow: 0 5px 0 rgb(8 8 9);
+  box-shadow: 0 5px 0 rgb(12 11 10);
   margin-bottom: 5px;
   transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.12s ease;
 }
 .play-tile:hover { background: rgb(var(--c-surface-3)); }
-.play-tile:active { transform: translateY(5px); box-shadow: 0 0 0 rgb(8 8 9); }
+.play-tile:active { transform: translateY(5px); box-shadow: 0 0 0 rgb(12 11 10); }
 .play-tile-primary { background: rgb(var(--c-accent)); color: rgb(var(--c-accent-ink)); box-shadow: 0 5px 0 rgb(var(--accent-edge)); }
 .play-tile-primary:hover { background: rgb(var(--c-accent)); filter: brightness(1.07); }
 .play-tile-primary:active { box-shadow: 0 0 0 rgb(var(--accent-edge)); }
