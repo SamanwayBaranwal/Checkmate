@@ -6,6 +6,7 @@ import { settleGame, refundBet, reserveBet } from '../services/balance';
 import { Chess } from 'chess.js';
 import { onTournamentGameOver } from './tournament';
 import { queueGameAnalysis, MoveMeta } from '../services/fairplay/service';
+import { stakeError, sameOwnerLikely, holdWinnings } from '../services/fairplay/trust';
 
 interface ClockState {
   white: number;
@@ -251,6 +252,10 @@ export function setupGameRoom(io: Server, socket: Socket) {
     const newWhiteId = offererWasWhite ? userId : offeredByUserId;
     const newBlackId = offererWasWhite ? offeredByUserId : userId;
 
+    const limitErr = (await stakeError(newWhiteId, betAmount)) || (await stakeError(newBlackId, betAmount));
+    if (limitErr) { socket.emit('rematch_error', { reason: limitErr }); return; }
+    if (await sameOwnerLikely(newWhiteId, newBlackId)) { socket.emit('rematch_error', { reason: 'Not allowed between accounts on the same device or network' }); return; }
+
     const [whiteOk, blackOk] = await Promise.all([
       reserveBet(newWhiteId, betAmount),
       reserveBet(newBlackId, betAmount),
@@ -401,6 +406,8 @@ async function handleGameEnd(
   });
 
   await queueAnalysis();
+  // Money safety: winnings stay locked until this game is checked and the cooling period passes
+  await holdWinnings(winnerId, gameId, payout).catch((e) => console.error('hold failed', e));
 
   // If this game belongs to a tournament, advance the bracket
   const tGame = await db('tournament_games').where({ game_id: gameId }).first();

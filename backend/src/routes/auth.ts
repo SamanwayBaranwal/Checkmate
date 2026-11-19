@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/client';
 import { verifyPrivyAccessToken, devBypassEnabled } from '../services/privyAuth';
+import { recordIdentifiers, deviceIsBanned, clientIp } from '../services/fairplay/trust';
 
 const router = Router();
 
@@ -22,11 +23,13 @@ async function makeReferralCode(): Promise<string> {
 }
 
 router.post('/verify', async (req: Request, res: Response) => {
-  const { accessToken, privyUserId: claimedId, wallet, referralCode } = req.body as {
+  const { accessToken, privyUserId: claimedId, wallet, referralCode, deviceId, fingerprint } = req.body as {
     accessToken?: string;
     privyUserId?: string;
     wallet?: string;
     referralCode?: string;
+    deviceId?: string;     // random id kept in the browser (one person, one account)
+    fingerprint?: string;  // coarse browser fingerprint
   };
 
   // The user id must come from a Privy-signed token, never from the request body.
@@ -44,6 +47,12 @@ router.post('/verify', async (req: Request, res: Response) => {
 
   if (!wallet || !/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
     res.status(400).json({ error: 'A valid wallet address is required' });
+    return;
+  }
+
+  // A device that belongs to a banned account cannot come back with a new account
+  if (await deviceIsBanned(deviceId)) {
+    res.status(403).json({ error: 'Account suspended: this device is linked to a banned account' });
     return;
   }
 
@@ -76,6 +85,8 @@ router.post('/verify', async (req: Request, res: Response) => {
       .merge({ wallet: walletLower });
 
     const user = await db('users').where({ privy_user_id: privyUserId }).first();
+
+    await recordIdentifiers(user.id, { deviceId, fingerprint, ip: clientIp(req.ip) });
 
     if (user?.banned_at) {
       res.status(403).json({ error: `Account suspended: ${user.ban_reason ?? 'fair play violation'}` });

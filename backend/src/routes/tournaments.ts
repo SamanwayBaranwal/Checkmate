@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { db } from '../db/client';
+import { stakeError } from '../services/fairplay/trust';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -116,6 +117,8 @@ router.post('/:id/join', requireAuth, async (req: AuthenticatedRequest, res: Res
 
     const user = await db('users').where({ id: req.userId }).select('usdc_balance', 'username').first();
     if (!user?.username) { res.status(400).json({ error: 'Set a username before joining tournaments' }); return; }
+    const limitErr = await stakeError(req.userId!, parseFloat(tournament.entry_fee));
+    if (limitErr) { res.status(403).json({ error: limitErr }); return; }
     if (parseFloat(user.usdc_balance) < parseFloat(tournament.entry_fee)) {
       res.status(400).json({ error: 'Insufficient balance' });
       return;

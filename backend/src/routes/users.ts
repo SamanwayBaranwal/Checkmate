@@ -1,8 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db/client';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { trustLevel, lockedAmount, HOLD_HOURS, MANUAL_APPROVAL_OVER } from '../services/fairplay/trust';
 
 const router = Router();
+
+// GET /api/users/me/limits: stake limit for this account + locked winnings (money safety)
+router.get('/me/limits', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const t = await trustLevel(req.userId!);
+  const user = await db('users').where({ id: req.userId }).first('usdc_balance');
+  const locked = await lockedAmount(req.userId!);
+  const balance = parseFloat(user?.usdc_balance ?? '0');
+  res.json({ ...t, locked, withdrawable: Math.max(0, balance - locked), holdHours: HOLD_HOURS, manualApprovalOver: MANUAL_APPROVAL_OVER });
+});
 
 router.get('/leaderboard', async (req: Request, res: Response) => {
   const tab = (req.query.tab as string) || 'elo';

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSocket } from '@/lib/socket';
 import { Icon } from '@/components/Icons';
+import { api } from '@/lib/api';
 
 const BET_TIERS = [1, 5, 10, 25] as const;
 type BetTier = (typeof BET_TIERS)[number];
@@ -28,6 +29,9 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
   const [selectedTC, setSelectedTC] = useState<TimeControl>('5+0');
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
+  const [limits, setLimits] = useState<Awaited<ReturnType<typeof api.users.limits>> | null>(null);
+  useEffect(() => { api.users.limits().then(setLimits).catch(() => {}); }, []);
+  const maxStake = limits ? limits.maxStake : Infinity;
 
   const joinQueue = useCallback(() => {
     if (balance < selectedTier) {
@@ -144,7 +148,7 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
             <div className="grid grid-cols-4 gap-2 mb-6">
               {BET_TIERS.map((tier) => {
                 const active = selectedTier === tier;
-                const cant = balance < tier;
+                const cant = balance < tier || tier > maxStake;
                 return (
                   <button
                     key={tier}
@@ -164,6 +168,18 @@ export default function MatchmakingModal({ onClose, balance, token }: Props) {
               <span className="text-white/45">Winner takes</span>
               <span className="font-bold text-[#46a883]">${(selectedTier * 2 * 0.975).toFixed(2)}</span>
             </div>
+
+            {limits && limits.maxStake < 25 && (
+              <p className="text-xs text-white/45 mb-4">
+                {limits.reason ? limits.reason
+                  : `Your limit is $${limits.maxStake} per game.${limits.next ? ` ${Math.max(0, limits.next.games - limits.cleanGames)} more clean games (account ${limits.next.days}+ days old) unlock $${limits.next.maxStake}.` : ''}`}
+              </p>
+            )}
+            {limits && limits.locked > 0 && (
+              <p className="text-xs text-white/45 mb-4">
+                ${limits.locked.toFixed(2)} of winnings is locked until those games pass the fair-play check (about {limits.holdHours}h).
+              </p>
+            )}
 
             {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 

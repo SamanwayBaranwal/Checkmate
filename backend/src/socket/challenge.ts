@@ -6,6 +6,7 @@ import { getInitialFen } from '../services/chess';
 import { registerGamePlayer } from './gameRoom';
 import { createNotification } from '../services/notifications';
 import { v4 as uuidv4 } from 'uuid';
+import { stakeError, sameOwnerLikely } from '../services/fairplay/trust';
 
 export const userSocketMap = new Map<string, string>();
 
@@ -29,6 +30,13 @@ export function setupChallenge(io: Server, socket: Socket) {
     const VALID_BETS = [1, 5, 10, 25];
     if (!VALID_BETS.includes(betAmount)) {
       socket.emit('challenge_error', { reason: 'Invalid bet amount' });
+      return;
+    }
+
+    const limitErr = await stakeError(challengerId, betAmount);
+    if (limitErr) { socket.emit('challenge_error', { reason: limitErr }); return; }
+    if (await sameOwnerLikely(challengerId, targetId)) {
+      socket.emit('challenge_error', { reason: 'You cannot play paid games against an account on the same device or network.' });
       return;
     }
 
@@ -84,6 +92,9 @@ export function setupChallenge(io: Server, socket: Socket) {
     if (accepterId !== targetId) { socket.emit('challenge_error', { reason: 'Not your challenge' }); return; }
 
     await redis.del(`challenge:${challengeId}`);
+
+    const limitErr = (await stakeError(accepterId, betAmount)) || (await stakeError(challengerId, betAmount));
+    if (limitErr) { socket.emit('challenge_error', { reason: limitErr }); return; }
 
     const [whiteOk, blackOk] = await Promise.all([
       reserveBet(challengerId, betAmount),

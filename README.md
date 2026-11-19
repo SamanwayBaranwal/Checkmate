@@ -214,3 +214,13 @@ Every finished game is analysed in the background by **Stockfish** (`backend/src
 - Stockfish runs as a separate program (GPL). On Railway it is installed by `backend/nixpacks.toml`; locally: `brew install stockfish`.
 
 **Security fixes in the same change:** login now verifies the Privy access token (set `PRIVY_APP_ID` on the backend), a player can no longer end a lost game as a draw without a real offer, spectators can no longer resign for a player, saved PGNs now contain every move (replays were missing all but the last move), and API errors no longer leave requests hanging.
+
+## Money safety (no KYC)
+
+| Rule | How |
+|---|---|
+| **Locked winnings** | Every win is held for `HOLD_HOURS` (48h) **and** until Stockfish has checked the game **and** the player is `clean`. Players on watch/review keep their winnings locked. Wins above `MANUAL_APPROVAL_OVER` ($25) wait for an admin. Only released money can be withdrawn. Confirmed cheaters' locked wins are reversed. |
+| **Stake limits by trust** | New: up to $5. Trusted (20 clean games, 7+ days): up to $25. Verified (50 clean games, 30+ days): up to $100. Players in review can't play for money. Enforced in matchmaking, challenges, rematches and tournaments. |
+| **One person, one account** | Login records salted hashes of a browser device id, a coarse fingerprint and the IP. Accounts on the same device (or IP, see `PAIRING_BLOCK_SAME_IP`) or with the same payout address are never paired, the starter bonus is once per device, a banned device can't log in with a new account, and admins see linked accounts in the evidence view. |
+
+Admin endpoints: `GET /api/admin/payouts`, `POST /api/admin/payouts/:id/approve|reject`. Player endpoint: `GET /api/users/me/limits`.

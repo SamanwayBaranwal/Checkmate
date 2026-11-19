@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { withdrawalCheck } from '../services/fairplay/service';
+import { lockedAmount, recordWithdrawAddress } from '../services/fairplay/trust';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { db } from '../db/client';
 import { createWalletClient, http, parseUnits, parseAbi } from 'viem';
@@ -25,9 +26,13 @@ router.get('/balance', requireAuth, async (req: AuthenticatedRequest, res: Respo
       .sum('amount as total')
       .first(),
   ]);
+  const balance = parseFloat(user?.usdc_balance ?? '0');
+  const locked = await lockedAmount(req.userId!);
   res.json({
-    balance: parseFloat(user?.usdc_balance ?? '0'),
+    balance,
     bonusBalance: parseFloat(bonusRow?.total ?? '0'),
+    locked,                                     // winnings waiting for the fair-play check
+    withdrawable: Math.max(0, balance - locked),
   });
 });
 
@@ -58,7 +63,12 @@ router.post('/withdraw', requireAuth, async (req: AuthenticatedRequest, res: Res
   }
 
   // Fair play: no withdrawals while under review, for new accounts, or before recent games are checked
-  const fp = await withdrawalCheck(req.userId!);
+  if (!/^0x[0-9a-fA-F]{40}$/.test(toAddress)) {
+    res.status(400).json({ error: 'Invalid address' });
+    return;
+  }
+  await recordWithdrawAddress(req.userId!, toAddress);
+  const fp = await withdrawalCheck(req.userId!, amount);
   if (!fp.ok) {
     res.status(403).json({ error: fp.reason });
     return;

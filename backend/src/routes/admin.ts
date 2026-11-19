@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db/client';
 import { confirmCheater, clearPlayer, queueGameAnalysis, isEngineReady } from '../services/fairplay/service';
+import { linkedAccounts, lockedAmount } from '../services/fairplay/trust';
 
 const router = Router();
 
@@ -227,6 +228,8 @@ router.get('/fairplay/:userId', async (req: Request, res: Response) => {
     })),
     reports,
     actions,
+    linkedAccounts: await linkedAccounts(userId),
+    locked: await lockedAmount(userId),
   });
 });
 
@@ -250,6 +253,42 @@ router.post('/fairplay/reanalyse/:gameId', async (req: Request, res: Response) =
   if (!requireAdmin(req, res)) return;
   await db('games').where({ id: req.params.gameId }).update({ analysis_status: 'pending' });
   queueGameAnalysis(req.params.gameId);
+  res.json({ ok: true });
+});
+
+// ───────────────────────────── Payout approvals (locked winnings) ─────────────────────────────
+
+// GET /api/admin/payouts?status=needs_approval|held → wins waiting for release
+router.get('/payouts', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const status = (req.query.status as string) || 'needs_approval';
+  const rows = await db('winnings_holds as h')
+    .join('users as u', 'h.user_id', 'u.id')
+    .leftJoin('game_analysis as a', function () { this.on('a.game_id', '=', 'h.game_id').andOn('a.user_id', '=', 'h.user_id'); })
+    .where('h.status', status)
+    .orderBy('h.created_at', 'asc').limit(200)
+    .select('h.id', 'h.amount', 'h.status', 'h.reason', 'h.release_at', 'h.created_at', 'h.game_id',
+      'u.id as user_id', 'u.username', 'u.wallet', 'u.elo', 'u.fairplay_status', 'u.fairplay_score',
+      'a.suspicion', 'a.engine_match', 'a.acpl', 'a.blur_rate');
+  res.json(rows.map((r: any) => ({ ...r, amount: parseFloat(r.amount) })));
+});
+
+// POST /api/admin/payouts/:id/approve → winnings become withdrawable
+router.post('/payouts/:id/approve', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const n = await db('winnings_holds').where({ id: req.params.id }).whereIn('status', ['held', 'needs_approval'])
+    .update({ status: 'released', decided_at: new Date(), reason: 'approved by admin' });
+  res.json({ ok: n > 0 });
+});
+
+// POST /api/admin/payouts/:id/reject → keep it locked and send the player to fair-play review
+router.post('/payouts/:id/reject', async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const h = await db('winnings_holds').where({ id: req.params.id }).first();
+  if (!h) { res.status(404).json({ error: 'Not found' }); return; }
+  await db('winnings_holds').where({ id: h.id }).update({ status: 'held', reason: 'rejected by admin: under review', release_at: new Date(Date.now() + 3650 * 86400000) });
+  await db('users').where({ id: h.user_id }).update({ fairplay_status: 'review' });
+  await db('fairplay_actions').insert({ user_id: h.user_id, action: 'payout_rejected', details: JSON.stringify({ holdId: h.id, amount: h.amount }) });
   res.json({ ok: true });
 });
 

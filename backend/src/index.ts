@@ -33,6 +33,7 @@ import { addOnlineSocket, removeOnlineSocket } from './services/onlineUsers';
 import { setIo } from './services/notifications';
 import { db } from './db/client';
 import { ensureFairplaySchema, resumePendingAnalysis } from './services/fairplay/service';
+import { startHoldReleaser, recordIdentifiers, clientIp } from './services/fairplay/trust';
 
 const app = express();
 const httpServer = createServer(app);
@@ -54,6 +55,7 @@ const io = new Server(httpServer, {
   cors: { origin: originFn, methods: ['GET', 'POST'], credentials: true },
 });
 
+app.set('trust proxy', 1); // real client IP behind Railway's proxy (one person, one account)
 app.use(helmet());
 app.use(cors({ origin: originFn, credentials: true }));
 app.use(express.json());
@@ -109,6 +111,8 @@ io.on('connection', async (socket) => {
       (socket as any).userId = userId;
       addOnlineSocket(userId, socket.id);
       socket.join(`user:${userId}`);
+      recordIdentifiers(userId, { ip: clientIp(socket.handshake.headers['x-forwarded-for'] as string) || clientIp(socket.handshake.address) })
+        .catch(() => {});
     }
   }
 
@@ -284,5 +288,6 @@ httpServer.listen(PORT, () => {
   // Fair play: create tables/columns, then re-queue games that finished but were never analysed
   ensureFairplaySchema()
     .then(resumePendingAnalysis)
+    .then(() => startHoldReleaser())
     .catch((err) => console.error('Fair play setup failed:', err));
 });

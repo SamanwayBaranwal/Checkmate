@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { db } from '../db/client';
+import { starterAlreadyClaimedNearby } from '../services/fairplay/trust';
 
 const router = Router();
 
@@ -16,6 +17,10 @@ router.post('/claim-starter', requireAuth, async (req: AuthenticatedRequest, res
 
   if (existing) {
     res.status(400).json({ error: 'Already claimed' });
+    return;
+  }
+  if (await starterAlreadyClaimedNearby(req.userId!)) {
+    res.status(400).json({ error: 'Starter credits were already claimed on this device.' });
     return;
   }
 

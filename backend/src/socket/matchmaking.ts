@@ -3,6 +3,7 @@ import { redis } from '../db/redis';
 import { db } from '../db/client';
 import { reserveBet } from '../services/balance';
 import { getInitialFen } from '../services/chess';
+import { stakeError, sameOwnerLikely } from '../services/fairplay/trust';
 import { v4 as uuidv4 } from 'uuid';
 
 const BET_TIERS = [1, 5, 10, 25] as const;
@@ -45,12 +46,20 @@ export function setupMatchmaking(io: Server, socket: Socket) {
     const { userId } = userData;
     const queueKey = `queue:${tier}:${tc}`;
 
+    // Money safety: stake limit by trust level (new accounts can't jump straight to big stakes)
+    const limitErr = await stakeError(userId, tier);
+    if (limitErr) { socket.emit('error', { message: limitErr }); return; }
+
     // Check existing queue for a match (FIFO by timestamp)
     const waiting = await redis.zrangebyscore(queueKey, '-inf', '+inf', 'LIMIT', 0, 10);
-    const opponent = waiting.find((id) => {
+    // One person, one account: never pair two accounts on the same device / IP / payout address
+    let opponent: string | undefined;
+    for (const id of waiting) {
       const data = socketToUser.get(id);
-      return data && data.userId !== userId && id !== socket.id;
-    });
+      if (!data || data.userId === userId || id === socket.id) continue;
+      if (await sameOwnerLikely(userId, data.userId)) continue;
+      opponent = id; break;
+    }
 
     if (opponent) {
       await redis.zrem(queueKey, opponent);

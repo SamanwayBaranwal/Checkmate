@@ -2,6 +2,7 @@ import { Chess } from 'chess.js';
 import { db } from '../../db/client';
 import { engine, engineAvailable } from './engine';
 import { MoveSample, scorePlayerGame, playerStatus, FairplayStatus } from './metrics';
+import { ensureTrustSchema, lockedAmount, reverseHolds } from './trust';
 
 const DEPTH = parseInt(process.env.FAIRPLAY_DEPTH || '12', 10);
 export const MIN_GAMES_BEFORE_WITHDRAW = parseInt(process.env.MIN_GAMES_BEFORE_WITHDRAW || '10', 10);
@@ -51,6 +52,7 @@ export async function ensureFairplaySchema() {
       details    JSONB NOT NULL DEFAULT '{}',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+  await ensureTrustSchema();
 }
 
 // ---------------------------------------------------------------- queue
@@ -185,7 +187,7 @@ export async function recomputePlayer(userId: string) {
 }
 
 // ---------------------------------------------------------------- withdrawals
-export async function withdrawalCheck(userId: string): Promise<{ ok: boolean; reason?: string }> {
+export async function withdrawalCheck(userId: string, amount = 0): Promise<{ ok: boolean; reason?: string }> {
   const user = await db('users').where({ id: userId })
     .select('fairplay_status', 'banned_at', 'games_played', 'created_at').first();
   if (!user) return { ok: false, reason: 'User not found' };
@@ -206,6 +208,14 @@ export async function withdrawalCheck(userId: string): Promise<{ ok: boolean; re
     .count('* as c').first();
   if (parseInt((pending as any)?.c || '0', 10) > 0) {
     return { ok: false, reason: 'Your latest games are still being checked. Try again in a few minutes.' };
+  }
+  if (amount > 0) {
+    const bal = await db('users').where({ id: userId }).first('usdc_balance');
+    const locked = await lockedAmount(userId);
+    const withdrawable = Math.max(0, parseFloat(bal?.usdc_balance || '0') - locked);
+    if (amount > withdrawable + 1e-9) {
+      return { ok: false, reason: `Only $${withdrawable.toFixed(2)} is withdrawable now. $${locked.toFixed(2)} of winnings is still locked until those games pass the fair-play check.` };
+    }
   }
   return { ok: true };
 }
@@ -241,6 +251,7 @@ export async function confirmCheater(userId: string, days = 30, notes = '') {
     await trx('users').where({ id: userId }).update({
       banned_at: new Date(), ban_reason: 'Fair play violation (engine use)', fairplay_status: 'review',
     });
+    await reverseHolds(userId, trx);
     await trx('reports').where({ reported_id: userId, status: 'open' }).update({ status: 'resolved', admin_notes: 'Confirmed by fair-play review' });
     const summary = {
       days, gamesRefunded: won.length, refunded: +refunded.toFixed(6), clawedBack: +clawed.toFixed(6),
