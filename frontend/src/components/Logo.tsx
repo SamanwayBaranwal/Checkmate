@@ -1,29 +1,42 @@
-'use client';
+// ELO brand: "Knight's Move". The mark is the knight's L path on board squares (three up, one across),
+// with the landing square marked. In the wordmark the same L is the L of ELO.
+const BRAND = '#7C5CFF'; // signature: only the knight's landing square is purple
+const TILE = '#F6F6F7';
+const MARK = '#111112';
 
-// ELO brand mark — dark rounded tile with a white pawn and a green base bar,
-// matching the brand kit. Recreated in SVG so it stays crisp and theme-aware.
 export function LogoMark({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="48" rx="12" fill="#191c1a" />
-      {/* green base bar */}
-      <path d="M6 40c0-1 .5-2 2-2h32c1.5 0 2 1 2 2v.5c0 3-2.5 5.5-5.5 5.5H11.5C8.5 46 6 43.5 6 40.5V40Z" fill="#46a883" />
-      {/* pawn */}
-      <path
-        d="M24 9a4.2 4.2 0 0 0-2.3 7.7c-1.6 1-2.7 2.8-2.7 4.8 0 1.9 1 3.6 2.5 4.6-.6 3-2.2 6.6-4 8.9-.5.6-.1 1.5.7 1.5h11.6c.8 0 1.2-.9.7-1.5-1.8-2.3-3.4-5.9-4-8.9 1.5-1 2.5-2.7 2.5-4.6 0-2-1.1-3.8-2.7-4.8A4.2 4.2 0 0 0 24 9Z"
-        fill="#ffffff"
-      />
+    <svg width={size} height={size} viewBox="0 0 104 104" fill="none" aria-hidden="true">
+      <rect width="104" height="104" rx="26" fill={TILE} />
+      <rect x="24" y="16" width="22" height="22" rx="5" fill={MARK} />
+      <rect x="24" y="41" width="22" height="22" rx="5" fill={MARK} fillOpacity=".72" />
+      <rect x="24" y="66" width="22" height="22" rx="5" fill={MARK} fillOpacity=".72" />
+      <rect x="49" y="66" width="22" height="22" rx="5" fill={BRAND} />
+      <circle cx="60" cy="77" r="4.5" fill={TILE} />
     </svg>
   );
 }
 
-export function Logo({ size = 32, showWord = true }: { size?: number; showWord?: boolean }) {
+export function Wordmark({ height = 22, color = 'currentColor' }: { height?: number; color?: string }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <svg height={height} viewBox="0 12 250 76" fill="none" aria-label="ELO" role="img" style={{ fontFamily: 'var(--font-sans)' }}>
+      <text x="0" y="84" fontWeight="900" fontSize="96" fill={color}>E</text>
+      <g transform="translate(68 16)">
+        <rect x="0" y="0" width="22" height="21.3" rx="3.5" fill={color} />
+        <rect x="0" y="23.3" width="22" height="21.3" rx="3.5" fill={color} />
+        <rect x="0" y="46.6" width="22" height="21.4" rx="3.5" fill={color} />
+        <rect x="24" y="46.6" width="22" height="21.4" rx="3.5" fill={BRAND} />
+      </g>
+      <text x="122" y="84" fontWeight="900" fontSize="96" fill={color}>O</text>
+    </svg>
+  );
+}
+
+export function Logo({ size = 30, showWord = true }: { size?: number; showWord?: boolean }) {
+  return (
+    <span className="flex items-center gap-2.5 text-ink">
       <LogoMark size={size} />
-      {showWord && (
-        <span className="text-xl font-extrabold tracking-tight text-white font-display">ELO</span>
-      )}
-    </div>
+      {showWord && <Wordmark height={Math.round(size * 0.62)} />}
+    </span>
   );
 }

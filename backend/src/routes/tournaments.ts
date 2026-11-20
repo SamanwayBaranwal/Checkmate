@@ -1,8 +1,16 @@
 import { Router, Response } from 'express';
 import { db } from '../db/client';
+import { stakeError } from '../services/fairplay/trust';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
+
+// Malformed ids used to reach Postgres and come back as a 500 (these handlers catch errors themselves)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+router.param('id', (_req, res, next, id) => {
+  if (UUID_RE.test(String(id))) next();
+  else res.status(404).json({ error: 'Not found' });
+});
 
 // List open + active tournaments
 router.get('/', async (_req, res: Response) => {
@@ -116,14 +124,24 @@ router.post('/:id/join', requireAuth, async (req: AuthenticatedRequest, res: Res
 
     const user = await db('users').where({ id: req.userId }).select('usdc_balance', 'username').first();
     if (!user?.username) { res.status(400).json({ error: 'Set a username before joining tournaments' }); return; }
+    const limitErr = await stakeError(req.userId!, parseFloat(tournament.entry_fee));
+    if (limitErr) { res.status(403).json({ error: limitErr }); return; }
     if (parseFloat(user.usdc_balance) < parseFloat(tournament.entry_fee)) {
       res.status(400).json({ error: 'Insufficient balance' });
       return;
     }
 
-    await db.transaction(async (trx) => {
-      await trx('users').where({ id: req.userId })
+    // Everything re-checked under row locks: parallel joins used to overfill the bracket (6 players in a
+    // 4-player tournament) and push balances negative (3 x $5 joins with $10).
+    const joinError = await db.transaction(async (trx) => {
+      const t = await trx('tournaments').where({ id: req.params.id, status: 'open' }).forUpdate().first('id');
+      if (!t) return 'Tournament not found or not open';
+      const cnt = await trx('tournament_players').where({ tournament_id: req.params.id }).count('id as count').first();
+      if (Number(cnt?.count) >= tournament.max_players) return 'Tournament is full';
+      const paid = await trx('users').where({ id: req.userId })
+        .where('usdc_balance', '>=', tournament.entry_fee)
         .decrement('usdc_balance', tournament.entry_fee);
+      if (!paid) return 'Insufficient balance';
       await trx('balance_ledger').insert({
         user_id: req.userId,
         amount: -tournament.entry_fee,
@@ -136,7 +154,9 @@ router.post('/:id/join', requireAuth, async (req: AuthenticatedRequest, res: Res
       });
       await trx('tournaments').where({ id: req.params.id })
         .increment('prize_pool', tournament.entry_fee);
+      return null;
     });
+    if (joinError) { res.status(400).json({ error: joinError }); return; }
 
     res.json({ ok: true });
   } catch (err: any) {

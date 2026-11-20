@@ -1,33 +1,21 @@
 'use client';
 
-function formatMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+function fmt(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (ms < 10000) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${Math.floor((ms % 1000) / 100)}`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-interface Props {
-  ms: number;
-  active: boolean;
-  label: string;
-}
-
-export default function ChessClock({ ms, active, label }: Props) {
-  const isLow = ms < 30000;   // under 30s
-  const isCritical = ms < 10000 && active; // under 10s on your clock
+// Running clock = light surface with dark digits (easy to read at a glance), idle = dim.
+export default function ChessClock({ ms, active }: { ms: number; active: boolean; label?: string }) {
+  const low = ms < 20000;
   return (
     <div
-      className={`rounded-lg px-4 py-2 text-center transition-all tabular-nums ${
-        active
-          ? isLow
-            ? 'bg-red-600 text-white'
-            : 'bg-[#46a883] text-white shadow-lg'
-          : 'bg-white/[0.06] text-white/55'
-      } ${isCritical ? 'animate-pulse-dot' : ''}`}
+      className={`min-w-[88px] h-10 px-3 rounded-[10px] flex items-center justify-end text-[22px] font-semibold num leading-none transition-colors ${
+        active ? (low ? 'bg-negative text-white' : 'bg-ink text-canvas') : 'bg-surface-2 text-muted'
+      }`}
     >
-      {label && <div className="text-xs mb-0.5 font-medium opacity-80">{label}</div>}
-      <div className="text-2xl font-mono font-bold leading-none">{formatMs(ms)}</div>
+      {fmt(ms)}
     </div>
   );
 }

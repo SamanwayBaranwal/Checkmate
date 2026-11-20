@@ -1,400 +1,212 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import Link from 'next/link';
 import { api } from '@/lib/api';
+import { getSocket } from '@/lib/socket';
+import { useSession } from '@/lib/session';
 import MatchmakingModal from '@/components/MatchmakingModal';
 import AuthLanding from '@/components/AuthLanding';
 import { Icon } from '@/components/Icons';
-import { getSocket } from '@/lib/socket';
-import Link from 'next/link';
+import BoardPreview from '@/components/BoardPreview';
+import { PieceAvatar, PieceImg, SECTION } from '@/components/GameIcons';
 
 const CHALLENGE_BETS = [1, 5, 10, 25];
+const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—');
 
-function shortAddr(addr: string) {
-  return addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '???';
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-function PlayerCard({ player, token, onChallengeSent }: { player: any; token: string; onChallengeSent: (name: string) => void }) {
+function PlayerRow({ player, token, onNotice }: { player: any; token: string; onNotice: (msg: string) => void }) {
   const [open, setOpen] = useState(false);
-  const [sending, setSending] = useState<number | null>(null);
-
-  const sendChallenge = (betAmount: number) => {
-    setSending(betAmount);
-    const socket = getSocket(token);
-    socket.emit('challenge_user', { targetId: player.id, betAmount });
-    setTimeout(() => {
-      setSending(null);
-      setOpen(false);
-      onChallengeSent(player.username || shortAddr(player.wallet));
-    }, 500);
-  };
-
+  const name = player.username || short(player.wallet);
   const wr = player.games_played ? Math.round((player.games_won / player.games_played) * 100) : 0;
-
+  const send = (bet: number) => {
+    const socket = getSocket(token);
+    // Only say "sent" once the server confirms; otherwise show its reason (offline, balance, stake limit...)
+    const done = () => { socket.off('challenge_sent', ok); socket.off('challenge_error', fail); };
+    const ok = () => { done(); onNotice(`Challenge sent to ${name}`); };
+    const fail = ({ reason }: { reason: string }) => { done(); onNotice(reason || 'Could not send the challenge'); };
+    socket.on('challenge_sent', ok);
+    socket.on('challenge_error', fail);
+    socket.emit('challenge_user', { targetId: player.id, betAmount: bet });
+    setOpen(false);
+  };
   return (
-    <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 rounded-lg transition-colors">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-[#46a883]/20 border border-[#46a883]/30 flex items-center justify-center text-sm font-bold text-[#46a883]">
-          {(player.username || player.wallet || '?')[0].toUpperCase()}
+    <div className="flex items-center gap-3 px-4 py-3">
+      <Link href={`/profile/${player.id}`}><PieceAvatar seed={player.username || player.id} size={38} /></Link>
+      <Link href={`/profile/${player.id}`} className="min-w-0 flex-1">
+        <div className="text-sm font-medium truncate">{name}</div>
+        <div className="text-xs text-faint num">{player.elo} · {wr}% wins</div>
+      </Link>
+      {open ? (
+        <div className="flex items-center gap-1">
+          {CHALLENGE_BETS.map((b) => (
+            <button key={b} onClick={() => send(b)} className="h-8 px-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 text-xs font-semibold num">${b}</button>
+          ))}
+          <button onClick={() => setOpen(false)} className="btn-ghost p-1.5" aria-label="Cancel"><Icon name="x" size={14} /></button>
         </div>
-        <div>
-          <div className="font-semibold text-sm">{player.username || shortAddr(player.wallet)}</div>
-          <div className="text-xs text-white/40">{player.elo} ELO · {wr}% WR</div>
-        </div>
-      </div>
-      <div className="relative">
-        {!open ? (
-          <button onClick={() => setOpen(true)} className="btn-secondary text-xs py-1 px-3 shrink-0">
-            Challenge
-          </button>
-        ) : (
-          <div className="flex items-center gap-1 flex-wrap justify-end max-w-[160px] sm:max-w-none">
-            {CHALLENGE_BETS.map((bet) => (
-              <button
-                key={bet}
-                onClick={() => sendChallenge(bet)}
-                disabled={sending !== null}
-                className="btn-primary text-xs py-1 px-2 min-w-[34px]"
-              >
-                {sending === bet ? '…' : `$${bet}`}
-              </button>
-            ))}
-            <button onClick={() => setOpen(false)} className="text-white/30 hover:text-white px-1 text-sm">✕</button>
-          </div>
-        )}
-      </div>
+      ) : (
+        <button onClick={() => setOpen(true)} className="btn-secondary h-8 py-0 px-3 text-xs">Challenge</button>
+      )}
     </div>
   );
 }
 
-export default function LobbyPage() {
-  const { ready, authenticated, login, user, getAccessToken } = usePrivy();
-  const [activeGames, setActiveGames] = useState<any[]>([]);
-  const [balance, setBalance] = useState(0);
-  const [token, setToken] = useState('');
-  const [showMatchmaking, setShowMatchmaking] = useState(false);
-  const [authInitialized, setAuthInitialized] = useState(false);
-  const [bonusNotice, setBonusNotice] = useState<{ streak: number; amount: number } | null>(null);
-  const [recentOpponents, setRecentOpponents] = useState<any[]>([]);
+export default function HomePage() {
+  const { ready, authenticated, token, me, balance } = useSession();
+  const [live, setLive] = useState<any[]>([]);
+  const [recent, setRecent] = useState<any[]>([]);
   const [suggested, setSuggested] = useState<any[]>([]);
-  const [challengeSentNotice, setChallengeSentNotice] = useState('');
-  const [me, setMe] = useState<any>(null);
   const [rank, setRank] = useState<number | null>(null);
+  const [playOpen, setPlayOpen] = useState(false);
+  const [notice, setNotice] = useState('');
 
-  // Initialize backend session after Privy login
-  useEffect(() => {
-    if (!authenticated || !user || authInitialized) return;
-
-    const init = async () => {
-      try {
-        const privyAccessToken = await getAccessToken();
-        const wallet = user.wallet?.address || (user.linkedAccounts?.find((a: any) => a.type === 'wallet') as any)?.address;
-
-        if (!wallet) return;
-
-        // Pick up referral code from URL or localStorage
-        const urlRef = typeof window !== 'undefined'
-          ? new URLSearchParams(window.location.search).get('ref') ?? undefined
-          : undefined;
-        if (urlRef && typeof window !== 'undefined') localStorage.setItem('checkmate_ref', urlRef);
-        const storedRef = typeof window !== 'undefined' ? localStorage.getItem('checkmate_ref') ?? undefined : undefined;
-        const referralCode = urlRef || storedRef;
-
-        const { token: sessionToken, user: userData } = await api.auth.verify(user.id, wallet, referralCode);
-        if (referralCode && typeof window !== 'undefined') localStorage.removeItem('checkmate_ref');
-        localStorage.setItem('checkmate_token', sessionToken);
-        setToken(sessionToken);
-        setBalance(userData.usdcBalance || 0);
-        setAuthInitialized(true);
-
-        // Load discovery data + my stats
-        api.users.recentOpponents().then(setRecentOpponents).catch(() => {});
-        api.users.suggested().then(setSuggested).catch(() => {});
-        api.users.me().then(setMe).catch(() => {});
-        api.users.leaderboard('elo').then((rows: any[]) => {
-          const idx = rows.findIndex((r) => r.id === userData.id);
-          if (idx >= 0) setRank(idx + 1);
-        }).catch(() => {});
-
-        // Claim daily bonus after auth
-        try {
-          const bonus = await api.users.dailyBonus();
-          if (bonus.credited && bonus.amount && bonus.streak) {
-            setBalance((prev) => prev + bonus.amount!);
-            setBonusNotice({ streak: bonus.streak!, amount: bonus.amount! });
-            setTimeout(() => setBonusNotice(null), 6000);
-          }
-        } catch {}
-      } catch (err) {
-        console.error('Auth init failed:', err);
-      }
-    };
-
-    init();
-  }, [authenticated, user, authInitialized, getAccessToken]);
-
-  // Reload balance periodically
-  useEffect(() => {
-    if (!token) return;
-    const interval = setInterval(() => {
-      api.wallet.balance().then((r) => setBalance(r.balance)).catch(() => {});
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [token]);
-
-  // Load live games
-  const loadGames = useCallback(async () => {
-    try {
-      const games = await api.games.active();
-      setActiveGames(games);
-    } catch {}
-  }, []);
+  const loadLive = useCallback(() => { api.games.active().then(setLive).catch(() => {}); }, []);
+  useEffect(() => { loadLive(); const t = setInterval(loadLive, 8000); return () => clearInterval(t); }, [loadLive]);
 
   useEffect(() => {
-    loadGames();
-    const interval = setInterval(loadGames, 5000);
-    return () => clearInterval(interval);
-  }, [loadGames]);
+    if (!token || !me) return;
+    api.users.recentOpponents().then(setRecent).catch(() => {});
+    api.users.suggested().then(setSuggested).catch(() => {});
+    api.users.leaderboard('elo').then((rows: any[]) => {
+      const i = rows.findIndex((r) => r.id === me.id);
+      setRank(i >= 0 ? i + 1 : null);
+    }).catch(() => {});
+  }, [token, me]);
 
-  // Logged-out: show the branded sign-in landing
-  if (ready && !authenticated) {
-    return <AuthLanding />;
-  }
+  // Server HTML (and crawlers) get the landing page; returning players hide it before first paint (see layout.tsx).
+  if (!ready) return <div className="guest-only min-h-[60vh]"><AuthLanding /></div>;
+  if (!authenticated) return <AuthLanding />;
+
+  const gp = me?.gamesPlayed ?? me?.games_played ?? 0;
+  const gw = me?.gamesWon ?? me?.games_won ?? 0;
+  const wr = gp ? Math.round((gw / gp) * 100) : 0;
+  const sent = (msg: string) => { setNotice(msg); setTimeout(() => setNotice(''), 3000); };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Daily bonus toast */}
-      {bonusNotice && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-[#141715] border border-[#f0b232]/40 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3 animate-in">
-          <span className="text-[#f0b232]"><Icon name="gift" size={22} /></span>
-          <div>
-            <p className="font-bold text-sm text-[#f0b232]">Daily bonus claimed! +${bonusNotice.amount.toFixed(2)}</p>
-            <p className="text-xs text-white/50">Day {bonusNotice.streak} streak — keep it up!</p>
-          </div>
-          <button onClick={() => setBonusNotice(null)} className="text-white/30 hover:text-white text-lg ml-2">×</button>
-        </div>
-      )}
+    <div className="max-w-6xl mx-auto px-4 md:px-8 pt-5 md:pt-8 space-y-8">
+      <section className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-6 lg:gap-10 items-start">
+        {/* Board: the hero (desktop) */}
+        <div className="hidden lg:block"><BoardPreview /></div>
 
-      {/* Welcome header (signed-in) */}
-      {authenticated && (
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">
-              Welcome back{me?.username ? `, ${me.username}` : ''} <span className="inline-block">👋</span>
-            </h2>
-            <p className="text-sm text-white/45 mt-0.5">Ready to play and climb the ranks?</p>
-          </div>
-          <Link href="/wallet" className="pill pill-green shrink-0">
-            ${balance.toFixed(2)}
-          </Link>
-        </div>
-      )}
-
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] mb-8">
-        <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage: 'conic-gradient(#fff 90deg, transparent 90deg 180deg, #fff 180deg 270deg, transparent 270deg)',
-            backgroundSize: '52px 52px',
-          }}
-        />
-        <div
-          className="absolute -bottom-32 -right-10 w-[420px] h-[420px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(87,176,106,0.14) 0%, transparent 68%)' }}
-        />
-
-        <div className="relative px-6 sm:px-10 py-10 sm:py-14 flex items-center justify-between gap-6">
-          <div className="min-w-0">
-            <div className="pill pill-green mb-5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#46a883] animate-pulse-dot" />
-              {activeGames.length} live {activeGames.length === 1 ? 'game' : 'games'} now
+        {/* Play panel */}
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <PieceAvatar seed={me?.username || me?.id || 'me'} size={52} />
+            <div className="min-w-0">
+              <p className="text-sm text-muted font-bold">{greeting()}</p>
+              <h1 className="text-2xl font-black truncate">{me?.username || 'Player'}</h1>
             </div>
+            <div className="ml-auto text-right">
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-faint">Rating</div>
+              <div className="text-2xl font-black num">{me?.elo ?? '—'}</div>
+            </div>
+          </div>
 
-            <h1 className="text-4xl sm:text-6xl font-extrabold leading-[1.02] mb-3">
-              EVERY MOVE.<br />
-              EVERY <span className="text-[#46a883]">RISE.</span>
-            </h1>
-            <p className="text-white/50 text-sm sm:text-base font-semibold tracking-wide mb-8">
-              PLAY. IMPROVE. EARN.
-            </p>
-
-            {ready && !authenticated && (
-              <button onClick={login} className="btn-primary text-base px-8 py-3.5">
-                Get started — it&apos;s free
+          <div>
+            {/* Under the $1 minimum stake (e.g. a new account with only the $0.10 daily bonus) */}
+            {balance < 1 ? (
+              <Link href="/wallet" className="play-tile play-tile-primary">
+                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="Q" size={44} /></span>
+                <span className="flex-1"><span className="block text-lg font-extrabold">Claim free credits</span><span className="block text-sm text-black/55 font-semibold">$10 to start playing</span></span>
+                <Icon name="chevron-right" size={20} />
+              </Link>
+            ) : (
+              <button onClick={() => setPlayOpen(true)} className="play-tile play-tile-primary">
+                <span className="w-14 h-14 rounded-2xl bg-black/[0.07] flex items-center justify-center"><PieceImg piece="N" size={46} /></span>
+                <span className="flex-1"><span className="block text-xl font-black">Play online</span><span className="block text-sm text-black/55 font-semibold">Matched with someone near your rating</span></span>
+                <Icon name="chevron-right" size={20} />
               </button>
             )}
+            <Link href="/friends" className="play-tile mt-3">
+              <span className="w-14 h-14 rounded-2xl flex items-center justify-center -space-x-3" style={{ background: `${SECTION.friends}2E` }}><PieceImg piece="P" size={34} /><PieceImg piece="P" side="b" size={34} /></span>
+              <span className="flex-1"><span className="block text-lg font-extrabold">Play a friend</span><span className="block text-sm text-muted font-medium">Send a challenge</span></span>
+              <Icon name="chevron-right" size={20} className="text-faint" />
+            </Link>
+            <Link href="/leaderboard" className="play-tile mt-3">
+              <span className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: `${SECTION.ranks}33` }}><PieceImg piece="K" side="b" size={44} /></span>
+              <span className="flex-1"><span className="block text-lg font-extrabold">Leaderboard</span><span className="block text-sm text-muted font-medium">{rank ? `You are #${rank}` : 'See the top players'}</span></span>
+              <Icon name="chevron-right" size={20} className="text-faint" />
+            </Link>
+          </div>
 
-            {authenticated && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <button
-                  onClick={() => setShowMatchmaking(true)}
-                  disabled={balance === 0}
-                  className="btn-primary text-base px-8 py-3.5 flex items-center justify-center gap-2"
-                >
-                  <Icon name="play" size={16} /> Play Now
-                </button>
-                {balance === 0 && (
-                  <Link href="/wallet" className="btn-gold text-sm px-4 py-2.5">
-                    Claim free credits
-                  </Link>
-                )}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Games', value: gp },
+              { label: 'Win rate', value: gp ? `${wr}%` : '—' },
+              { label: 'Balance', value: `$${balance.toFixed(2)}` },
+            ].map((s) => (
+              <div key={s.label} className="rounded-2xl bg-surface border border-line/[0.07] px-3 py-3 text-center">
+                <div className="text-lg font-black num">{s.value}</div>
+                <div className="text-[11px] font-bold text-faint uppercase tracking-wide">{s.label}</div>
               </div>
-            )}
-          </div>
-
-          {/* Mascot */}
-          <div className="hidden sm:block shrink-0 relative">
-            <div className="absolute inset-0 rounded-full blur-2xl" style={{ background: 'radial-gradient(circle, rgba(87,176,106,0.22) 0%, transparent 70%)' }} />
-            <img
-              src="/brand/el-victory.png"
-              alt="ELO mascot"
-              className="relative w-40 lg:w-52 rounded-2xl select-none pointer-events-none"
-            />
+            ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Stat row (signed-in) */}
-      {authenticated && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          {(() => {
-            const gp = me?.gamesPlayed ?? me?.games_played ?? 0;
-            const gw = me?.gamesWon ?? me?.games_won ?? 0;
-            const wr = gp ? Math.round((gw / gp) * 100) : 0;
-            const stats = [
-              { label: 'ELO Rating', value: me?.elo ?? '—', icon: 'rating' as const, accent: true },
-              { label: 'Games Played', value: gp, icon: 'games' as const },
-              { label: 'Win Rate', value: `${wr}%`, icon: 'winrate' as const },
-              { label: 'Global Rank', value: rank ? `#${rank}` : '—', icon: 'trophy' as const },
-            ];
-            return stats.map((s, i) => (
-              <div key={i} className="card">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-white/40">{s.label}</span>
-                  <span className="text-white/35"><Icon name={s.icon} size={16} /></span>
-                </div>
-                <div className={`text-2xl font-bold font-display ${s.accent ? 'text-[#46a883]' : 'text-white'}`}>{s.value}</div>
-              </div>
-            ));
-          })()}
+      {/* Live games */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-extrabold flex items-center gap-2">
+            Live now {live.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-negative animate-pulse-dot" />}
+          </h2>
+          <span className="text-xs text-faint num">{live.length} {live.length === 1 ? 'game' : 'games'}</span>
         </div>
-      )}
-
-      {/* Live Games */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse-dot" />
-            <h2 className="text-lg font-bold">Live Games</h2>
-          </div>
-          <span className="pill">{activeGames.length} active</span>
-        </div>
-
-        {activeGames.length === 0 ? (
-          <div className="card text-center py-14 text-white/40">
-            <img src="/brand/el-relaxed.png" alt="" className="w-24 h-24 mx-auto rounded-2xl mb-3 opacity-80" />
-            <p className="font-medium">No live games right now</p>
-            <p className="text-sm text-white/30 mt-1">Be the first to play!</p>
+        {live.length === 0 ? (
+          <div className="card text-center py-10">
+            <p className="text-sm font-medium">No games in progress</p>
+            <p className="text-sm text-muted mt-1">Start one and others can watch.</p>
           </div>
         ) : (
-          <div className="card p-0 overflow-hidden">
-            {/* header row (desktop) */}
-            <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-2.5 border-b border-white/[0.06] text-[11px] font-semibold uppercase tracking-wide text-white/35">
-              <span>Players</span>
-              <span className="text-center w-16">Status</span>
-              <span className="text-right w-20">Pot</span>
-              <span className="text-right w-16">Action</span>
-            </div>
-            {activeGames.map((game) => {
-              const white = game.white_username || shortAddr(game.white_wallet);
-              const black = game.black_username || shortAddr(game.black_wallet);
+          <div className="card p-0 divide-y divide-line/[0.06] overflow-hidden">
+            {live.map((g) => {
+              const w = g.white_username || short(g.white_wallet);
+              const b = g.black_username || short(g.black_wallet);
               return (
-                <Link
-                  key={game.id}
-                  href={`/game/${game.id}`}
-                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-4 py-3 border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors group"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-7 h-7 rounded-full bg-white text-[#0b0d0c] text-xs font-bold flex items-center justify-center shrink-0">{white[0]?.toUpperCase()}</span>
-                    <span className="text-sm font-semibold truncate max-w-[80px]">{white}</span>
-                    <span className="text-white/25 text-xs px-1">vs</span>
-                    <span className="w-7 h-7 rounded-full bg-[#2b2f2c] border border-white/10 text-white text-xs font-bold flex items-center justify-center shrink-0">{black[0]?.toUpperCase()}</span>
-                    <span className="text-sm font-semibold truncate max-w-[80px]">{black}</span>
+                <Link key={g.id} href={`/game/${g.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">
+                      <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ink mr-2 align-middle" />{w}
+                      <span className="text-faint mx-2">vs</span>
+                      <span className="inline-block w-2.5 h-2.5 rounded-sm bg-surface-3 border border-line/20 mr-2 align-middle" />{b}
+                    </div>
                   </div>
-                  <span className="hidden sm:flex items-center justify-center gap-1.5 w-16 text-[11px] font-bold text-red-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse-dot" /> LIVE
-                  </span>
-                  <span className="hidden sm:block text-right w-20 text-sm font-bold text-[#f0b232]">${game.bet_amount * 2}</span>
-                  <span className="text-right sm:w-16 text-xs font-semibold text-[#46a883] group-hover:underline">Watch →</span>
+                  <span className="text-sm font-semibold num text-ink">${(g.bet_amount * 2).toFixed(0)}</span>
+                  <span className="text-xs text-muted flex items-center gap-1">Watch <Icon name="chevron-right" size={14} /></span>
                 </Link>
               );
             })}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Discovery: Recent + Suggested */}
-      {authenticated && token && (recentOpponents.length > 0 || suggested.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          {recentOpponents.length > 0 && (
-            <div className="card p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/[0.07]">
-                <h2 className="eyebrow">Play Again</h2>
+      {/* Opponents */}
+      {(recent.length > 0 || suggested.length > 0) && (
+        <section className="grid md:grid-cols-2 gap-4">
+          {[{ title: 'Play again', list: recent }, { title: 'Players near your rating', list: suggested }]
+            .filter((s) => s.list.length > 0)
+            .map((s) => (
+              <div key={s.title} className="card p-0 overflow-hidden">
+                <div className="px-4 h-11 flex items-center border-b border-line/[0.06]"><span className="eyebrow">{s.title}</span></div>
+                <div className="divide-y divide-line/[0.05]">
+                  {s.list.map((p) => <PlayerRow key={p.id} player={p} token={token} onNotice={sent} />)}
+                </div>
               </div>
-              <div className="py-1">
-                {recentOpponents.map((p) => (
-                  <PlayerCard
-                    key={p.id}
-                    player={p}
-                    token={token}
-                    onChallengeSent={(name) => {
-                      setChallengeSentNotice(`Challenge sent to ${name}!`);
-                      setTimeout(() => setChallengeSentNotice(''), 3000);
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+            ))}
+        </section>
+      )}
 
-          {suggested.length > 0 && (
-            <div className="card p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/[0.07]">
-                <h2 className="eyebrow">Suggested Opponents</h2>
-              </div>
-              <div className="py-1">
-                {suggested.map((p) => (
-                  <PlayerCard
-                    key={p.id}
-                    player={p}
-                    token={token}
-                    onChallengeSent={(name) => {
-                      setChallengeSentNotice(`Challenge sent to ${name}!`);
-                      setTimeout(() => setChallengeSentNotice(''), 3000);
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+      {notice && (
+        <div className="fixed z-[100] left-1/2 -translate-x-1/2 bottom-[calc(84px+env(safe-area-inset-bottom))] md:bottom-8 card py-2.5 px-4 text-sm shadow-pop animate-in">
+          {notice}
         </div>
       )}
 
-      {challengeSentNotice && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#141715] border border-[#46a883]/40 rounded-xl px-5 py-3 text-sm text-[#46a883] shadow-2xl">
-          {challengeSentNotice}
-        </div>
-      )}
-
-      {showMatchmaking && token && (
-        <MatchmakingModal
-          onClose={() => setShowMatchmaking(false)}
-          balance={balance}
-          token={token}
-        />
-      )}
+      {playOpen && <MatchmakingModal onClose={() => setPlayOpen(false)} balance={balance} token={token} />}
     </div>
   );
 }

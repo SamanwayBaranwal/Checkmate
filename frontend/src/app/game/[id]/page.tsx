@@ -2,600 +2,439 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
 import { Chess } from 'chess.js';
 import { useChessGame } from '@/hooks/useChessGame';
+import { useSession } from '@/lib/session';
 import ChessClock from '@/components/ChessClock';
 import GameOverModal from '@/components/GameOverModal';
 import MoveHistory from '@/components/MoveHistory';
 import CapturedPieces from '@/components/CapturedPieces';
+import { Icon, type IconName } from '@/components/Icons';
 import { sounds } from '@/lib/sounds';
 import { api } from '@/lib/api';
 import { getCustomPieces, type PieceTheme } from '@/lib/pieceThemes';
+import { BOARD_THEMES } from '@/lib/boardThemes';
+import { PieceAvatar } from '@/components/GameIcons';
 
 const Chessboard = dynamic(() => import('react-chessboard').then((m) => m.Chessboard), {
   ssr: false,
-  loading: () => <div className="aspect-square bg-[#b58863] rounded-lg animate-pulse" />,
+  loading: () => <div className="aspect-square w-full rounded-lg bg-surface-2 animate-pulse" />,
 });
 
 const REPORT_REASONS = [
   { value: 'cheating', label: 'Cheating / engine use' },
   { value: 'harassment', label: 'Harassment in chat' },
-  { value: 'sandbagging', label: 'Sandbagging (losing on purpose)' },
+  { value: 'sandbagging', label: 'Losing on purpose' },
   { value: 'stalling', label: 'Stalling / not moving' },
   { value: 'other', label: 'Other' },
 ];
 
-const BOARD_THEMES = [
-  { name: 'Classic',   light: '#f0d9b5', dark: '#b58863' },
-  { name: 'Ocean',     light: '#dee3e6', dark: '#8ca2ad' },
-  { name: 'Forest',    light: '#ffffdd', dark: '#86a666' },
-  { name: 'Night',     light: '#e8e9b7', dark: '#4a7fa5' },
-  { name: 'Rose',      light: '#f9d9d9', dark: '#c07878' },
-];
 
-function shortAddr(addr: string) {
-  if (!addr) return 'Unknown';
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+const TC_NAME: Record<string, string> = { '3+0': 'Bullet · 3 min', '5+0': 'Blitz · 5 min', '10+0': 'Rapid · 10 min' };
+
+function ToolButton({ icon, label, onClick, active, tone }: { icon: IconName; label: string; onClick: () => void; active?: boolean; tone?: 'danger' }) {
+  return (
+    <button onClick={onClick} title={label} aria-label={label}
+      className={`flex-1 h-11 flex flex-col items-center justify-center gap-0.5 rounded-[10px] transition-colors ${
+        tone === 'danger' ? 'text-negative hover:bg-negative/10' : active ? 'text-ink bg-surface-2' : 'text-muted hover:text-ink hover:bg-surface-2'
+      }`}>
+      <Icon name={icon} size={18} />
+      <span className="text-[10px] font-medium">{label}</span>
+    </button>
+  );
 }
 
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = usePrivy();
   const router = useRouter();
-  const token = typeof window !== 'undefined' ? localStorage.getItem('checkmate_token') ?? undefined : undefined;
+  const { ready, token, me } = useSession();
+  // null while the session loads, so the game socket opens once with the right identity
+  const { state, error, unavailable, makeMove, resign, offerDraw, acceptDraw, offerRematch, acceptRematch, rematchState, rematchGameId, sendChat } =
+    useChessGame(id, ready ? token || undefined : null);
 
-  const { state, error, makeMove, resign, offerDraw, acceptDraw, offerRematch, acceptRematch, rematchState, rematchGameId, sendChat } = useChessGame(id, token);
+  useEffect(() => { if (rematchGameId) router.push(`/game/${rematchGameId}`); }, [rematchGameId, router]);
 
-  useEffect(() => {
-    if (rematchGameId) router.push(`/game/${rematchGameId}`);
-  }, [rematchGameId, router]);
-
-  const [promotionDialog, setPromotionDialog] = useState<{ from: string; to: string } | null>(null);
+  const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null);
   const [preMove, setPreMove] = useState<{ from: string; to: string; promotion?: string } | null>(null);
-  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [showReport, setShowReport] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [panel, setPanel] = useState<'none' | 'chat' | 'themes' | 'report' | 'resign'>('none');
   const [reportReason, setReportReason] = useState('cheating');
   const [reportDetails, setReportDetails] = useState('');
-  const [reportSending, setReportSending] = useState(false);
-  const [reportDone, setReportDone] = useState(false);
+  const [reportState, setReportState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [reportError, setReportError] = useState('');
+  const [drawDismissed, setDrawDismissed] = useState(false);
+  const [drawSent, setDrawSent] = useState(false);
   const [themeIndex, setThemeIndex] = useState(() => {
     if (typeof window === 'undefined') return 0;
-    const stored = localStorage.getItem('checkmate_board_theme');
-    return stored !== null ? parseInt(stored, 10) : 0;
+    const v = parseInt(localStorage.getItem('checkmate_board_theme') ?? '0', 10);
+    return Number.isFinite(v) && v >= 0 && v < BOARD_THEMES.length ? v : 0;
   });
-  const [autoQueen] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return localStorage.getItem('checkmate_auto_queen') !== 'false';
-  });
-  const [pieceTheme] = useState<PieceTheme>(() => {
-    if (typeof window === 'undefined') return 'classic';
-    return (localStorage.getItem('checkmate_piece_theme') as PieceTheme) || 'classic';
-  });
+  const [autoQueen] = useState(() => typeof window === 'undefined' || localStorage.getItem('checkmate_auto_queen') !== 'false');
+  const [pieceTheme] = useState<PieceTheme>(() =>
+    typeof window === 'undefined' ? 'chessnut' : ((localStorage.getItem('checkmate_piece_theme') as PieceTheme) || 'chessnut'));
   const customPieces = useMemo(() => getCustomPieces(pieceTheme), [pieceTheme]);
-  const [showThemes, setShowThemes] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const prevMoveCount = useRef(0);
-
+  const [unreadChat, setUnreadChat] = useState(0);
+  const chatEnd = useRef<HTMLDivElement>(null);
+  const prevMoves = useRef(0);
+  const prevChat = useRef(0);
   const [flipped, setFlipped] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const soundRef = useRef(true);
-  useEffect(() => {
-    const s = localStorage.getItem('checkmate_sound');
-    if (s === 'off') { setSoundOn(false); soundRef.current = false; }
-  }, []);
-  const toggleSound = () => {
-    setSoundOn((prev) => {
-      const next = !prev;
-      soundRef.current = next;
-      localStorage.setItem('checkmate_sound', next ? 'on' : 'off');
-      return next;
-    });
-  };
 
-  // Size the board to always fit the viewport — no scrolling, ever.
+  useEffect(() => { if (localStorage.getItem('checkmate_sound') === 'off') { setSoundOn(false); soundRef.current = false; } }, []);
+  const toggleSound = () => setSoundOn((p) => { const n = !p; soundRef.current = n; localStorage.setItem('checkmate_sound', n ? 'on' : 'off'); return n; });
+
+  // Board always fits the screen: no scrolling while playing
   const [boardSize, setBoardSize] = useState(360);
   useEffect(() => {
     const compute = () => {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const isDesktop = vw >= 1024;
-      if (isDesktop) {
-        // Board column = content width (max 1024) minus sidebar (272) minus gaps/padding
-        const colW = Math.min(vw, 1024) - 272 - 24 - 32;
-        // Height budget = viewport minus navbar, both player rows, vertical padding
-        const availH = vh - 56 - 120 - 40;
-        setBoardSize(Math.max(320, Math.min(colW, availH)));
-      } else {
-        const availW = vw - 20;                 // px-2.5 both sides
-        const availH = vh - 52 - 108 - 20;      // navbar + two player rows + margins
-        setBoardSize(Math.max(240, Math.min(availW, availH)));
-      }
+      const vw = window.innerWidth, vh = window.innerHeight;
+      if (vw >= 1024) setBoardSize(Math.max(360, Math.min(vh - 56 - 2 * 52 - 64 - 56, vw - 360 - 96, 760)));
+      else setBoardSize(Math.max(260, Math.min(vw - 16, vh - 48 - 2 * 52 - 56 - 44 - 24)));
     };
     compute();
     window.addEventListener('resize', compute);
-    window.addEventListener('orientationchange', compute);
-    return () => {
-      window.removeEventListener('resize', compute);
-      window.removeEventListener('orientationchange', compute);
-    };
+    return () => window.removeEventListener('resize', compute);
   }, []);
-
   const theme = BOARD_THEMES[themeIndex];
 
-  // Auto-scroll chat to bottom on new messages
+  // Chat: autoscroll + unread badge on mobile
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [state?.chatMessages.length]);
+    const n = state?.chatMessages.length ?? 0;
+    // Compute the delta now: the updater runs later, after prevChat.current has moved to n
+    const added = n - prevChat.current;
+    if (added > 0 && panel !== 'chat') setUnreadChat((u) => u + added);
+    prevChat.current = n;
+    chatEnd.current?.scrollIntoView({ block: 'nearest' });
+  }, [state?.chatMessages.length, panel]);
+  useEffect(() => { if (panel === 'chat') setUnreadChat(0); }, [panel]);
 
-  // Play sounds on move
+  // Sounds
   useEffect(() => {
-    if (!state || state.status === 'spectating') return;
-    if (state.moves.length === prevMoveCount.current) return;
-    prevMoveCount.current = state.moves.length;
+    if (!state || state.status === 'spectating' || state.moves.length === prevMoves.current) return;
+    prevMoves.current = state.moves.length;
+    const last = state.moves[state.moves.length - 1];
+    if (!last || !soundRef.current) return;
+    if (last.includes('#') || last.includes('+')) sounds.check();
+    else if (last.toLowerCase().includes('x')) sounds.capture();
+    else sounds.move();
+  }, [state?.moves.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const lastMove = state.moves[state.moves.length - 1];
-    if (!lastMove) return;
-    if (!soundRef.current) return;
-
-    if (lastMove.includes('#') || lastMove.includes('+')) {
-      sounds.check();
-    } else if (lastMove.toLowerCase().includes('x')) {
-      sounds.capture();
-    } else {
-      sounds.move();
-    }
-  }, [state?.moves.length]);
-
-  // Play win/lose sound on game over
   useEffect(() => {
-    if (!state || state.status !== 'over') return;
-    if (!soundRef.current) return;
-    if (state.result === 'draw') { sounds.draw(); return; }
-    if (state.winner === state.color) sounds.win();
+    if (!state || state.status !== 'over' || !soundRef.current) return;
+    if (state.result === 'draw') sounds.draw();
+    else if (state.winner === state.color) sounds.win();
     else sounds.lose();
-  }, [state?.status]);
+  }, [state?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fire queued pre-move when turn arrives
+  // Pre-move fires when it becomes our turn
   useEffect(() => {
     if (!state || !preMove || state.status !== 'playing') return;
-    if (state.turn === state.color) {
-      makeMove(preMove.from, preMove.to, preMove.promotion);
-      setPreMove(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state?.turn]);
+    if (state.turn === state.color) { makeMove(preMove.from, preMove.to, preMove.promotion); setPreMove(null); }
+  }, [state?.turn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Low clock warning
   useEffect(() => {
     if (!state || state.status !== 'playing') return;
-    const myClock = state.color === 'white' ? state.clocks.white : state.clocks.black;
-    if (myClock < 10000 && myClock > 0 && state.turn === state.color) {
-      sounds.clockLow();
-    }
-  }, [state?.clocks]);
+    const mine = state.color === 'white' ? state.clocks.white : state.clocks.black;
+    if (mine < 10000 && mine > 0 && state.turn === state.color) sounds.clockLow();
+  }, [state?.clocks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onPieceDrop = useCallback(
-    (from: string, to: string, piece: string) => {
-      if (!state || state.status !== 'playing') return false;
+  useEffect(() => { if (state?.drawOffered) setDrawDismissed(false); }, [state?.drawOffered, state?.drawOfferAt]);
+  useEffect(() => { setSelected(null); setDrawSent(false); }, [state?.turn]);
 
-      const isPawnPromotion =
-        piece.toLowerCase().includes('p') &&
-        ((state.color === 'white' && to[1] === '8') || (state.color === 'black' && to[1] === '1'));
+  const isPromotion = (pieceType: string | undefined, to: string) =>
+    pieceType === 'p' && state && ((state.color === 'white' && to[1] === '8') || (state.color === 'black' && to[1] === '1'));
 
-      // Opponent's turn — queue as pre-move
-      if (state.turn !== state.color) {
-        setPreMove({ from, to, promotion: isPawnPromotion ? 'q' : undefined });
-        return true;
-      }
+  const onPieceDrop = useCallback((from: string, to: string, piece: string) => {
+    if (!state || state.status !== 'playing') return false;
+    const promo = isPromotion(piece[1]?.toLowerCase(), to);
+    if (state.turn !== state.color) { setPreMove({ from, to, promotion: promo ? 'q' : undefined }); return true; }
+    if (promo) { if (autoQueen) { makeMove(from, to, 'q'); return true; } setPromotion({ from, to }); return false; }
+    makeMove(from, to);
+    return true;
+  }, [state, makeMove, autoQueen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      // My turn — play immediately
-      if (isPawnPromotion) {
-        if (autoQueen) { makeMove(from, to, 'q'); return true; }
-        setPromotionDialog({ from, to });
-        return false;
-      }
-      makeMove(from, to);
-      return true;
-    },
-    [state, makeMove, autoQueen]
-  );
-
-  // Clear selection when turn changes
-  useEffect(() => { setSelectedSquare(null); }, [state?.turn]);
-
-  const legalMoveSquares = useMemo<Record<string, React.CSSProperties>>(() => {
-    if (!selectedSquare || !state || state.turn !== state.color || state.status !== 'playing') return {};
+  const legalSquares = useMemo<Record<string, React.CSSProperties>>(() => {
+    if (!selected || !state || state.turn !== state.color || state.status !== 'playing') return {};
     try {
       const chess = new Chess(state.fen);
-      const moves = chess.moves({ square: selectedSquare as Parameters<typeof chess.moves>[0]['square'], verbose: true });
-      const squares: Record<string, React.CSSProperties> = {
-        [selectedSquare]: { backgroundColor: 'rgba(76, 175, 80, 0.4)' },
-      };
-      for (const m of moves) {
-        squares[m.to] = chess.get(m.to as Parameters<typeof chess.get>[0])
-          ? { background: 'radial-gradient(circle, rgba(255,0,0,0.35) 80%, transparent 80%)' }
-          : { background: 'radial-gradient(circle, rgba(0,0,0,0.18) 28%, transparent 28%)' };
+      const out: Record<string, React.CSSProperties> = { [selected]: { backgroundColor: 'rgba(212,175,105,0.45)' } };
+      for (const m of chess.moves({ square: selected as any, verbose: true })) {
+        out[m.to] = chess.get(m.to as any)
+          ? { background: 'radial-gradient(circle, transparent 58%, rgba(20,20,20,0.28) 60%)' }
+          : { background: 'radial-gradient(circle, rgba(20,20,20,0.24) 22%, transparent 23%)' };
       }
-      return squares;
-    } catch {
-      return {};
-    }
-  }, [selectedSquare, state?.fen, state?.turn, state?.color, state?.status]);
+      return out;
+    } catch { return {}; }
+  }, [selected, state?.fen, state?.turn, state?.color, state?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onSquareClick = useCallback(
-    (square: string) => {
-      if (!state || state.status !== 'playing') return;
-      try {
-        const chess = new Chess(state.fen);
-        const piece = chess.get(square as Parameters<typeof chess.get>[0]);
-        const myColor = state.color === 'white' ? 'w' : 'b';
-
-        // Clicking our own piece → select / re-select
-        if (piece && piece.color === myColor) {
-          setSelectedSquare((prev) => (prev === square ? null : square));
-          return;
-        }
-
-        // No piece selected — nothing to do
-        if (!selectedSquare) return;
-
-        const movingPiece = chess.get(selectedSquare as Parameters<typeof chess.get>[0]);
-        const isPawnPromotion =
-          movingPiece?.type === 'p' &&
-          ((state.color === 'white' && square[1] === '8') || (state.color === 'black' && square[1] === '1'));
-
-        if (state.turn !== state.color) {
-          // Opponent's turn — queue as pre-move
-          setPreMove({ from: selectedSquare, to: square, promotion: isPawnPromotion ? 'q' : undefined });
-          setSelectedSquare(null);
-          return;
-        }
-
-        // Our turn — play immediately
-        if (isPawnPromotion) {
-          if (autoQueen) {
-            makeMove(selectedSquare, square, 'q');
-          } else {
-            setPromotionDialog({ from: selectedSquare, to: square });
-          }
-        } else {
-          makeMove(selectedSquare, square);
-        }
-        setSelectedSquare(null);
-      } catch {
-        setSelectedSquare(null);
-      }
-    },
-    [state, selectedSquare, makeMove, autoQueen]
-  );
+  const onSquareClick = useCallback((square: string) => {
+    if (!state || state.status !== 'playing') return;
+    try {
+      const chess = new Chess(state.fen);
+      const piece = chess.get(square as any);
+      if (piece && piece.color === (state.color === 'white' ? 'w' : 'b')) { setSelected((p) => (p === square ? null : square)); return; }
+      if (!selected) return;
+      const promo = isPromotion(chess.get(selected as any)?.type, square);
+      if (state.turn !== state.color) { setPreMove({ from: selected, to: square, promotion: promo ? 'q' : undefined }); setSelected(null); return; }
+      if (promo) { if (autoQueen) makeMove(selected, square, 'q'); else setPromotion({ from: selected, to: square }); }
+      else makeMove(selected, square);
+      setSelected(null);
+    } catch { setSelected(null); }
+  }, [state, selected, makeMove, autoQueen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submitReport = useCallback(async () => {
     if (!state) return;
-    setReportSending(true);
+    setReportState('sending');
+    setReportError('');
     try {
       const game = await api.games.get(id);
       const reportedId = state.color === 'white' ? game.player_black : game.player_white;
       await api.reports.submit({ reportedId, gameId: id, reason: reportReason, details: reportDetails });
-      setReportDone(true);
-      setTimeout(() => { setShowReport(false); setReportDone(false); }, 2000);
-    } catch {
-      setReportSending(false);
+      setReportState('done');
+      setTimeout(() => { setPanel('none'); setReportState('idle'); }, 1800);
+    } catch (err: any) {
+      let msg = 'Could not send the report. Try again.';
+      try { const p = JSON.parse(err?.message || ''); if (p.error) msg = p.error; } catch {}
+      setReportError(msg);
+      setReportState('error');
     }
   }, [state, id, reportReason, reportDetails]);
 
-  const handleChatSend = useCallback(() => {
-    if (!chatInput.trim()) return;
-    sendChat(chatInput.trim());
-    setChatInput('');
-  }, [chatInput, sendChat]);
+  const sendChatMsg = () => { if (chatInput.trim()) { sendChat(chatInput.trim()); setChatInput(''); } };
 
   if (!state) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="text-4xl mb-4 animate-pulse">♟</div>
-          <p className="text-white/60">Connecting to game...</p>
+    if (unavailable) {
+      return (
+        <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 px-4">
+          <div className="card w-full max-w-sm text-center p-6">
+            <h1 className="text-lg font-semibold">{unavailable === 'ended' ? 'This game has ended' : 'Game not found'}</h1>
+            <p className="text-sm text-muted mt-1">{unavailable === 'ended' ? 'You can still replay every move.' : 'The link may be wrong or the game was removed.'}</p>
+            {unavailable === 'ended' && <Link href={`/replay/${id}`} className="btn-primary w-full h-12 mt-5">Watch replay</Link>}
+            <Link href="/" className={`btn-secondary w-full h-12 ${unavailable === 'ended' ? 'mt-2' : 'mt-5'}`}>Back to home</Link>
+          </div>
         </div>
+      );
+    }
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 rounded-full border-2 border-surface-3 border-t-accent animate-spin" />
+        <p className="text-sm text-muted">Connecting to game…</p>
+        <Link href="/" className="text-xs text-faint hover:text-ink mt-2">Back to home</Link>
       </div>
     );
   }
 
-  const isMyTurn = state.status === 'playing' && state.turn === state.color;
-  const baseOrientation = state.color === 'black' ? 'black' : 'white';
-  const boardOrientation: 'white' | 'black' = flipped
-    ? (baseOrientation === 'white' ? 'black' : 'white')
-    : baseOrientation;
-  const opponentClock = state.color === 'white' ? state.clocks.black : state.clocks.white;
+  const playing = state.status === 'playing';
+  const spectating = state.status === 'spectating';
+  // Watching someone else's game: stays true after it ends (no "You won" modal, no report link)
+  const watcher = spectating || !!state.spectator;
+  const myTurn = playing && state.turn === state.color;
+  const base = state.color === 'black' ? 'black' : 'white';
+  const orientation: 'white' | 'black' = flipped ? (base === 'white' ? 'black' : 'white') : base;
+  const oppClock = state.color === 'white' ? state.clocks.black : state.clocks.white;
   const myClock = state.color === 'white' ? state.clocks.white : state.clocks.black;
-  const preMoveSquares: Record<string, React.CSSProperties> = preMove
-    ? {
-        [preMove.from]: { backgroundColor: 'rgba(255, 140, 0, 0.5)' },
-        [preMove.to]:   { backgroundColor: 'rgba(255, 140, 0, 0.5)' },
-      }
-    : {};
-  const lastMoveSquares: Record<string, React.CSSProperties> = state.lastMove
-    ? {
-        [state.lastMove.from]: { backgroundColor: 'rgba(129, 182, 76, 0.32)' },
-        [state.lastMove.to]:   { backgroundColor: 'rgba(129, 182, 76, 0.42)' },
-      }
-    : {};
+  const preSquares: Record<string, React.CSSProperties> = preMove
+    ? { [preMove.from]: { backgroundColor: 'rgba(120,150,220,0.45)' }, [preMove.to]: { backgroundColor: 'rgba(120,150,220,0.55)' } } : {};
+  const lastSquares: Record<string, React.CSSProperties> = state.lastMove
+    ? { [state.lastMove.from]: { backgroundColor: 'rgba(212,175,105,0.32)' }, [state.lastMove.to]: { backgroundColor: 'rgba(212,175,105,0.42)' } } : {};
+  const myName = watcher ? state.players?.white.name ?? 'White' : me?.username || 'You';
+  const oppName = watcher ? state.players?.black.name ?? 'Black' : state.opponent.username;
+  const oppSub = watcher ? (state.players ? String(state.players.black.elo) : 'Black') : `${state.opponent.elo}`;
+  const tcName = (state.timeControl && TC_NAME[state.timeControl]) || 'Rated game';
+
+  const PlayerRow = ({ name, sub, side, ms, active }: { name: string; sub: string; side: 'white' | 'black'; ms: number; active: boolean }) => (
+    <div className="flex items-center gap-3 h-[52px]">
+      <PieceAvatar seed={name} size={36} />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold truncate leading-tight">{name}</div>
+        <div className="flex items-center gap-2 text-xs text-faint num">
+          <span>{sub}</span>
+          <CapturedPieces fen={state.fen} side={side} />
+        </div>
+      </div>
+      <ChessClock ms={ms} active={active} />
+    </div>
+  );
+
+  const ChatBox = (
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-[120px]">
+        {state.chatMessages.length === 0 ? <p className="text-xs text-faint">Say hi. Be nice.</p> :
+          state.chatMessages.map((m, i) => (
+            <div key={i} className="text-sm leading-snug"><span className="font-semibold text-muted">{m.sender}</span> <span className="text-ink">{m.text}</span></div>
+          ))}
+        <div ref={chatEnd} />
+      </div>
+      {/* Signed-out viewers can't chat (the server drops their messages) */}
+      {token && <div className="p-2 flex gap-2 border-t border-line/[0.06]">
+        <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendChatMsg(); }}
+          placeholder="Message" maxLength={200} className="input h-10 py-0" />
+        <button onClick={sendChatMsg} className="btn-secondary h-10 px-3" aria-label="Send"><Icon name="arrow-up-right" size={16} /></button>
+      </div>}
+    </div>
+  );
 
   return (
-    <div className="max-w-5xl mx-auto px-2.5 sm:px-4 py-2 sm:py-6">
-      <div className="flex flex-col lg:flex-row gap-3 lg:gap-6 items-center lg:items-start justify-center">
-
-        {/* Board area — sized to fit viewport */}
-        <div style={{ width: boardSize }} className="shrink-0">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-8 h-8 rounded-lg bg-[#3a3835] border border-white/10 flex items-center justify-center text-sm font-bold shrink-0">
-                {(state.opponent.username || '?')[0].toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <p className="font-semibold truncate leading-tight">{state.opponent.username}</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-white/50">{state.opponent.elo}</p>
-                  <CapturedPieces fen={state.fen} side={state.color === 'white' ? 'black' : 'white'} />
-                </div>
-              </div>
-            </div>
-            <ChessClock ms={opponentClock} active={state.turn !== state.color && state.status === 'playing'} label="" />
+    <div className="min-h-[100dvh] flex flex-col">
+      {/* Header */}
+      <header className="h-12 lg:h-14 px-2 lg:px-6 flex items-center gap-2 border-b border-line/[0.06] pt-safe">
+        <Link href="/" className="btn-ghost p-2" aria-label="Back"><Icon name="chevron-left" size={20} /></Link>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold truncate">{tcName}{state.betAmount > 0 ? ` · $${state.betAmount} stake` : ''}</div>
+          <div className="text-xs text-faint num">
+            {spectating ? 'Watching' : playing ? (myTurn ? 'Your move' : 'Opponent to move') : 'Game over'}
+            {state.spectatorCount > 0 && ` · ${state.spectatorCount} watching`}
           </div>
+        </div>
+        {state.betAmount > 0 && (
+          <div className="text-right pr-2">
+            <div className="text-[10px] text-faint uppercase tracking-wide">Pot</div>
+            <div className="text-sm font-semibold num">${(state.betAmount * 2).toFixed(2)}</div>
+          </div>
+        )}
+      </header>
 
-          <div className="rounded-lg overflow-hidden shadow-2xl">
+      <div className="flex-1 w-full max-w-6xl mx-auto px-2 lg:px-6 py-2 lg:py-6 flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start justify-start lg:justify-center">
+        {/* Board column */}
+        <div style={{ width: boardSize }} className="shrink-0">
+          <PlayerRow name={oppName} sub={oppSub} side={state.color === 'white' ? 'black' : 'white'}
+            ms={oppClock} active={playing && state.turn !== state.color} />
+          <div className="rounded-lg overflow-hidden my-1">
             <Chessboard
               id={id}
               position={state.fen}
               onPieceDrop={onPieceDrop}
               onSquareClick={onSquareClick}
-              boardOrientation={boardOrientation}
+              boardOrientation={orientation}
               boardWidth={boardSize}
-              arePiecesDraggable={state.status === 'playing'}
-              customBoardStyle={{ borderRadius: '0' }}
+              arePiecesDraggable={playing}
+              customBoardStyle={{ borderRadius: 0 }}
               customDarkSquareStyle={{ backgroundColor: theme.dark }}
               customLightSquareStyle={{ backgroundColor: theme.light }}
-              customSquareStyles={{ ...lastMoveSquares, ...legalMoveSquares, ...preMoveSquares }}
+              customSquareStyles={{ ...lastSquares, ...legalSquares, ...preSquares }}
               customPieces={customPieces}
             />
           </div>
+          <PlayerRow name={myName} sub={watcher ? (state.players ? String(state.players.white.elo) : 'White') : state.color === 'white' ? 'White' : 'Black'} side={state.color}
+            ms={myClock} active={myTurn} />
 
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-8 h-8 rounded-lg bg-[#46a883] text-[#0b0d0c] flex items-center justify-center text-sm font-bold shrink-0">
-                {(user?.wallet?.address || 'Y')[2]?.toUpperCase() || 'Y'}
-              </span>
-              <div className="min-w-0">
-                <p className="font-semibold truncate leading-tight">You</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-white/50">{state.color === 'white' ? 'White' : 'Black'}</p>
-                  <CapturedPieces fen={state.fen} side={state.color} />
-                </div>
-              </div>
-            </div>
-            <ChessClock ms={myClock} active={isMyTurn} label="" />
-          </div>
+          {/* Mobile: moves strip */}
+          <div className="lg:hidden mt-1 px-1"><MoveHistory moves={state.moves} variant="strip" /></div>
 
-          {/* Control toolbar — standard chess controls, always under the board */}
-          <div className="flex items-center gap-1.5 mt-2 bg-[#141715] border border-white/[0.07] rounded-lg p-1.5">
-            <button
-              onClick={() => setFlipped((f) => !f)}
-              title="Flip board"
-              className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 2.1 21 6l-4 3.9" /><path d="M21 6H8a5 5 0 0 0-5 5v1" /><path d="M7 21.9 3 18l4-3.9" /><path d="M3 18h13a5 5 0 0 0 5-5v-1" /></svg>
-            </button>
-            <button
-              onClick={toggleSound}
-              title={soundOn ? 'Mute' : 'Unmute'}
-              className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
-            >
-              {soundOn ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14" /></svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="m22 9-6 6M16 9l6 6" /></svg>
-              )}
-            </button>
-            <button
-              onClick={() => setShowThemes((s) => !s)}
-              title="Board theme"
-              className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 3a4 4 0 0 0 0 8 3 3 0 0 1 0 6 5 5 0 0 0 0-14" /><circle cx="8" cy="9" r="0.5" fill="currentColor" /><circle cx="8" cy="15" r="0.5" fill="currentColor" /><circle cx="16" cy="9" r="0.5" fill="currentColor" /></svg>
-            </button>
-            {state.status === 'playing' && (
+          {/* Toolbar */}
+          <div className="flex items-center gap-1 mt-1 p-1 rounded-xl bg-surface border border-line/[0.08]">
+            <ToolButton icon="flip" label="Flip" onClick={() => setFlipped((f) => !f)} />
+            <ToolButton icon={soundOn ? 'sound' : 'mute'} label="Sound" onClick={toggleSound} />
+            <ToolButton icon="palette" label="Board" onClick={() => setPanel((p) => (p === 'themes' ? 'none' : 'themes'))} active={panel === 'themes'} />
+            <span className="lg:hidden flex-1 relative">
+              <ToolButton icon="chat" label="Chat" onClick={() => setPanel((p) => (p === 'chat' ? 'none' : 'chat'))} active={panel === 'chat'} />
+              {unreadChat > 0 && <span className="absolute top-1.5 right-1/4 w-2 h-2 rounded-full bg-accent" />}
+            </span>
+            {playing && (
               <>
-                <button
-                  onClick={offerDraw}
-                  title="Offer draw"
-                  className="flex-1 flex items-center justify-center py-2 rounded-md text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors font-bold"
-                >
-                  ½
-                </button>
-                <button
-                  onClick={resign}
-                  title="Resign"
-                  className="flex-1 flex items-center justify-center py-2 rounded-md text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22V4M4 4l7 3 4-2 5 2v9l-5-2-4 2-7-3" /></svg>
-                </button>
+                <ToolButton icon="handshake" label={drawSent ? 'Offered' : 'Draw'} onClick={() => { offerDraw(); setDrawSent(true); }} />
+                <ToolButton icon="flag" label="Resign" tone="danger" onClick={() => setPanel('resign')} />
               </>
             )}
           </div>
 
-          {/* Inline theme picker (opens from toolbar) */}
-          {showThemes && (
-            <div className="flex gap-2 mt-2 flex-wrap justify-center bg-[#141715] border border-white/[0.07] rounded-lg p-2">
+          {panel === 'themes' && (
+            <div className="mt-2 p-2 rounded-xl bg-surface border border-line/[0.08] flex gap-2 justify-center">
               {BOARD_THEMES.map((t, i) => (
-                <button
-                  key={t.name}
+                <button key={t.name} title={t.name} aria-label={t.name}
                   onClick={() => { setThemeIndex(i); localStorage.setItem('checkmate_board_theme', String(i)); }}
-                  title={t.name}
-                  className={`w-9 h-9 rounded-md overflow-hidden border-2 transition ${i === themeIndex ? 'border-[#46a883]' : 'border-transparent'}`}
-                  style={{ background: `linear-gradient(135deg, ${t.light} 50%, ${t.dark} 50%)` }}
-                />
+                  className={`w-10 h-10 rounded-lg overflow-hidden border-2 ${i === themeIndex ? 'border-accent' : 'border-transparent'}`}
+                  style={{ background: `linear-gradient(135deg, ${t.light} 50%, ${t.dark} 50%)` }} />
               ))}
             </div>
           )}
-        </div>
 
-        {/* Sidebar */}
-        <div className="w-full lg:w-64 flex flex-col gap-3">
-
-          {/* Game info */}
-          <div className="card">
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <div className="text-white/40 text-xs">Pot</div>
-                <div className="font-bold text-[#f0b232]">${(state.betAmount * 2).toFixed(2)}</div>
-              </div>
-              <div>
-                <div className="text-white/40 text-xs">Winner gets</div>
-                <div className="text-[#46a883] font-semibold">${(state.betAmount * 2 * 0.975).toFixed(2)}</div>
-              </div>
-              <div>
-                <div className="text-white/40 text-xs">Spectators</div>
-                <div>{state.spectatorCount}</div>
-              </div>
-              <div>
-                <div className="text-white/40 text-xs">Turn</div>
-                <div className={isMyTurn ? 'text-[#46a883] font-semibold' : 'text-white/60'}>
-                  {state.status === 'spectating' ? 'Spectating' : isMyTurn ? 'Yours' : 'Opponent'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Move history */}
-          <MoveHistory moves={state.moves} />
-
-          {/* Chat */}
-          <div className="card p-0 overflow-hidden flex flex-col" style={{ maxHeight: '180px' }}>
-            <div className="px-3 py-2 border-b border-white/10 text-xs font-semibold text-white/50">Chat</div>
-            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 min-h-[80px]">
-              {state.chatMessages.length === 0 ? (
-                <p className="text-xs text-white/20">No messages yet</p>
-              ) : (
-                state.chatMessages.map((msg, i) => (
-                  <div key={i} className="text-xs">
-                    <span className="font-semibold text-[#46a883]">{msg.sender}: </span>
-                    <span className="text-white/80">{msg.text}</span>
-                  </div>
-                ))
-              )}
-              <div ref={chatEndRef} />
-            </div>
-            <div className="px-2 pb-2 flex gap-1">
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleChatSend(); }}
-                placeholder="Say something..."
-                maxLength={200}
-                className="flex-1 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#46a883]"
-              />
-              <button
-                onClick={handleChatSend}
-                className="px-2 py-1 bg-[#46a883]/20 hover:bg-[#46a883]/40 rounded text-xs text-[#46a883] transition"
-              >
-                ↵
-              </button>
-            </div>
-          </div>
-
-          {/* Draw offer */}
-          {state.drawOffered && state.status === 'playing' && (
-            <div className="card border border-[#f0b232]/40">
-              <p className="text-sm mb-2">Opponent offered a draw</p>
-              <div className="flex gap-2">
-                <button onClick={acceptDraw} className="btn-primary flex-1 text-sm py-1.5">Accept</button>
-                <button className="btn-secondary flex-1 text-sm py-1.5">Decline</button>
-              </div>
+          {state.drawOffered && playing && !drawDismissed && (
+            <div className="mt-2 p-3 rounded-xl bg-surface border border-accent/30 flex items-center gap-3">
+              <span className="text-sm flex-1">Opponent offers a draw</span>
+              <button onClick={() => setDrawDismissed(true)} className="btn-secondary h-9 py-0">Decline</button>
+              <button onClick={acceptDraw} className="btn-primary h-9 py-0">Accept</button>
             </div>
           )}
 
-          {/* Pre-move indicator */}
           {preMove && (
-            <div className="card border border-orange-500/40 flex items-center justify-between py-2 px-3">
-              <span className="text-xs text-orange-400">Pre-move queued: {preMove.from}→{preMove.to}</span>
-              <button onClick={() => setPreMove(null)} className="text-white/40 hover:text-white text-xs ml-2">✕</button>
+            <div className="mt-2 px-3 h-10 rounded-xl bg-surface border border-line/[0.08] flex items-center justify-between text-xs text-muted">
+              <span>Pre-move {preMove.from} → {preMove.to}</span>
+              <button onClick={() => setPreMove(null)} className="btn-ghost p-1" aria-label="Cancel pre-move"><Icon name="x" size={14} /></button>
             </div>
           )}
 
-          {/* Report opponent */}
-          {state.status !== 'spectating' && (
-            <button
-              onClick={() => setShowReport(true)}
-              className="text-xs text-white/25 hover:text-red-400 transition-colors text-center w-full py-1"
-            >
-              Report opponent
-            </button>
+          {panel === 'chat' && (
+            <div className="lg:hidden mt-2 h-64 rounded-xl bg-surface border border-line/[0.08] overflow-hidden">{ChatBox}</div>
           )}
-
-          {error && <div className="card border border-red-500/30 text-red-400 text-sm">{error}</div>}
+          {error && <div className="mt-2 p-3 rounded-xl bg-negative/10 border border-negative/25 text-sm text-negative">{error}</div>}
         </div>
+
+        {/* Desktop side panel */}
+        <aside className="hidden lg:flex w-80 flex-col gap-4" style={{ height: boardSize + 2 * 52 + 8 }}>
+          <div className="card p-0 flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="h-11 px-3 flex items-center border-b border-line/[0.06]"><span className="eyebrow">Moves</span></div>
+            <div className="flex-1 min-h-0 overflow-y-auto"><MoveHistory moves={state.moves} /></div>
+          </div>
+          <div className="card p-0 h-64 flex flex-col overflow-hidden">
+            <div className="h-11 px-3 flex items-center border-b border-line/[0.06]"><span className="eyebrow">Chat</span></div>
+            <div className="flex-1 min-h-0">{ChatBox}</div>
+          </div>
+          {!watcher && (
+            <button onClick={() => setPanel('report')} className="text-xs text-faint hover:text-negative transition-colors">Report opponent</button>
+          )}
+        </aside>
       </div>
 
-      {/* Game over */}
-      {state.status === 'over' && state.result && (
-        <GameOverModal
-          result={state.result}
-          winner={state.winner ?? null}
-          playerColor={state.color}
-          eloChange={state.eloChange ?? 0}
-          betAmount={state.betAmount}
-          payout={state.betAmount * 2 * 0.975}
-          streakBonus={state.streakBonus}
-          streak={state.streak}
-          gameId={id}
-          onRematch={offerRematch}
-          rematchState={rematchState}
-          onAcceptRematch={acceptRematch}
-        />
+      {!watcher && (
+        <div className="lg:hidden text-center pb-4">
+          <button onClick={() => setPanel('report')} className="text-xs text-faint hover:text-negative">Report opponent</button>
+        </div>
       )}
 
-      {/* Report modal */}
-      {showReport && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setShowReport(false)}>
-          <div className="card w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-bold mb-4">Report Opponent</h3>
-            {reportDone ? (
-              <p className="text-[#46a883] text-center py-4">Report submitted. Thank you.</p>
+      {/* Resign confirm: one mis-tap must never cost a game */}
+      {panel === 'resign' && (
+        <div className="overlay" onClick={() => setPanel('none')}>
+          <div className="sheet text-center" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold">Resign this game?</h3>
+            <p className="text-sm text-muted mt-1">{state.betAmount > 0 ? `You will lose your $${state.betAmount} stake.` : 'The game ends as a loss.'}</p>
+            <div className="grid grid-cols-2 gap-2 mt-5">
+              <button onClick={() => setPanel('none')} className="btn-secondary h-12">Keep playing</button>
+              <button onClick={() => { setPanel('none'); resign(); }} className="btn-danger h-12">Resign</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {panel === 'report' && (
+        <div className="overlay" onClick={() => setPanel('none')}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-1">Report opponent</h3>
+            {reportState === 'done' ? (
+              <p className="text-sm text-positive py-6 text-center">Thanks. Our fair-play team will review this game.</p>
             ) : (
               <>
-                <div className="space-y-2 mb-4">
+                <p className="text-sm text-muted mb-4">Every game is also checked automatically for engine use.</p>
+                <div className="space-y-1 mb-3">
                   {REPORT_REASONS.map((r) => (
-                    <label key={r.value} className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="reason"
-                        value={r.value}
-                        checked={reportReason === r.value}
-                        onChange={() => setReportReason(r.value)}
-                        className="accent-[#46a883]"
-                      />
-                      <span className="text-sm">{r.label}</span>
-                    </label>
+                    <button key={r.value} onClick={() => setReportReason(r.value)}
+                      className={`w-full h-11 px-3 rounded-[10px] text-sm text-left flex items-center justify-between ${reportReason === r.value ? 'bg-surface-3' : 'hover:bg-surface-2'}`}>
+                      {r.label}
+                      {reportReason === r.value && <Icon name="check" size={16} className="text-accent" />}
+                    </button>
                   ))}
                 </div>
-                <textarea
-                  value={reportDetails}
-                  onChange={(e) => setReportDetails(e.target.value)}
-                  placeholder="Additional details (optional)"
-                  maxLength={500}
-                  rows={3}
-                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#46a883] mb-4"
-                />
-                <div className="flex gap-3">
-                  <button onClick={() => setShowReport(false)} className="btn-secondary flex-1">Cancel</button>
-                  <button
-                    onClick={submitReport}
-                    disabled={reportSending}
-                    className="btn-danger flex-1"
-                  >
-                    {reportSending ? 'Sending...' : 'Submit Report'}
+                <textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="Details (optional)"
+                  maxLength={500} rows={3} className="input resize-none mb-4" />
+                {reportState === 'error' && <p className="text-sm text-negative -mt-2 mb-3">{reportError}</p>}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setPanel('none')} className="btn-secondary h-11">Cancel</button>
+                  <button onClick={submitReport} disabled={reportState === 'sending'} className="btn-danger h-11">
+                    {reportState === 'sending' ? 'Sending…' : 'Submit report'}
                   </button>
                 </div>
               </>
@@ -604,24 +443,38 @@ export default function GamePage() {
         </div>
       )}
 
-      {/* Promotion */}
-      {promotionDialog && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="card">
-            <p className="text-sm mb-3 text-center">Promote pawn to:</p>
-            <div className="flex gap-3">
-              {['q', 'r', 'b', 'n'].map((piece) => (
-                <button
-                  key={piece}
-                  onClick={() => { makeMove(promotionDialog.from, promotionDialog.to, piece); setPromotionDialog(null); }}
-                  className="btn-secondary text-2xl px-4 py-2"
-                >
-                  {piece === 'q' ? '♛' : piece === 'r' ? '♜' : piece === 'b' ? '♝' : '♞'}
-                </button>
+      {promotion && (
+        <div className="overlay">
+          <div className="sheet text-center">
+            <p className="text-sm text-muted mb-4">Promote to</p>
+            <div className="grid grid-cols-4 gap-2">
+              {(['q', 'r', 'b', 'n'] as const).map((p) => (
+                <button key={p} onClick={() => { makeMove(promotion.from, promotion.to, p); setPromotion(null); }}
+                  className="btn-secondary h-16 text-3xl">{({ q: '♛', r: '♜', b: '♝', n: '♞' })[p]}</button>
               ))}
             </div>
           </div>
         </div>
+      )}
+
+      {state.status === 'over' && state.result && (
+        <GameOverModal
+          result={state.result}
+          reason={state.reason}
+          spectator={watcher}
+          note={error}
+          winner={state.winner ?? null}
+          playerColor={state.color}
+          eloChange={state.eloChange ?? 0}
+          betAmount={state.betAmount}
+          payout={state.betAmount * 2 * 0.975}
+          streakBonus={state.streakBonus}
+          streak={state.streak}
+          gameId={id}
+          onRematch={watcher ? undefined : offerRematch}
+          rematchState={rematchState}
+          onAcceptRematch={watcher ? undefined : acceptRematch}
+        />
       )}
     </div>
   );

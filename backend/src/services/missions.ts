@@ -86,19 +86,22 @@ export async function updateMissionProgress(
       .first();
 
     if (row && !row.rewarded && parseFloat(row.progress) >= mission.target) {
-      await db('user_weekly_missions').where({ id: row.id }).update({
-        completed: true,
-        rewarded: true,
-      });
-
-      await db.transaction(async (trx) => {
+      // Mark rewarded and credit in one transaction; the conditional update makes concurrent calls pay once.
+      const paid = await db.transaction(async (trx) => {
+        const n = await trx('user_weekly_missions').where({ id: row.id, rewarded: false }).update({
+          completed: true,
+          rewarded: true,
+        });
+        if (!n) return false;
         await trx('users').where({ id: userId }).increment('usdc_balance', mission.reward);
         await trx('balance_ledger').insert({
           user_id: userId,
           amount: mission.reward,
           type: 'bonus',
         });
+        return true;
       });
+      if (!paid) continue;
 
       await createNotification(
         userId,

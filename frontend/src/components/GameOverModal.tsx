@@ -8,6 +8,12 @@ type RematchState = 'idle' | 'offered' | 'incoming';
 
 interface Props {
   result: string;
+  /** Draw reason from the server (stalemate, repetition, ...) */
+  reason?: string;
+  /** Watching, not playing: show who won instead of "You won" and no money/rating/rematch */
+  spectator?: boolean;
+  /** Short message shown above the buttons (e.g. a rematch error) */
+  note?: string;
   winner: string | null;
   playerColor: 'white' | 'black';
   eloChange: number;
@@ -21,92 +27,66 @@ interface Props {
   onAcceptRematch?: () => void;
 }
 
+const RESULT_TEXT: Record<string, string> = {
+  checkmate: 'by checkmate', resignation: 'by resignation', timeout: 'on time', draw: 'by agreement',
+  stalemate: 'by stalemate', insufficient: 'by insufficient material', repetition: 'by repetition', fifty: 'by the 50-move rule',
+};
+
 export default function GameOverModal({
-  result, winner, playerColor, eloChange, betAmount, payout,
+  result, reason, spectator = false, note, winner, playerColor, eloChange, betAmount, payout,
   streakBonus, streak, gameId, onRematch, rematchState = 'idle', onAcceptRematch,
 }: Props) {
-  const isWinner = winner === playerColor;
-  const isDraw = winner === null || winner === 'draw';
+  const won = winner === playerColor;
+  const draw = winner === null || winner === 'draw';
   const [copied, setCopied] = useState(false);
+  const earned = payout ?? betAmount * 2 * 0.975;
 
-  const handleShare = () => {
-    const earned = payout ?? betAmount * 2 * 0.975;
-    const msg = isDraw
-      ? `I drew a $${betAmount} chess game on ELO!`
-      : isWinner
-      ? `I just won $${earned.toFixed(2)} on ELO! +${eloChange} ELO rating`
-      : `Tough game on ELO — I'll be back!`;
-    const url = typeof window !== 'undefined'
-      ? `${window.location.origin}${gameId ? `/replay/${gameId}` : ''}`
-      : '';
-    const fullText = `${msg}\n${url}`;
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      navigator.share({ text: fullText }).catch(() => {});
-    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(fullText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const share = () => {
+    const msg = spectator ? 'Watch this chess game on ELO' : draw ? `Drew a $${betAmount} chess game on ELO` : won ? `Won $${earned.toFixed(2)} on ELO (+${eloChange} rating)` : 'Good game on ELO';
+    const text = `${msg}\n${window.location.origin}${gameId ? `/replay/${gameId}` : ''}`;
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else if (navigator.clipboard) { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="card w-full max-w-sm mx-4 text-center">
-        <img
-          src={isDraw ? '/brand/el-thinking.png' : isWinner ? '/brand/el-victory.png' : '/brand/el-relaxed.png'}
-          alt=""
-          className="w-24 h-24 mx-auto rounded-2xl mb-3 select-none pointer-events-none"
-        />
-        <h2 className="text-2xl font-bold mb-1">
-          {isDraw ? 'Draw' : isWinner ? 'You Won!' : 'You Lost'}
-        </h2>
-        <p className="text-white/50 text-sm mb-4 capitalize">{result.replace('_', ' ')}</p>
-
-        <div className="space-y-2 mb-6">
-          {!isDraw && (
-            <div className={`text-lg font-bold ${isWinner ? 'text-[#46a883]' : 'text-red-400'}`}>
-              {isWinner ? `+$${payout?.toFixed(2) ?? betAmount.toFixed(2)}` : `-$${betAmount.toFixed(2)}`}
-            </div>
-          )}
-          <div className={`text-sm ${isDraw ? 'text-white/50' : isWinner ? 'text-[#46a883]' : 'text-red-400'}`}>
-            {isDraw ? 'ELO unchanged' : isWinner ? `+${eloChange} ELO` : `-${eloChange} ELO`}
-          </div>
-          {isWinner && streakBonus && streakBonus > 0 && (
-            <div className="inline-flex items-center gap-2 bg-orange-500/20 border border-orange-500/40 rounded-full px-3 py-1 text-sm text-orange-400 font-semibold">
-              <Icon name="fire" size={14} />
-              <span>{streak}-win streak bonus +${streakBonus.toFixed(2)}!</span>
-            </div>
-          )}
+    <div className="overlay">
+      <div className="sheet text-center">
+        <div className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-4 ${draw || spectator ? 'bg-surface-2 text-muted' : won ? 'bg-positive/10 text-positive' : 'bg-negative/10 text-negative'}`}>
+          <Icon name={draw ? 'handshake' : won || spectator ? 'trophy' : 'flag'} size={24} />
         </div>
+        <h2 className="text-2xl font-semibold">{draw ? 'Draw' : spectator ? `${winner === 'white' ? 'White' : 'Black'} won` : won ? 'You won' : 'You lost'}</h2>
+        <p className="text-sm text-muted mt-1">{RESULT_TEXT[(draw && reason) || result] ?? ((draw && reason) || result).replace('_', ' ')}</p>
 
-        {/* Rematch */}
-        {onRematch && rematchState === 'idle' && (
-          <button onClick={onRematch} className="btn-primary w-full mb-3">
-            Rematch
-          </button>
-        )}
-        {rematchState === 'offered' && (
-          <div className="bg-white/5 rounded-lg px-4 py-2 mb-3 text-sm text-white/60 animate-pulse">
-            Waiting for opponent...
+        {spectator ? <div className="h-5" /> : <div className="grid grid-cols-2 gap-2 my-5">
+          <div className="rounded-xl bg-surface-2 py-3">
+            <div className="text-xs text-faint">Credits</div>
+            <div className={`text-lg font-semibold num ${draw ? '' : won ? 'text-positive' : 'text-negative'}`}>
+              {draw ? 'Refunded' : won ? `+$${earned.toFixed(2)}` : `−$${betAmount.toFixed(2)}`}
+            </div>
           </div>
-        )}
-        {rematchState === 'incoming' && onAcceptRematch && (
-          <button onClick={onAcceptRematch} className="btn-primary w-full mb-3 bg-[#f0b232] hover:bg-[#e6c200] text-black">
-            Accept Rematch
-          </button>
-        )}
+          <div className="rounded-xl bg-surface-2 py-3">
+            <div className="text-xs text-faint">Rating</div>
+            <div className={`text-lg font-semibold num ${draw ? '' : won ? 'text-positive' : 'text-negative'}`}>
+              {draw ? '±0' : won ? `+${eloChange}` : `−${eloChange}`}
+            </div>
+          </div>
+        </div>}
 
-        <div className="flex gap-3 mb-3">
-          <Link href="/" className="btn-secondary flex-1">Home</Link>
-          {gameId && (
-            <Link href={`/replay/${gameId}`} className="btn-secondary flex-1">Watch Replay</Link>
-          )}
+        {!spectator && won && streakBonus && streakBonus > 0 ? (
+          <p className="text-sm text-accent mb-3 flex items-center justify-center gap-1.5"><Icon name="fire" size={14} /> {streak}-win streak bonus +${streakBonus.toFixed(2)}</p>
+        ) : null}
+        {!spectator && won && <p className="text-xs text-faint mb-4">Winnings unlock after the fair-play check.</p>}
+
+        {note && <p className="text-sm text-negative mb-3">{note}</p>}
+        {onRematch && rematchState === 'idle' && <button onClick={onRematch} className="btn-primary w-full h-12 mb-2">Rematch</button>}
+        {rematchState === 'offered' && <div className="h-12 mb-2 rounded-[10px] bg-surface-2 text-sm text-muted flex items-center justify-center">Waiting for opponent…</div>}
+        {rematchState === 'incoming' && onAcceptRematch && <button onClick={onAcceptRematch} className="btn-primary w-full h-12 mb-2">Accept rematch</button>}
+
+        <div className="grid grid-cols-3 gap-2">
+          <Link href="/" className="btn-secondary h-11">Home</Link>
+          {gameId && <Link href={`/replay/${gameId}`} className="btn-secondary h-11">Replay</Link>}
+          <button onClick={share} className="btn-secondary h-11">{copied ? 'Copied' : 'Share'}</button>
         </div>
-
-        <button onClick={handleShare} className="btn-secondary w-full text-sm">
-          {copied ? 'Copied to clipboard' : 'Share Result'}
-        </button>
       </div>
     </div>
   );

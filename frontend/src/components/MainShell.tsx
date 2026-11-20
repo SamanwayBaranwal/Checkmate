@@ -2,17 +2,11 @@
 
 import { usePathname } from 'next/navigation';
 
-// Wraps page content. Offsets for the desktop sidebar; drops bottom padding
-// on game routes (no bottom nav there) so the board never overflows.
+// Page container. Offsets the desktop sidebar; the game screen gets the whole viewport.
 export default function MainShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isGame = pathname.startsWith('/game/');
-  if (isGame) {
-    return <main className="animate-in overflow-hidden">{children}</main>;
+  if (pathname.startsWith('/game/')) {
+    return <main className="overflow-hidden">{children}</main>;
   }
-  return (
-    <main className="animate-in min-h-screen md:pl-60 pb-24 md:pb-8">
-      {children}
-    </main>
-  );
+  return <main className="min-h-[100dvh] md:pl-60 pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-10">{children}</main>;
 }

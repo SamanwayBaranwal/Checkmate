@@ -1,3 +1,5 @@
+import { getDeviceId, getFingerprint } from './device';
+
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function getToken(): string | null {
@@ -21,10 +23,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
-    verify: (privyUserId: string, wallet: string, referralCode?: string) =>
+    // The backend takes the user id from the Privy-signed access token, not from the body.
+    verify: (accessToken: string, wallet: string, referralCode?: string) =>
       request<{ token: string; user: any }>('/api/auth/verify', {
         method: 'POST',
-        body: JSON.stringify({ privyUserId, wallet, ...(referralCode ? { referralCode } : {}) }),
+        body: JSON.stringify({ accessToken, wallet, deviceId: getDeviceId(), fingerprint: getFingerprint(), ...(referralCode ? { referralCode } : {}) }),
       }),
   },
   wallet: {
@@ -45,6 +48,10 @@ export const api = {
   },
   users: {
     me: () => request<any>('/api/users/me'),
+    // Stake limit for this account + locked winnings (money safety)
+    limits: () => request<{ level: 'new' | 'trusted' | 'verified'; maxStake: number; cleanGames: number; ageDays: number;
+      next: { level: string; games: number; days: number; maxStake: number } | null; reason: string | null;
+      locked: number; withdrawable: number; holdHours: number }>('/api/users/me/limits'),
     profile: (id: string) => request<any>(`/api/users/${id}`),
     setUsername: (username: string) =>
       request<{ username: string }>('/api/users/me/username', {

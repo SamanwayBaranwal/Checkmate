@@ -26,6 +26,7 @@ export function setupSpectator(io: Server, socket: Socket) {
       fen,
       turn,
       clocks: clocksRaw ? JSON.parse(clocksRaw) : null,
+      moves: await redis.lrange(`game:${gameId}:moves`, 0, -1),
     });
 
     io.to(gameId).emit('spectator_count', { count: spectatorCount });

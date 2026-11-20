@@ -1,4 +1,7 @@
-export type PieceTheme = 'classic' | 'unicode' | 'minimal' | 'neon';
+export type PieceTheme = 'chessnut' | 'classic' | 'unicode' | 'minimal' | 'neon';
+
+// Default set: Chessnut by Alexis Luengas, Apache 2.0 (public/pieces/chessnut/NOTICE.txt)
+export const DEFAULT_PIECE_THEME: PieceTheme = 'chessnut';
 
 const PIECES: Record<string, { unicode: string; letter: string; isWhite: boolean }> = {
   wK: { unicode: '♔', letter: 'K', isWhite: true },
@@ -19,6 +22,17 @@ type PieceFn = (props: { squareWidth: number }) => JSX.Element;
 
 export function getCustomPieces(theme: PieceTheme): Record<string, PieceFn> | undefined {
   if (theme === 'classic') return undefined;
+  if (theme === 'chessnut') {
+    const set: Record<string, PieceFn> = {};
+    for (const code of Object.keys(PIECES)) {
+      set[code] = ({ squareWidth }) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`/pieces/chessnut/${code}.svg`} alt="" draggable={false}
+          style={{ width: squareWidth, height: squareWidth, display: 'block', userSelect: 'none' }} />
+      );
+    }
+    return set;
+  }
 
   const result: Record<string, PieceFn> = {};
 
@@ -64,9 +78,10 @@ export function getCustomPieces(theme: PieceTheme): Record<string, PieceFn> | un
   return result;
 }
 
+// Shown in settings ('neon' is still rendered for anyone who had it stored, but no longer offered)
 export const PIECE_THEMES: { key: PieceTheme; label: string; preview: string }[] = [
-  { key: 'classic', label: 'Classic', preview: '🔲' },
+  { key: 'chessnut', label: 'Standard', preview: '/pieces/chessnut/wN.svg' },
+  { key: 'classic', label: 'Classic', preview: '♞' },
   { key: 'unicode', label: 'Unicode', preview: '♛' },
   { key: 'minimal', label: 'Minimal', preview: 'Q' },
-  { key: 'neon',    label: 'Neon',    preview: '✦' },
 ];

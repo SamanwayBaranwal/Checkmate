@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/client';
+import { verifyPrivyAccessToken, devBypassEnabled } from '../services/privyAuth';
+import { recordIdentifiers, deviceIsBanned, clientIp } from '../services/fairplay/trust';
 
 const router = Router();
 
@@ -21,14 +23,44 @@ async function makeReferralCode(): Promise<string> {
 }
 
 router.post('/verify', async (req: Request, res: Response) => {
-  const { privyUserId, wallet, referralCode } = req.body as {
+  const { accessToken, privyUserId: claimedId, wallet, referralCode, deviceId, fingerprint } = req.body as {
+    accessToken?: string;
     privyUserId?: string;
     wallet?: string;
     referralCode?: string;
+    deviceId?: string;     // random id kept in the browser (one person, one account)
+    fingerprint?: string;  // coarse browser fingerprint
   };
 
-  if (!privyUserId || !wallet) {
-    res.status(400).json({ error: 'privyUserId and wallet required' });
+  // Wrong types used to crash later with a 500 (e.g. referralCode.toUpperCase on a number)
+  for (const v of [accessToken, claimedId, wallet, referralCode, deviceId, fingerprint]) {
+    if (v !== undefined && v !== null && (typeof v !== 'string' || v.length > 4096)) {
+      res.status(400).json({ error: 'Invalid request' });
+      return;
+    }
+  }
+
+  // The user id must come from a Privy-signed token, never from the request body.
+  let privyUserId: string;
+  try {
+    if (devBypassEnabled && !accessToken && claimedId) {
+      privyUserId = claimedId; // local development only
+    } else {
+      privyUserId = await verifyPrivyAccessToken(accessToken);
+    }
+  } catch (err: any) {
+    res.status(401).json({ error: 'Login could not be verified. Please sign in again.' });
+    return;
+  }
+
+  if (!wallet || !/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
+    res.status(400).json({ error: 'A valid wallet address is required' });
+    return;
+  }
+
+  // A device that belongs to a banned account cannot come back with a new account
+  if (await deviceIsBanned(deviceId)) {
+    res.status(403).json({ error: 'Account suspended: this device is linked to a banned account' });
     return;
   }
 
@@ -62,6 +94,8 @@ router.post('/verify', async (req: Request, res: Response) => {
 
     const user = await db('users').where({ privy_user_id: privyUserId }).first();
 
+    await recordIdentifiers(user.id, { deviceId, fingerprint, ip: clientIp(req.ip) });
+
     if (user?.banned_at) {
       res.status(403).json({ error: `Account suspended: ${user.ban_reason ?? 'fair play violation'}` });
       return;
@@ -83,7 +117,11 @@ router.post('/verify', async (req: Request, res: Response) => {
         usdcBalance: parseFloat(user.usdc_balance),
       },
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === '23505') { // users.wallet is UNIQUE
+      res.status(409).json({ error: 'This wallet is already linked to another account' });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }

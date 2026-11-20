@@ -7,9 +7,11 @@ export const privyConfig = {
   supportedChains: [base],
   appearance: {
     theme: 'dark' as const,
-    accentColor: '#46a883' as `#${string}`,
-    logo: '/logo.png',
+    accentColor: '#F6F6F7' as `#${string}`,
+    logo: '/brand/elo-logo.png',
   },
+  // Links shown in the login modal footer
+  legal: { termsAndConditionsUrl: '/terms', privacyPolicyUrl: '/privacy' },
   embeddedWallets: {
     createOnLogin: 'users-without-wallets' as const,
   },

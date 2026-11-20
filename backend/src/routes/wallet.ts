@@ -1,9 +1,12 @@
 import { Router, Response } from 'express';
+import { withdrawalCheck } from '../services/fairplay/service';
+import { lockedAmount, recordWithdrawAddress } from '../services/fairplay/trust';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { db } from '../db/client';
 import { createWalletClient, http, parseUnits, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
+import { REAL_MONEY, FREE_PLAY_MESSAGE } from '../config';
 
 const router = Router();
 
@@ -24,13 +27,18 @@ router.get('/balance', requireAuth, async (req: AuthenticatedRequest, res: Respo
       .sum('amount as total')
       .first(),
   ]);
+  const balance = parseFloat(user?.usdc_balance ?? '0');
+  const locked = await lockedAmount(req.userId!);
   res.json({
-    balance: parseFloat(user?.usdc_balance ?? '0'),
+    balance,
     bonusBalance: parseFloat(bonusRow?.total ?? '0'),
+    locked,                                     // winnings waiting for the fair-play check
+    withdrawable: Math.max(0, balance - locked),
   });
 });
 
 router.get('/deposit-address', requireAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  if (!REAL_MONEY) return res.status(403).json({ error: FREE_PLAY_MESSAGE });
   res.json({
     address: PLATFORM_WALLET,
     network: 'Base',
@@ -49,10 +57,25 @@ router.get('/transactions', requireAuth, async (req: AuthenticatedRequest, res: 
 });
 
 router.post('/withdraw', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (!REAL_MONEY) return res.status(403).json({ error: FREE_PLAY_MESSAGE });
   const { amount, toAddress } = req.body as { amount?: number; toAddress?: string };
 
-  if (!amount || amount <= 0 || !toAddress) {
+  // amount must be a real number with at most 6 decimals (USDC precision); strings / NaN / 1e308 rejected
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 1_000_000 ||
+      Math.round(amount * 1e6) / 1e6 !== amount || typeof toAddress !== 'string') {
     res.status(400).json({ error: 'amount and toAddress required' });
+    return;
+  }
+
+  // Fair play: no withdrawals while under review, for new accounts, or before recent games are checked
+  if (!/^0x[0-9a-fA-F]{40}$/.test(toAddress)) {
+    res.status(400).json({ error: 'Invalid address' });
+    return;
+  }
+  await recordWithdrawAddress(req.userId!, toAddress);
+  const fp = await withdrawalCheck(req.userId!, amount);
+  if (!fp.ok) {
+    res.status(403).json({ error: fp.reason });
     return;
   }
 
@@ -61,39 +84,52 @@ router.post('/withdraw', requireAuth, async (req: AuthenticatedRequest, res: Res
     return;
   }
 
+  // 1) Debit atomically: row lock + re-check of locked winnings inside the transaction, so two parallel
+  //    withdrawals cannot both pass the "withdrawable" check and drain locked winnings.
+  let ledgerId: string | null = null;
+  const debitError = await db.transaction(async (trx) => {
+    const u = await trx('users').where({ id: req.userId }).forUpdate().first('usdc_balance');
+    const locked = await lockedAmount(req.userId!, trx);
+    if (!u || parseFloat(u.usdc_balance) - locked + 1e-9 < amount) return 'Insufficient withdrawable balance';
+    await trx('users').where({ id: req.userId }).decrement('usdc_balance', amount);
+    const [row] = await trx('balance_ledger').insert({
+      user_id: req.userId,
+      amount: -amount,
+      type: 'withdrawal',
+      tx_hash: 'pending',
+    }).returning('id');
+    ledgerId = row.id ?? row;
+    return null;
+  });
+  if (debitError) {
+    res.status(400).json({ error: debitError });
+    return;
+  }
+
+  // 2) Send on-chain. If sending fails the debit is reversed (before: the balance was gone with no ledger row).
+  let txHash: string;
   try {
-    const updated = await db('users')
-      .where({ id: req.userId })
-      .where('usdc_balance', '>=', amount)
-      .decrement('usdc_balance', amount);
-
-    if (!updated) {
-      res.status(400).json({ error: 'Insufficient balance' });
-      return;
-    }
-
     const account = privateKeyToAccount(process.env.PLATFORM_WALLET_PRIVATE_KEY as `0x${string}`);
     const walletClient = createWalletClient({ account, chain: base, transport: http(process.env.BASE_RPC_URL) });
-
-    const txHash = await walletClient.writeContract({
+    txHash = await walletClient.writeContract({
       address: USDC_ADDRESS,
       abi: usdcAbi,
       functionName: 'transfer',
       args: [toAddress as `0x${string}`, parseUnits(amount.toString(), 6)],
     });
-
-    await db('balance_ledger').insert({
-      user_id: req.userId,
-      amount: -amount,
-      type: 'withdrawal',
-      tx_hash: txHash,
-    });
-
-    res.json({ txHash, amount, toAddress });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Withdrawal failed' });
+    console.error('Withdrawal send failed, refunding:', err);
+    await db.transaction(async (trx) => {
+      await trx('users').where({ id: req.userId }).increment('usdc_balance', amount);
+      await trx('balance_ledger').where({ id: ledgerId }).update({ tx_hash: 'failed' });
+      await trx('balance_ledger').insert({ user_id: req.userId, amount, type: 'refund', tx_hash: `withdraw_failed_${ledgerId}` });
+    });
+    res.status(502).json({ error: 'Withdrawal failed, your balance was not charged' });
+    return;
   }
+
+  await db('balance_ledger').where({ id: ledgerId }).update({ tx_hash: txHash });
+  res.json({ txHash, amount, toAddress });
 });
 
 router.get('/earnings-chart', requireAuth, async (req: AuthenticatedRequest, res: Response) => {

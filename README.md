@@ -193,3 +193,34 @@ Open `/admin`, enter `ADMIN_SECRET`. Review reports, ban/unban players, search u
 - Move-navigation arrows to step through a game while reviewing
 - Per-page bespoke redesigns (wallet, leaderboard, profile, tournaments)
 - Unified custom icon set (replace remaining emoji)
+
+---
+
+## Fair Play (anti-cheat)
+
+Every finished game is analysed in the background by **Stockfish** (`backend/src/services/fairplay/`):
+
+| Signal | What it means |
+|---|---|
+| Near-engine moves | Share of real decisions (after the opening, game still undecided) where the move is Stockfish's choice or within 10 centipawns of it, compared with what is normal for the player's rating |
+| Avg centipawn loss | How much each move loses vs. the best move, compared with the rating's normal loss |
+| Tab switches | The client reports when the player left the tab/window while it was their turn |
+| Move-time regularity | Server-measured think time per move; engine users are often unnaturally regular |
+
+- One game is never proof. The player decision **pools the last 10 games** (needs 30+ judged moves).
+- **watch**: keep an eye on it, no action. **review**: withdrawals are paused automatically and the player shows up in **Admin → Fair Play**.
+- Admin **Confirm cheater** bans the account, refunds every opponent they beat in paid games (last 30 days) and claws that money back. **Clear** returns the player to clean; older games stop counting.
+- Withdrawals also need `MIN_GAMES_BEFORE_WITHDRAW` games and an account older than `NEW_ACCOUNT_HOLD_HOURS`.
+- Stockfish runs as a separate program (GPL). On Railway it is installed by `backend/nixpacks.toml`; locally: `brew install stockfish`.
+
+**Security fixes in the same change:** login now verifies the Privy access token (set `PRIVY_APP_ID` on the backend), a player can no longer end a lost game as a draw without a real offer, spectators can no longer resign for a player, saved PGNs now contain every move (replays were missing all but the last move), and API errors no longer leave requests hanging.
+
+## Money safety (no KYC)
+
+| Rule | How |
+|---|---|
+| **Locked winnings** | Every win is held for `HOLD_HOURS` (48h) **and** until Stockfish has checked the game **and** the player is `clean`. Players on watch/review keep their winnings locked. Wins above `MANUAL_APPROVAL_OVER` ($25) wait for an admin. Only released money can be withdrawn. Confirmed cheaters' locked wins are reversed. |
+| **Stake limits by trust** | New: up to $5. Trusted (20 clean games, 7+ days): up to $25. Verified (50 clean games, 30+ days): up to $100. Players in review can't play for money. Enforced in matchmaking, challenges, rematches and tournaments. |
+| **One person, one account** | Login records salted hashes of a browser device id, a coarse fingerprint and the IP. Accounts on the same device (or IP, see `PAIRING_BLOCK_SAME_IP`) or with the same payout address are never paired, the starter bonus is once per device, a banned device can't log in with a new account, and admins see linked accounts in the evidence view. |
+
+Admin endpoints: `GET /api/admin/payouts`, `POST /api/admin/payouts/:id/approve|reject`. Player endpoint: `GET /api/users/me/limits`.

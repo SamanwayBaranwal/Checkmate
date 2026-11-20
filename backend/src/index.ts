@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
+// Express 4 ignores errors thrown in async route handlers, which left requests hanging forever
+// (e.g. GET /api/users/<not-a-uuid>). This forwards them to the error handler below.
+import 'express-async-errors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -18,17 +21,37 @@ import missionsRouter from './routes/missions';
 import reportsRouter from './routes/reports';
 import puzzlesRouter from './routes/puzzles';
 import adminRouter from './routes/admin';
+import { apiLimiter, authLimiter, sensitiveLimiter, adminLimiter, socketThrottle } from './middleware/rateLimit';
 
 import { setupMatchmaking, registerUser, unregisterUser } from './socket/matchmaking';
 import { setupGameRoom, startTimeoutChecker, registerGamePlayer } from './socket/gameRoom';
 import { setupSpectator } from './socket/spectator';
-import { setupChallenge, setUserSocket, removeUserSocket } from './socket/challenge';
+import { setupChallenge } from './socket/challenge';
 import { setupTournament } from './socket/tournament';
 import { startDepositWatcher } from './services/deposit';
+import { REAL_MONEY } from './config';
 import { startCronJobs } from './services/cron';
 import { addOnlineSocket, removeOnlineSocket } from './services/onlineUsers';
 import { setIo } from './services/notifications';
 import { db } from './db/client';
+import { redis } from './db/redis';
+import { ensureFairplaySchema, resumePendingAnalysis } from './services/fairplay/service';
+import { runMigrations } from './db/migrate';
+import { startHoldReleaser, recordIdentifiers, clientIp } from './services/fairplay/trust';
+
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// Refuse to boot in production without the secrets the app depends on (instead of failing per request,
+// or signing tokens with a weak/empty key).
+if (IS_PROD) {
+  const missing = ['DATABASE_URL', 'REDIS_URL', 'JWT_SECRET', 'PRIVY_APP_ID', 'ADMIN_SECRET', 'IDENTITY_SALT', 'FRONTEND_URL']
+    .filter((k) => !process.env[k]);
+  const weak = ['JWT_SECRET', 'ADMIN_SECRET', 'IDENTITY_SALT'].filter((k) => (process.env[k] || '').length < 24);
+  if (missing.length || weak.length) {
+    console.error(`Refusing to start: missing env ${missing.join(', ') || '-'}; too short (<24 chars) ${weak.join(', ') || '-'}`);
+    process.exit(1);
+  }
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -37,12 +60,14 @@ const httpServer = createServer(app);
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
   .split(',')
   .map((o) => o.trim());
+// Any *.vercel.app origin (anyone can deploy one) is only trusted outside production, or when explicitly enabled
+const allowVercelPreviews = !IS_PROD || process.env.ALLOW_VERCEL_PREVIEWS === 'true';
 
 const originFn = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
-  if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.vercel.app'))) {
+  if (!origin || allowedOrigins.includes(origin) || (allowVercelPreviews && origin.endsWith('.vercel.app'))) {
     cb(null, true);
   } else {
-    cb(new Error('Not allowed by CORS'));
+    cb(null, false); // no CORS headers -> browser blocks it (before: threw, and every such request was a 500)
   }
 };
 
@@ -50,10 +75,16 @@ const io = new Server(httpServer, {
   cors: { origin: originFn, methods: ['GET', 'POST'], credentials: true },
 });
 
+app.set('trust proxy', 1); // real client IP behind Railway's proxy (one person, one account)
 app.use(helmet());
 app.use(cors({ origin: originFn, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
+app.use(['/api/dev', '/api/reports', '/api/wallet/withdraw', '/api/users/me/daily-bonus'], (req, res, next) =>
+  (req.method === 'GET' ? next() : sensitiveLimiter(req, res, next)));
+app.use('/api/admin', adminLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/wallet', walletRouter);
 app.use('/api/games', gamesRouter);
@@ -67,7 +98,30 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/puzzles', puzzlesRouter);
 app.use('/api/admin', adminRouter);
 
-app.get('/health', (_req, res) => res.json({ ok: true }));
+// Health: also checks Postgres and Redis, so Railway does not route traffic to an instance that can't serve it
+app.get('/health', async (_req, res) => {
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000));
+  try {
+    await Promise.race([Promise.all([db.raw('select 1'), redis.ping()]), timeout]);
+    res.json({ ok: true });
+  } catch {
+    res.status(503).json({ ok: false });
+  }
+});
+
+app.use((_req, res) => { res.status(404).json({ error: 'Not found' }); });
+
+// Last-resort error handler: every request gets an answer, never a hang.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (res.headersSent) return;
+  if (err?.type === 'entity.parse.failed') { res.status(400).json({ error: 'Invalid JSON' }); return; }
+  if (err?.type === 'entity.too.large') { res.status(413).json({ error: 'Request too large' }); return; }
+  if (err?.code === '22P02') { res.status(404).json({ error: 'Not found' }); return; } // invalid uuid etc.
+  if (err?.code === '23503') { res.status(404).json({ error: 'Not found' }); return; } // referenced row missing
+  if (err?.code === '22003' || err?.code === '22007' || err?.code === '22008') { res.status(400).json({ error: 'Invalid input' }); return; }
+  console.error('Unhandled route error:', err);
+  res.status(500).json({ error: 'Server error' });
+});
 
 // Socket.io auth middleware
 io.use((socket, next) => {
@@ -86,17 +140,35 @@ io.use((socket, next) => {
   }
 });
 
+// Every socket event payload must be an object, and any id in it a UUID string. Before: a null payload or
+// 'not-a-uuid' threw inside the handler (unhandled rejection, no reply to the client).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ID_FIELDS = ['gameId', 'challengeId', 'targetId', 'tournamentId'];
+
 io.on('connection', async (socket) => {
   const userId = (socket as any).userId as string | undefined;
+
+  const allowEvent = socketThrottle();
+  socket.use(([event, payload], next) => {
+    if (!allowEvent()) return next(new Error('Too many requests'));
+    if (event === 'leave_queue' && payload === undefined) return next();
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return next(new Error('Invalid payload'));
+    for (const f of ID_FIELDS) {
+      if (f in payload && (typeof payload[f] !== 'string' || !UUID_RE.test(payload[f]))) return next(new Error(`Invalid ${f}`));
+    }
+    next();
+  });
+  socket.on('error', (err) => socket.emit('error', { message: err?.message || 'Bad request' }));
 
   if (userId) {
     const user = await db('users').where({ id: userId }).select('elo', 'wallet').first();
     if (user) {
       registerUser(socket.id, { userId, wallet: user.wallet, elo: user.elo });
-      setUserSocket(userId, socket.id);
       (socket as any).userId = userId;
       addOnlineSocket(userId, socket.id);
       socket.join(`user:${userId}`);
+      recordIdentifiers(userId, { ip: clientIp(socket.handshake.headers['x-forwarded-for'] as string) || clientIp(socket.handshake.address) })
+        .catch(() => {});
     }
   }
 
@@ -109,7 +181,6 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', () => {
     unregisterUser(socket.id);
     if (userId) {
-      removeUserSocket(userId);
       removeOnlineSocket(userId, socket.id);
     }
   });
@@ -117,146 +188,9 @@ io.on('connection', async (socket) => {
 
 setIo(io);
 startTimeoutChecker(io);
-startDepositWatcher();
+if (REAL_MONEY) startDepositWatcher();
+else console.log('Free play mode: deposits and withdrawals are off (set REAL_MONEY=true to enable)');
 startCronJobs();
-
-// Auto-migrate: add new columns and tables if missing
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '{}'`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_bonus TIMESTAMPTZ`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INTEGER NOT NULL DEFAULT 0`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES users(id)`).catch(() => {});
-db.raw(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code) WHERE referral_code IS NOT NULL`).catch(() => {});
-// Widen balance_ledger type constraint to include bonus and referral types
-db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral'))`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS friends (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    friend_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    status     TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, friend_id)
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_friends_user ON friends(user_id)`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_friends_friend ON friends(friend_id)`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS tournaments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    entry_fee NUMERIC(18,6) NOT NULL,
-    max_players INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open',
-    current_round INTEGER NOT NULL DEFAULT 0,
-    total_rounds INTEGER NOT NULL,
-    prize_pool NUMERIC(18,6) NOT NULL DEFAULT 0,
-    winner_id UUID REFERENCES users(id),
-    created_by UUID NOT NULL REFERENCES users(id),
-    starts_at TIMESTAMPTZ,
-    completed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS tournament_players (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tournament_id UUID NOT NULL REFERENCES tournaments(id),
-    user_id UUID NOT NULL REFERENCES users(id),
-    seed INTEGER,
-    status TEXT NOT NULL DEFAULT 'active',
-    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(tournament_id, user_id)
-  )
-`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS tournament_games (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tournament_id UUID NOT NULL REFERENCES tournaments(id),
-    game_id UUID REFERENCES games(id),
-    round INTEGER NOT NULL,
-    player1 UUID NOT NULL REFERENCES users(id),
-    player2 UUID NOT NULL REFERENCES users(id),
-    winner UUID REFERENCES users(id),
-    status TEXT NOT NULL DEFAULT 'pending'
-  )
-`).catch(() => {});
-
-db.raw(`
-  CREATE TABLE IF NOT EXISTS notifications (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type       TEXT NOT NULL,
-    message    TEXT NOT NULL,
-    read       BOOLEAN NOT NULL DEFAULT false,
-    metadata   JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC)`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS user_weekly_missions (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    week_start  DATE NOT NULL,
-    mission_key TEXT NOT NULL,
-    progress    NUMERIC(18,6) NOT NULL DEFAULT 0,
-    completed   BOOLEAN NOT NULL DEFAULT false,
-    rewarded    BOOLEAN NOT NULL DEFAULT false,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, week_start, mission_key)
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_user_weekly_missions_user ON user_weekly_missions(user_id, week_start)`).catch(() => {});
-db.raw(`ALTER TABLE games ADD COLUMN IF NOT EXISTS time_control TEXT NOT NULL DEFAULT '5+0'`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS reports (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reporter_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    reported_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    game_id      UUID REFERENCES games(id),
-    reason       TEXT NOT NULL,
-    details      TEXT,
-    status       TEXT NOT NULL DEFAULT 'open',
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports(reported_id, created_at DESC)`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC)`).catch(() => {});
-db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_seasonal BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
-db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_name TEXT`).catch(() => {});
-db.raw(`ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS season_bonus NUMERIC(18,6) NOT NULL DEFAULT 0`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS user_daily_puzzles (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    puzzle_date DATE NOT NULL,
-    puzzle_id   INTEGER NOT NULL,
-    attempts    INTEGER NOT NULL DEFAULT 0,
-    solved      BOOLEAN NOT NULL DEFAULT false,
-    failed      BOOLEAN NOT NULL DEFAULT false,
-    xp_earned   INTEGER NOT NULL DEFAULT 0,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, puzzle_date)
-  )
-`).catch(() => {});
-db.raw(`CREATE INDEX IF NOT EXISTS idx_user_daily_puzzles_user ON user_daily_puzzles(user_id, puzzle_date DESC)`).catch(() => {});
-db.raw(`
-  CREATE TABLE IF NOT EXISTS user_puzzle_stats (
-    user_id          UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    current_streak   INTEGER NOT NULL DEFAULT 0,
-    longest_streak   INTEGER NOT NULL DEFAULT 0,
-    total_solved     INTEGER NOT NULL DEFAULT 0,
-    last_solved_date DATE,
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger DROP CONSTRAINT IF EXISTS balance_ledger_type_check`).catch(() => {});
-db.raw(`ALTER TABLE balance_ledger ADD CONSTRAINT balance_ledger_type_check CHECK (type IN ('deposit','win','loss','withdrawal','fee','refund','bonus','referral','daily_bonus','first_deposit_bonus'))`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ`).catch(() => {});
-db.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`).catch(() => {});
-db.raw(`ALTER TABLE reports ADD COLUMN IF NOT EXISTS admin_notes TEXT`).catch(() => {});
 
 // Safety net: never let one bad async query crash the whole server
 process.on('unhandledRejection', (reason) => {
@@ -266,7 +200,31 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
 });
 
+// Graceful shutdown (Railway sends SIGTERM on every deploy): stop accepting, close sockets, release DB/Redis.
+// Game state lives in Redis, so players reconnect to the new instance with rejoin_game.
+let shuttingDown = false;
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(sig, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`${sig} received, shutting down`);
+    setTimeout(() => process.exit(0), 8000).unref();
+    io.close(() => {
+      Promise.allSettled([db.destroy(), redis.quit()]).finally(() => process.exit(0));
+    });
+  });
+}
+
 const PORT = parseInt(process.env.PORT || '4000', 10);
-httpServer.listen(PORT, () => {
+// Migrate first: the server only accepts traffic once the schema is up to date.
+runMigrations().then(() => httpServer.listen(PORT, () => {
   console.log(`Checkmate backend running on port ${PORT}`);
+  // Fair play: create tables/columns, then re-queue games that finished but were never analysed
+  ensureFairplaySchema()
+    .then(resumePendingAnalysis)
+    .then(() => startHoldReleaser())
+    .catch((err) => console.error('Fair play setup failed:', err));
+})).catch((err) => {
+  console.error('Database migration failed, not starting:', err);
+  process.exit(1);
 });

@@ -6,15 +6,14 @@ import { getInitialFen } from '../services/chess';
 import { registerGamePlayer } from './gameRoom';
 import { createNotification } from '../services/notifications';
 import { v4 as uuidv4 } from 'uuid';
+import { stakeError, sameOwnerLikely } from '../services/fairplay/trust';
 
-export const userSocketMap = new Map<string, string>();
-
-export function setUserSocket(userId: string, socketId: string) {
-  userSocketMap.set(userId, socketId);
-}
-
-export function removeUserSocket(userId: string) {
-  userSocketMap.delete(userId);
+// A user can have several tabs/devices open: every authenticated socket joins the room `user:<id>` (index.ts).
+// Pick one live socket for game registration, preferring the one that started the action.
+export function pickUserSocket(io: Server, userId: string, preferred?: string): string | undefined {
+  if (preferred && io.sockets.sockets.get(preferred)) return preferred;
+  const room = io.sockets.adapter.rooms.get(`user:${userId}`);
+  return room ? (room.values().next().value as string | undefined) : undefined;
 }
 
 export function setupChallenge(io: Server, socket: Socket) {
@@ -32,8 +31,14 @@ export function setupChallenge(io: Server, socket: Socket) {
       return;
     }
 
-    const targetSocketId = userSocketMap.get(targetId);
-    if (!targetSocketId || !io.sockets.sockets.get(targetSocketId)) {
+    const limitErr = await stakeError(challengerId, betAmount);
+    if (limitErr) { socket.emit('challenge_error', { reason: limitErr }); return; }
+    if (await sameOwnerLikely(challengerId, targetId)) {
+      socket.emit('challenge_error', { reason: 'You cannot play paid games against an account on the same device or network.' });
+      return;
+    }
+
+    if (!pickUserSocket(io, targetId)) {
       socket.emit('challenge_error', { reason: 'Player is not online' });
       return;
     }
@@ -56,7 +61,7 @@ export function setupChallenge(io: Server, socket: Socket) {
     );
 
     const senderName = challenger.username || `${challenger.wallet.slice(0, 6)}...`;
-    io.to(targetSocketId).emit('challenge_received', {
+    io.to(`user:${targetId}`).emit('challenge_received', { // every open tab sees it
       challengeId,
       from: { userId: challengerId, username: senderName, elo: challenger.elo },
       betAmount,
@@ -83,7 +88,19 @@ export function setupChallenge(io: Server, socket: Socket) {
     const { challengerId, targetId, betAmount, challengerSocketId } = JSON.parse(raw);
     if (accepterId !== targetId) { socket.emit('challenge_error', { reason: 'Not your challenge' }); return; }
 
-    await redis.del(`challenge:${challengeId}`);
+    // Consume the challenge atomically: accepting from two tabs used to start two paid games
+    if ((await redis.del(`challenge:${challengeId}`)) !== 1) {
+      socket.emit('challenge_error', { reason: 'Challenge expired' });
+      return;
+    }
+
+    // The challenger may have closed the tab they challenged from: use another of their tabs, or stop here
+    // (before any money moves) instead of starting a paid game they can't see.
+    const challengerSock = pickUserSocket(io, challengerId, challengerSocketId);
+    if (!challengerSock) { socket.emit('challenge_error', { reason: 'Your opponent is no longer online' }); return; }
+
+    const limitErr = (await stakeError(accepterId, betAmount)) || (await stakeError(challengerId, betAmount));
+    if (limitErr) { socket.emit('challenge_error', { reason: limitErr }); return; }
 
     const [whiteOk, blackOk] = await Promise.all([
       reserveBet(challengerId, betAmount),
@@ -127,8 +144,8 @@ export function setupChallenge(io: Server, socket: Socket) {
       redis.set(`game:${gameId}:clocks`, JSON.stringify(clocks)),
     ]);
 
-    const whiteSocketId = whiteId === challengerId ? challengerSocketId : socket.id;
-    const blackSocketId = blackId === challengerId ? challengerSocketId : socket.id;
+    const whiteSocketId = whiteId === challengerId ? challengerSock : socket.id;
+    const blackSocketId = blackId === challengerId ? challengerSock : socket.id;
 
     registerGamePlayer(
       gameId,
@@ -151,8 +168,9 @@ export function setupChallenge(io: Server, socket: Socket) {
   socket.on('decline_challenge', async ({ challengeId }: { challengeId: string }) => {
     const raw = await redis.get(`challenge:${challengeId}`);
     if (!raw) return;
-    const { challengerSocketId } = JSON.parse(raw);
+    const { challengerId, targetId } = JSON.parse(raw);
+    if ((socket as any).userId !== targetId) return; // only the challenged player can decline
     await redis.del(`challenge:${challengeId}`);
-    io.to(challengerSocketId).emit('challenge_declined', { challengeId });
+    io.to(`user:${challengerId}`).emit('challenge_declined', { challengeId });
   });
 }

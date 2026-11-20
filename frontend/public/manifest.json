@@ -1,13 +1,16 @@
 {
-  "name": "Checkmate",
-  "short_name": "Checkmate",
-  "description": "Bet chess — wager USDC, play live, win instant payouts",
+  "name": "ELO",
+  "short_name": "ELO",
+  "description": "Play rated chess against real people and win money. Fair play checked on every game.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
+  "background_color": "#111112",
+  "theme_color": "#111112",
   "orientation": "portrait-primary",
-  "categories": ["games", "finance"],
+  "categories": [
+    "games",
+    "finance"
+  ],
   "icons": [
     {
       "src": "/icon.svg",
@@ -16,10 +19,23 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "/"
 }

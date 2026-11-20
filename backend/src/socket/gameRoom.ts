@@ -2,9 +2,11 @@ import { Server, Socket } from 'socket.io';
 import { redis } from '../db/redis';
 import { db } from '../db/client';
 import { applyMove } from '../services/chess';
-import { settleGame, refundBet, reserveBet } from '../services/balance';
+import { settleGame, reserveBet } from '../services/balance';
 import { Chess } from 'chess.js';
 import { onTournamentGameOver } from './tournament';
+import { queueGameAnalysis, MoveMeta } from '../services/fairplay/service';
+import { stakeError, sameOwnerLikely, holdWinnings } from '../services/fairplay/trust';
 
 interface ClockState {
   white: number;
@@ -20,11 +22,23 @@ interface GamePlayer {
 
 // gameId → players map for quick lookup
 const gamePlayerMap = new Map<string, { white: GamePlayer; black: GamePlayer }>();
-const pgnMap = new Map<string, string>(); // gameId → ongoing PGN
+const moveMetaMap = new Map<string, MoveMeta[]>(); // gameId → per-move think time + tab-switch flag (fair play)
 
 export function registerGamePlayer(gameId: string, white: GamePlayer, black: GamePlayer) {
   gamePlayerMap.set(gameId, { white, black });
-  pgnMap.set(gameId, '');
+  moveMetaMap.set(gameId, []);
+}
+
+/** Which colour (if any) this socket plays in this game. Spectators get null. */
+function colorOfSocket(gameId: string, socket: Socket): 'white' | 'black' | null {
+  const players = gamePlayerMap.get(gameId);
+  if (!players) return null;
+  if (players.white.socketId === socket.id) return 'white';
+  if (players.black.socketId === socket.id) return 'black';
+  const userId = (socket as any).userId as string | undefined;
+  if (userId && players.white.userId === userId) return 'white';
+  if (userId && players.black.userId === userId) return 'black';
+  return null;
 }
 
 function tickClock(clocks: ClockState, turn: 'white' | 'black'): ClockState {
@@ -64,7 +78,7 @@ export function setupGameRoom(io: Server, socket: Socket) {
       const whitePlayer: GamePlayer = { userId: game.player_white, color: 'white', socketId: isWhite ? socket.id : '' };
       const blackPlayer: GamePlayer = { userId: game.player_black, color: 'black', socketId: isBlack ? socket.id : '' };
       gamePlayerMap.set(gameId, { white: whitePlayer, black: blackPlayer });
-      pgnMap.set(gameId, '');
+      if (!moveMetaMap.has(gameId)) moveMetaMap.set(gameId, []);
     }
 
     const [fen, turn, clocksRaw] = await Promise.all([
@@ -85,6 +99,8 @@ export function setupGameRoom(io: Server, socket: Socket) {
       turn: turn || 'white',
       clocks: clocksRaw ? JSON.parse(clocksRaw) : { white: 300000, black: 300000 },
       betAmount: parseFloat(game.bet_amount),
+      timeControl: game.time_control,
+      moves: await redis.lrange(`game:${gameId}:moves`, 0, -1), // so a page refresh shows the full move list
       opponent: {
         username: opponent?.username || opponent?.wallet?.slice(0, 8) || 'Opponent',
         elo: opponent?.elo || 1200,
@@ -92,11 +108,12 @@ export function setupGameRoom(io: Server, socket: Socket) {
     });
   });
 
-  socket.on('move', async ({ gameId, from, to, promotion }: {
+  socket.on('move', async ({ gameId, from, to, promotion, blurred }: {
     gameId: string;
     from: string;
     to: string;
     promotion?: string;
+    blurred?: boolean;
   }) => {
     // Hot path: only read from Redis (fast) — no Postgres round trip per move
     const [fen, turnRaw, clocksRaw] = await Promise.all([
@@ -135,6 +152,11 @@ export function setupGameRoom(io: Server, socket: Socket) {
 
     const nextTurn: 'white' | 'black' = turn === 'white' ? 'black' : 'white';
 
+    // Fair play: server-measured think time for this move + whether the player left the tab
+    const meta = moveMetaMap.get(gameId) ?? [];
+    meta.push({ thinkMs: Math.max(0, clocks[turn] - updatedClocks[turn]), blurred: blurred === true });
+    moveMetaMap.set(gameId, meta);
+
     // Broadcast the move IMMEDIATELY — this is what the players are waiting for
     io.to(gameId).emit('move_made', {
       fen: result.fen,
@@ -145,12 +167,11 @@ export function setupGameRoom(io: Server, socket: Socket) {
       clocks: { white: updatedClocks.white, black: updatedClocks.black },
     });
 
-    // Persist state AFTER broadcasting (doesn't block the move reaching players)
-    const chess = new Chess(fen);
-    chess.move({ from, to, promotion: promotion as any });
-    pgnMap.set(gameId, chess.pgn());
-
+    // Persist state AFTER broadcasting (doesn't block the move reaching players).
+    // Full move list lives in Redis so the saved PGN has EVERY move (before: a Chess built from the
+    // current FEN was saved, so the PGN only ever contained the last move, which broke replays).
     Promise.all([
+      redis.rpush(`game:${gameId}:moves`, result.san!),
       redis.set(`game:${gameId}:fen`, result.fen!),
       redis.set(`game:${gameId}:turn`, result.isGameOver ? 'over' : nextTurn),
       redis.set(`game:${gameId}:clocks`, JSON.stringify(updatedClocks)),
@@ -167,18 +188,29 @@ export function setupGameRoom(io: Server, socket: Socket) {
     const game = await db('games').where({ id: gameId, status: 'active' }).first();
     if (!game) return;
 
-    const players = gamePlayerMap.get(gameId);
-    const resigningColor = players?.white.socketId === socket.id ? 'white' : 'black';
+    // Only a player of this game can resign (before: any socket in the room, e.g. a spectator, resigned for black)
+    const resigningColor = colorOfSocket(gameId, socket);
+    if (!resigningColor) return;
     const winnerColor: 'white' | 'black' = resigningColor === 'white' ? 'black' : 'white';
 
     await handleGameEnd(io, gameId, game, winnerColor, 'resignation');
   });
 
-  socket.on('offer_draw', ({ gameId }: { gameId: string }) => {
+  socket.on('offer_draw', async ({ gameId }: { gameId: string }) => {
+    const color = colorOfSocket(gameId, socket);
+    if (!color) return;
+    await redis.set(`game:${gameId}:drawOfferBy`, color, 'EX', 120);
     socket.to(gameId).emit('draw_offered');
   });
 
+  // A draw ends the game and refunds both bets, so it must be a real offer from the OTHER player.
+  // (Before: a losing player could send accept_draw on their own and get their bet back.)
   socket.on('accept_draw', async ({ gameId }: { gameId: string }) => {
+    const color = colorOfSocket(gameId, socket);
+    if (!color) return;
+    const offeredBy = await redis.get(`game:${gameId}:drawOfferBy`);
+    if (!offeredBy || offeredBy === color) return;
+    await redis.del(`game:${gameId}:drawOfferBy`);
     const game = await db('games').where({ id: gameId, status: 'active' }).first();
     if (!game) return;
     await handleGameEnd(io, gameId, game, null, 'draw');
@@ -186,7 +218,8 @@ export function setupGameRoom(io: Server, socket: Socket) {
 
   socket.on('chat_message', async ({ gameId, text }: { gameId: string; text: string }) => {
     const userId = (socket as any).userId as string | undefined;
-    if (!userId || !text || !text.trim()) return;
+    if (!userId || typeof text !== 'string' || !text.trim()) return;
+    if (!socket.rooms.has(gameId)) return; // only players/spectators of this game can post into it
     const cleaned = text.trim().slice(0, 200);
     const user = await db('users').where({ id: userId }).select('username', 'wallet').first();
     const sender = user?.username || (user?.wallet ? `${user.wallet.slice(0, 6)}...` : 'Player');
@@ -196,6 +229,10 @@ export function setupGameRoom(io: Server, socket: Socket) {
   socket.on('offer_rematch', async ({ gameId }: { gameId: string }) => {
     const userId = (socket as any).userId as string | undefined;
     if (!userId) return;
+    // Only a player of this (finished) game may offer a rematch. Before: any logged-in user could overwrite
+    // the offer and the real opponent, clicking "accept", got a paid game against a stranger.
+    const g = await db('games').where({ id: gameId, status: 'completed' }).first('player_white', 'player_black');
+    if (!g || (g.player_white !== userId && g.player_black !== userId)) return;
     // TTL 5 minutes
     await redis.set(`rematch:${gameId}:offeredBy`, `${userId}:${socket.id}`, 'EX', 300);
     // Only notify the opponent (socket.to excludes the sender)
@@ -214,6 +251,16 @@ export function setupGameRoom(io: Server, socket: Socket) {
 
     const game = await db('games').where({ id: gameId }).first();
     if (!game) return;
+    const players = [game.player_white, game.player_black];
+    if (!players.includes(userId) || !players.includes(offeredByUserId)) {
+      socket.emit('rematch_error', { reason: 'Not your game' });
+      return;
+    }
+    // Consume the offer atomically: two "accept" clicks (two tabs) must not create two paid games
+    if ((await redis.del(`rematch:${gameId}:offeredBy`)) !== 1) {
+      socket.emit('rematch_error', { reason: 'Rematch offer expired' });
+      return;
+    }
 
     const betAmount = parseFloat(game.bet_amount);
 
@@ -221,6 +268,10 @@ export function setupGameRoom(io: Server, socket: Socket) {
     const offererWasWhite = game.player_white === offeredByUserId;
     const newWhiteId = offererWasWhite ? userId : offeredByUserId;
     const newBlackId = offererWasWhite ? offeredByUserId : userId;
+
+    const limitErr = (await stakeError(newWhiteId, betAmount)) || (await stakeError(newBlackId, betAmount));
+    if (limitErr) { socket.emit('rematch_error', { reason: limitErr }); return; }
+    if (await sameOwnerLikely(newWhiteId, newBlackId)) { socket.emit('rematch_error', { reason: 'Not allowed between accounts on the same device or network' }); return; }
 
     const [whiteOk, blackOk] = await Promise.all([
       reserveBet(newWhiteId, betAmount),
@@ -291,49 +342,83 @@ async function handleGameEnd(
   winnerColor: 'white' | 'black' | null,
   result: string
 ) {
-  const players = gamePlayerMap.get(gameId);
-  if (!players) return;
+  // Player ids come from the DB row, not the in-memory map: the map is empty after a restart, which used to
+  // make the timeout checker skip the game forever (both stakes locked).
+  const whiteId: string = game.player_white;
+  const blackId: string = game.player_black;
+  if (!whiteId || !blackId) return;
 
-  // Clean up Redis
-  await Promise.all([
-    redis.del(`game:${gameId}:fen`),
-    redis.del(`game:${gameId}:turn`),
-    redis.del(`game:${gameId}:clocks`),
-    redis.del(`game:${gameId}:spectators`),
-  ]);
+  // Rebuild the full PGN from every move played
+  const sans = await redis.lrange(`game:${gameId}:moves`, 0, -1);
+  const full = new Chess();
+  for (const san of sans) { try { full.move(san); } catch { break; } }
+  const pgn = sans.length ? full.pgn() : '';
+  const moveMeta = moveMetaMap.get(gameId) || [];
 
-  const pgn = pgnMap.get(gameId) || '';
-  pgnMap.delete(gameId);
-  gamePlayerMap.delete(gameId);
-
-  if (result === 'draw') {
-    // Refund both players for draws
+  const cleanup = async () => {
+    moveMetaMap.delete(gameId);
+    gamePlayerMap.delete(gameId);
     await Promise.all([
-      refundBet(players.white.userId, parseFloat(game.bet_amount)),
-      refundBet(players.black.userId, parseFloat(game.bet_amount)),
+      redis.del(`game:${gameId}:moves`),
+      redis.del(`game:${gameId}:fen`),
+      redis.del(`game:${gameId}:turn`),
+      redis.del(`game:${gameId}:clocks`),
+      redis.del(`game:${gameId}:spectators`),
+      redis.del(`game:${gameId}:drawOfferBy`),
     ]);
-    await db('games').where({ id: gameId }).update({ status: 'completed', result: 'draw', pgn, completed_at: new Date() });
+  };
+  // Fair play: every finished game is analysed in the background by Stockfish
+  const queueAnalysis = async () => {
+    await db('games').where({ id: gameId }).update({ move_meta: JSON.stringify(moveMeta), analysis_status: 'pending' });
+    queueGameAnalysis(gameId);
+  };
 
-    io.to(gameId).emit('game_over', { result: 'draw', winner: null, eloChange: 0 });
+  // Any game without a winner is a draw: agreed draw, stalemate, insufficient material, repetition, 50 moves.
+  // (Before: only result === 'draw' was treated as a draw, so a stalemate paid black, then failed the
+  // games.result CHECK constraint and left the game stuck 'active' with both stakes gone.)
+  if (winnerColor === null || result === 'draw') {
+    const bet = parseFloat(game.bet_amount);
+    // Claim + refund in one transaction; only the first of several racing callers gets here.
+    const claimed = await db.transaction(async (trx) => {
+      const n = await trx('games').where({ id: gameId, status: 'active' })
+        .update({ status: 'completed', result: 'draw', pgn, completed_at: new Date() });
+      if (!n) return false;
+      if (bet > 0) {
+        for (const uid of [whiteId, blackId]) {
+          await trx('users').where({ id: uid }).increment('usdc_balance', bet);
+          await trx('balance_ledger').insert({ user_id: uid, amount: bet, type: 'refund', game_id: gameId });
+        }
+      }
+      return true;
+    });
+    if (!claimed) return;
+    await cleanup();
+
+    io.to(gameId).emit('game_over', { result: 'draw', reason: result, winner: null, eloChange: 0 });
+    await queueAnalysis();
     return;
   }
 
-  const winnerId = winnerColor === 'white' ? players.white.userId : players.black.userId;
-  const loserId = winnerColor === 'white' ? players.black.userId : players.white.userId;
+  const winnerId = winnerColor === 'white' ? whiteId : blackId;
+  const loserId = winnerColor === 'white' ? blackId : whiteId;
 
-  const { eloChange, payout, streakBonus, streak } = await settleGame(
+  const settled = await settleGame(
     gameId,
     winnerId,
     loserId,
-    winnerColor!,
+    winnerColor,
     parseFloat(game.bet_amount),
     result,
     pgn,
-    players.white.userId,
-    players.black.userId,
+    whiteId,
+    blackId,
     game.white_elo_before,
     game.black_elo_before
   );
+  // Someone else (resign / timeout / last move racing) already finished this game: never pay twice.
+  if (!settled) return;
+  await cleanup();
+  const { eloChange, payout, streakBonus, streak } = settled;
 
   const [winnerUser, loserUser] = await Promise.all([
     db('users').where({ id: winnerId }).select('usdc_balance', 'elo').first(),
@@ -356,6 +441,10 @@ async function handleGameEnd(
       [loserId]: loserUser.elo,
     },
   });
+
+  await queueAnalysis();
+  // Money safety: winnings stay locked until this game is checked and the cooling period passes
+  await holdWinnings(winnerId, gameId, payout).catch((e) => console.error('hold failed', e));
 
   // If this game belongs to a tournament, advance the bracket
   const tGame = await db('tournament_games').where({ game_id: gameId }).first();

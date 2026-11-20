@@ -1,80 +1,60 @@
 'use client';
 
-import { usePrivy } from '@privy-io/react-auth';
-import { Logo } from './Logo';
+import { useSession } from '@/lib/session';
 import { Icon, type IconName } from './Icons';
+import BoardPreview from './BoardPreview';
+import Link from 'next/link';
+import { REAL_MONEY } from '@/lib/site';
 
-const FEATURES: { icon: IconName; title: string; desc: string }[] = [
-  { icon: 'pawn', title: 'Play', desc: 'Real-time chess matches, any skill level' },
-  { icon: 'winrate', title: 'Improve', desc: 'Climb the ELO ladder and track progress' },
-  { icon: 'trophy', title: 'Earn', desc: 'Win games and climb for daily rewards' },
+const POINTS: { icon: IconName; color: string; title: string; desc: string }[] = [
+  { icon: 'bolt', color: '#F2A93B', title: 'A game in seconds', desc: 'Bullet, blitz or rapid against someone at your level.' },
+  { icon: 'shield', color: '#9B82FF', title: 'Cheaters don’t get paid', desc: 'Stockfish checks every game before any winnings unlock.' },
+  { icon: 'gift', color: '#4C9BFF', title: '$10 on us', desc: 'Free credits when you join. No card needed.' },
 ];
 
 export default function AuthLanding() {
-  const { login } = usePrivy();
-
+  const { login } = useSession();
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10">
-      <div className="grid lg:grid-cols-2 gap-6 items-stretch">
-        {/* Left — branding */}
-        <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] p-8 flex flex-col justify-between min-h-[460px]">
-          <div
-            className="absolute inset-0 opacity-[0.04] pointer-events-none"
-            style={{ backgroundImage: 'conic-gradient(#fff 90deg, transparent 90deg 180deg, #fff 180deg 270deg, transparent 270deg)', backgroundSize: '52px 52px' }}
-          />
-          <div className="absolute -bottom-28 -right-16 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(70,168,131,0.16) 0%, transparent 68%)' }} />
-
-          <div className="relative">
-            <Logo size={40} />
-            <h1 className="text-4xl sm:text-5xl font-extrabold leading-[1.03] mt-8">
-              EVERY MOVE.<br />EVERY <span className="text-[#46a883]">RISE.</span>
-            </h1>
-            <p className="text-white/50 text-sm font-semibold tracking-wide mt-3">PLAY. IMPROVE. EARN.</p>
-          </div>
-
-          <div className="relative flex items-end justify-between gap-4 mt-8">
-            <div className="space-y-2.5">
-              {FEATURES.map((f) => (
-                <div key={f.title} className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-lg bg-[#46a883]/12 flex items-center justify-center text-[#46a883]"><Icon name={f.icon} size={16} /></span>
-                  <div>
-                    <div className="text-sm font-semibold leading-none">{f.title}</div>
-                    <div className="text-xs text-white/40 mt-0.5">{f.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <img src="/brand/el-happy.png" alt="ELO mascot" className="hidden sm:block w-28 rounded-2xl shrink-0 select-none pointer-events-none" />
-          </div>
-        </div>
-
-        {/* Right — auth card */}
-        <div className="rounded-2xl border border-white/[0.07] bg-[#141715] p-8 flex flex-col justify-center">
-          <h2 className="text-2xl font-bold mb-1">Welcome</h2>
-          <p className="text-sm text-white/45 mb-7">Sign in to play, climb, and earn.</p>
-
-          <div className="space-y-3">
-            <button onClick={login} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
-              Sign in / Sign up
-            </button>
-            <button onClick={login} className="btn-secondary w-full py-3 flex items-center justify-center gap-2">
-              <Icon name="google" size={16} /> Continue with Google
-            </button>
-            <button onClick={login} className="btn-secondary w-full py-3 flex items-center justify-center gap-2">
-              <Icon name="wallet-connect" size={16} /> Continue with Wallet
-            </button>
-          </div>
-
-          <div className="mt-6 rounded-lg bg-[#46a883]/8 border border-[#46a883]/20 px-4 py-3 text-center">
-            <p className="text-sm text-[#46a883] font-semibold flex items-center justify-center gap-1.5"><Icon name="gift" size={15} /> New players get $10 free credits</p>
-            <p className="text-xs text-white/40 mt-0.5">Start playing instantly — no payment needed.</p>
-          </div>
-
-          <p className="text-[11px] text-white/25 text-center mt-6 leading-relaxed">
-            By continuing you agree to fair play. Skill-based chess only.
+    <div className="max-w-6xl mx-auto px-4 md:px-8 pt-6 md:pt-14 pb-12">
+      <div className="grid lg:grid-cols-[1fr_minmax(0,520px)] gap-10 lg:gap-14 items-center">
+        <div>
+          <h1 className="text-[44px] leading-[1.02] md:text-[64px] font-black tracking-tight">
+            Play chess.<br /><span className="text-muted">{REAL_MONEY ? 'Win money.' : 'Win credits.'}</span>
+          </h1>
+          <p className="text-muted text-lg md:text-xl font-medium mt-4 max-w-md">
+            Rated games against real people. The better you play, the more you take home.
           </p>
+          <div className="flex flex-col sm:flex-row gap-3 mt-8">
+            <button onClick={login} className="btn-primary h-14 px-8 text-lg">Play now, it&apos;s free</button>
+            <button onClick={login} className="btn-secondary h-14 px-6 text-lg">Log in</button>
+          </div>
+          <p className="text-sm text-faint font-medium mt-3">Email, Google or wallet. Takes 10 seconds.</p>
+          {!REAL_MONEY && <p className="text-xs text-faint mt-1.5">Free to play. Credits have no cash value.</p>}
+
+          <div className="lg:hidden mt-10"><BoardPreview /></div>
+
+          <div className="mt-10 grid gap-3">
+            {POINTS.map((p) => (
+              <div key={p.title} className="flex items-center gap-4 rounded-2xl bg-surface border border-line/[0.07] px-4 py-3.5">
+                <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${p.color}26`, color: p.color }}>
+                  <Icon name={p.icon} size={20} />
+                </span>
+                <div>
+                  <div className="font-extrabold">{p.title}</div>
+                  <div className="text-sm text-muted font-medium">{p.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+        <div className="hidden lg:block"><BoardPreview /></div>
       </div>
+      <footer className="mt-14 pt-6 border-t border-line/[0.07] flex flex-wrap gap-x-5 gap-y-2 text-sm text-faint font-medium">
+        <span>© {new Date().getFullYear()} ELO</span>
+        <Link href="/terms" className="hover:text-ink">Terms</Link>
+        <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+        <Link href="/leaderboard" className="hover:text-ink">Leaderboard</Link>
+      </footer>
     </div>
   );
 }

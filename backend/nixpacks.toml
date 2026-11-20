@@ -1,0 +1,3 @@
+# Railway (Nixpacks): install the Stockfish chess engine for fair-play analysis
+[phases.setup]
+nixPkgs = ["...", "stockfish"]
